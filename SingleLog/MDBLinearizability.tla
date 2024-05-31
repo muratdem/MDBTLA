@@ -14,11 +14,12 @@ mdbVars == <<mdbVarsExceptLog, log>>
 
 MDB == INSTANCE MDB
 
+ASSUME WC \in MDB!WCVALUES
+ASSUME RC \in MDB!RCVALUES
+
 ---------------------------------------------------------------------
 
-\* This is a specification that performs arbitrary writes to MDB,
-\* set to strong consistency
-
+\* This is a specification that performs arbitrary writes to MDB
 vars == <<mdbVars>>
 
 WriteBegin ==
@@ -30,7 +31,6 @@ DBNext ==
     /\ MDB!Next
 
 LinInit ==
-\*    /\ WC = StrongConsistency
     /\ MDB!Init
 
 LinNext ==
@@ -40,6 +40,12 @@ LinNext ==
 LinSpec ==
     /\ LinInit
     /\ [][LinNext]_vars
+
+\* dictView is expressed as a refinement mapping over MDB reads, choosing
+\* the single strong consistency read value for each key per state for RC:linearizable
+dictView == [ key \in Keys |->
+    CHOOSE read \in MDB!Read(key) : TRUE
+]
 
 ---------------------------------------------------------------------
 
@@ -51,13 +57,7 @@ LinSpec ==
 \* The point is, if the MDB arbitrary writes spec refines this one, then
 \* the MDB spec at strong consistency offers linearizable operations.
 
-\* dictView is expressed as a refinement mapping over MDB reads, choosing
-\* the single strong consistency read value for each key per state.
-dictView == [ key \in Keys |->
-    CHOOSE read \in MDB!StrongConsistencyRead(key) : TRUE
-]
 
-\* The dictionary starts empty, like Cosmos DB
 DictInit ==
     /\ commitIndex = 0
     /\ dictView = [ key \in Keys |-> MDB!NotFoundReadResult ]
@@ -79,6 +79,7 @@ DictWriteNTimes(n, dv, idx) ==
                 [dv EXCEPT ![key] = [value |-> value, logIndex |-> idx + 1]],
                 idx + 1)
 
+\* DictWrite updates its DictView, and we check if this is in line with above DictView view
 DictWrite ==
     \E n \in 1..LogLength-1 :
         DictWriteNTimes(n, dictView, commitIndex)
@@ -87,7 +88,9 @@ DictNext ==
     \/ DictWrite
     \/ UNCHANGED <<dictView, commitIndex>>
 
-DictSpec == DictInit /\ [][DictNext]_<<dictView, commitIndex>>
+DictSpec == 
+    /\ DictInit 
+    /\ [][DictNext]_<<dictView, commitIndex>>
 
 ---------------------------------------------------------------------
 
@@ -103,4 +106,4 @@ Alias == [
     epoch |-> epoch
 ]
 
-====
+============================================================================

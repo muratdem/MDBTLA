@@ -1,8 +1,8 @@
 ---- MODULE MDB ----
 EXTENDS Sequences, Naturals
 
-CONSTANTS WC,
-          RC  
+CONSTANTS WC,  \* write concern
+          RC   \* read concern
 
 CONSTANTS Keys, 
           Values, 
@@ -15,7 +15,7 @@ RCVALUES == {"linearizable",
              "snapshot", 
              "local",
              "available"}
-    
+
 LogIndices == Nat \ {0}
 
 Epochs == Nat \ {0}
@@ -38,25 +38,16 @@ Logs == Seq(LogEntries)
 
 Max(S) == CHOOSE x \in S : \A y \in S : x >= y
 
+
 ---------------------------------------------------------------------
-\* Additionally, commitIndex, readIndex, and epoch express a high-level view of
+\* CommitIndex, readIndex, and epoch express a high-level view of
 \* underlying processes like replication and failure recovery:
 \* - the commitIndex indicates a position in the log (or 0 for no position)
-\*   before which data is durable. One can think of this as tracking global consensus,
-\*   and in fact strongly consistent reads will always return the latest relevant
-\*   information whose index is <= commitIndex.
-\* - the readIndex arbitrarily lags behind the commitIndex, and models the point
-\*   before which _every single replica in the entire system_ has already replicated
-\*   the data in the log. No operation should ever return out of sync data staler
-\*   than this point in the log, because by definition no replica can be staler than
-\*   this point in the log.
-\* - the epoch increments strictly monotonically whenever  log  is non-deterministically
+\*   before which data is durable.
+\* - the readIndex arbitrarily lags behind the commitIndex
+\* - the epoch increments strictly monotonically whenever log is non-deterministically
 \*   truncated in the range (commitIndex+1)..Len(log)), modeling loss of uncommitted data
-\*   due to node failures when all session tokens of the current epoch become invalid.
-\*   Thus, Epoch is only used by session consistency to detect data loss due to truncation
-\*   and prevent invalid reads/writes when session consistency can no longer be guaranteed
-\*   for a given token.
-\*
+\*   due to node failures
 
 VARIABLES log, commitIndex, readIndex, epoch
 
@@ -68,24 +59,12 @@ TypesOK ==
     /\ readIndex \in Nat
     /\ epoch \in Epochs
 
-
-
 \* This operator initiates a write, adding it to the log.
 WriteInit(key, value) ==
     /\ log' = Append(log, [
             key |-> key,
             value |-> value
        ])
-
-\* Adjacent to WriteInit, this operator will return a token
-\* representative of that write.
-\* This token is suitable both as a fresh session token, and as an ephemeral
-\* token tracking the progress of a write from init to success or failure.
-\* WriteInitToken == [
-\*     epoch |-> epoch,
-\*     checkpoint |-> Len(log) + 1
-\* ]
-
 
 \* For a given key, a read can be entirely defined by a value and a flag:
 \* - point is a point in the log to which the read should be applied.
@@ -117,29 +96,29 @@ GeneralRead(key, index, allowDirty) ==
          THEN {NotFoundReadResult}
          ELSE {})
 
-StrongConsistencyRead(key) ==
-        GeneralRead(key, commitIndex, FALSE)
+Read(key) == CASE 
+            RC = "linearizable" -> GeneralRead(key, commitIndex, FALSE)
+         [] RC = "available"    -> GeneralRead(key, readIndex, TRUE)
 
-EventualConsistencyRead(key) ==
-        GeneralRead(key, readIndex, TRUE)
+
+ReadAtTime(token, key) ==
+        IF   TRUE
+             \* \/ epoch = token.epoch  \* invalidate token on epoch change
+             \* \/ token = [checkpoint |-> 0,epoch |-> 0] \* NoSessionToken hack !!
+        THEN LET sessionIndex == Max({token.checkpoint, readIndex})
+             IN  GeneralRead(key, sessionIndex, TRUE)
+        ELSE {}
 
 ---------------------------------------------------------------------
 \* actions and main spec
 
 \* Expand the prefix of the log that can no longer be lost.
-\* In reality, this and IncreasereadIndex correspond to the
-\* human-assisted process of ensuring propagation and
-\* replication happens such that durability is guaranteed.
 IncreaseReadIndexAndOrCommitIndex ==
     /\ commitIndex' \in commitIndex..Len(log)
     /\ readIndex' \in readIndex..commitIndex'
     /\ UNCHANGED <<log, epoch>>
 
-\* Any data that is not part of the checkpointed log prefix
-\* (see above) may be lost at any time. Operations that
-\* require durability would wait until the commitIndex
-\* "catches up" to ensure the data they add to the log is not
-\* lost.
+\* Any data that is not part of the checkpointed log prefix may be lost at any time. 
 TruncateLog ==
     \E i \in (commitIndex+1)..Len(log) :
         /\ log' = SubSeq(log, 1, i - 1)
@@ -153,11 +132,8 @@ Init ==
     /\ epoch = 1
 
 \* This relation models all possible log actions, without performing any write.
-\* To check general features of this specification, see CosmosDBProps.
-\* To use this specification as part of your own, look at the show*simple.tla or
-\* CosmosDBClient specs to see how specific writes should be modeled.
 Next ==
     \/ IncreaseReadIndexAndOrCommitIndex
     \/ TruncateLog
 
-====
+===============================================================================
