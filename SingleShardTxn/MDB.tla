@@ -40,23 +40,21 @@ Max(S) == CHOOSE x \in S : \A y \in S : x >= y
 
 
 ---------------------------------------------------------------------
-\* CommitIndex, readIndex, and epoch express a high-level view of
+\* CommitIndex and epoch express a high-level view of
 \* underlying processes like replication and failure recovery:
 \* - the commitIndex indicates a position in the log (or 0 for no position)
 \*   before which data is durable.
-\* - the readIndex arbitrarily lags behind the commitIndex
 \* - the epoch increments strictly monotonically whenever log is non-deterministically
 \*   truncated in the range (commitIndex+1)..Len(log)), modeling loss of uncommitted data
 \*   due to node failures
 
-VARIABLES log, commitIndex, readIndex, epoch
+VARIABLES log, commitIndex, epoch
 
-vars == <<log, commitIndex, readIndex, epoch>>
+mvars == <<log, commitIndex, epoch>>
 
 TypesOK ==
     /\ log \in Logs
     /\ commitIndex \in Nat
-    /\ readIndex \in Nat
     /\ epoch \in Epochs
 
 \* This operator initiates a write, adding it to the log.
@@ -100,16 +98,16 @@ Read(key) == CASE
             \* linearizable reads from commitIndex and forbids dirty reads
             RC = "linearizable" -> GeneralRead(key, commitIndex, FALSE)
 
-            \* available reads from readIndex, because the node we reach may be behind commitIndex; 
-            \* it also allows dirty reads
-         [] RC = "available"    -> GeneralRead(key, readIndex, TRUE)
+        \*     \* available reads from readIndex, because the node we reach may be behind commitIndex; 
+        \*     \* it also allows dirty reads
+        \*  [] RC = "available"    -> GeneralRead(key, readIndex, TRUE)
 
 \* causal hlc read at or more recent than what we received last from a read/write
 ReadAtTime(token, key) ==
         IF   TRUE
              \* \/ epoch = token.epoch  \* invalidate token on epoch change
              \* \/ token = [checkpoint |-> 0,epoch |-> 0] \* NoSessionToken hack !!
-        THEN LET sessionIndex == Max({token.checkpoint, readIndex})
+        THEN LET sessionIndex ==  token.checkpoint \* Max({token.checkpoint, readIndex})
              IN  GeneralRead(key, sessionIndex, TRUE)
         ELSE {}
 
@@ -117,9 +115,8 @@ ReadAtTime(token, key) ==
 \* actions and main spec
 
 \* Expand the prefix of the log that can no longer be lost.
-IncreaseReadIndexAndOrCommitIndex ==
+IncreaseCommitIndex ==
     /\ commitIndex' \in commitIndex..Len(log)
-    /\ readIndex' \in readIndex..commitIndex'
     /\ UNCHANGED <<log, epoch>>
 
 \* Any data that is not part of the checkpointed log prefix may be lost at any time. 
@@ -127,17 +124,17 @@ TruncateLog ==
     \E i \in (commitIndex+1)..Len(log) :
         /\ log' = SubSeq(log, 1, i - 1)
         /\ epoch' = epoch + 1
-        /\ UNCHANGED <<readIndex, commitIndex>>
+        /\ UNCHANGED <<commitIndex>>
 
-Init ==
-    /\ log = <<>>
-    /\ readIndex = 0
-    /\ commitIndex = 0
-    /\ epoch = 1
+\* Init ==
+\*     /\ log = <<>>
+\*     /\ readIndex = 0
+\*     /\ commitIndex = 0
+\*     /\ epoch = 1
 
-\* This relation models all possible log actions, without performing any write.
-Next ==
-    \/ IncreaseReadIndexAndOrCommitIndex
-    \/ TruncateLog
+\* \* This relation models all possible log actions, without performing any write.
+\* Next ==
+\*     \/ IncreaseCommitIndex
+\*     \/ TruncateLog
 
 ===============================================================================

@@ -35,7 +35,7 @@ WriteInitToken == [
     checkpoint |-> Len(log) + 1
 ]
 
-\* can't read from the future
+\* can't read/write from the future
 SessionTokenIsValid(token) ==
     SessionTokenLEQ(token, WriteInitToken)
 
@@ -124,8 +124,6 @@ WriteBegin ==
         /\ UNCHANGED <<readIndex, commitIndex, epoch>>
 
 \* When a write succeeds, the DB would report that success to the client.
-\* Depending on WC, this can either freely happen at any time,
-\* or it has some restrictions.
 WriteSuccess ==
     \E record \in DOMAIN writeHistory :
         /\ record.state = WriteInitState
