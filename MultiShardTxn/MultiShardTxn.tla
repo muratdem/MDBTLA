@@ -4,7 +4,7 @@
 (**************************************************************************)
 EXTENDS Integers, Sequences, FiniteSets, Util, TLC
 
-CONSTANTS Keys, Values, NoValue, TxId, Shards, STMTS
+CONSTANTS Keys, Values, NoValue, TxId, Shard, STMTS
 CONSTANTS WC, RC
 
 \* TxId == Values           \* The set of all transaction IDs
@@ -29,21 +29,33 @@ variables
     \* Txns that overlapped with each txn at any point 
     overlap = [t \in TxId |-> {}];   
 
-    \* Router writes to rlog, txns scan rlog to learn stmts
-    rlog = [t \in TxId |->  <<>>];
+    \* The router writes transaction operations for a shard to 'rlog', 
+    \* and shards scan this log to learn transaction ops that have been routed to them. 
+    rlog = [s \in Shard |-> [t \in TxId |->  <<>>]];
+
     \* Signal aborted txns to the router        
     aborted = [t \in TxId |-> FALSE]; 
 
-    \* MDB init
-    \* log = <<>>; 
-    log = [s \in Shards |-> <<>>];
-    commitIndex = 0; 
-    epoch = 1;
+    \* We maintain a MongoDB "log" (i.e. a replica set/oplog abstraction) for each shard.
+    log = [s \in Shard |-> <<>>];
+    commitIndex = [s \in Shard |-> 0]; 
+    epoch = [s \in Shard |-> 1];
 
 define {
     MDB == INSTANCE MDB
-    \* Parameterize the MDB instance with the log of each shard (?)
-    MDBS(s) == INSTANCE MDB WITH log <- log[s]
+
+    \* 
+    \* Parameterize the MDB instance with the log of each shard.
+    \* 
+    \* (This seems one possible approach on how to handle this while using 
+    \* the underlying MDB module as an abstraction of replica sets / oplogs.
+    \* 
+    ShardMDB(s) == INSTANCE MDB WITH log <- log[s]
+    
+    \* Apparently PlusCal doesn't allow INSTANCE with multiple definitions?
+    \* See https://github.com/tlaplus/tlaplus/issues/136
+    \* , commitIndex <- commitIndex[s], epoch <- epoch[s]
+
     ASSUME WC \in MDB!WCVALUES
     ASSUME RC \in MDB!RCVALUES
 
@@ -66,13 +78,15 @@ variables
     rtxn = [t \in TxId |-> 0]; 
 {
 ROUTER: \*   
-    while ( \E t \in TxId: rtxn[t] < STMTS /\ ~aborted[t] ) {
-        with (  t \in {tid \in TxId: rtxn[tid] < STMTS /\ ~aborted[tid]};
+    \* while ( \E t \in TxId: rtxn[t] < STMTS /\ ~aborted[t] ) {
+    while ( \E t \in TxId: rtxn[t] < STMTS ) {
+        \* with (  t \in {tid \in TxId: rtxn[tid] < STMTS /\ ~aborted[tid]};
+        with (  t \in {tid \in TxId: rtxn[tid] < STMTS};
                 k \in Keys;
                 op \in Ops;
-                s \in Shards) { 
+                s \in Shard) { 
             \* TODO: Route ops based on shard.
-            rlog[t]:= Append(rlog[t], CreateEntry(k, op, s));
+            rlog[s][t]:= Append(rlog[s][t], CreateEntry(k, op, s));
             rtxn[t] := rtxn[t]+1;
         }
     }
@@ -83,29 +97,31 @@ ROUTER: \*
 \* 
 
 \* Transaction processing
-fair process (s \in Shards)
+fair process (s \in Shard)
 variables
     lsn = 0;  \* tracks which statement in txn
     snapshotStore = [k \in Keys |-> NoValue];   \* local snapshot of the store
     ops = <<>>;     \* reads & writes txn executes; used for interfacing to CC
 {
 TXN:  
-    while ( lsn < STMTS /\ ~aborted[self] ){
+    \* while ( lsn < STMTS /\ ~aborted[self] ){
+    while ( lsn < STMTS ){
         with (tid \in TxId){
-        await lsn < Len(rlog[tid]); \* router log has new stmt for me
+        await lsn < Len(rlog[self][tid]); \* router log has new stmt for me
         lsn := lsn + 1;
         if ( lsn = 1 ) { \* initialize txn if first statement
             tx := tx \union {tid};
             snapshotStore := \* take my snapshot of MDB
-                [k \in Keys |-> (CHOOSE read \in MDBS(self)!Read(k) : TRUE).value];
+                [k \in Keys |-> (CHOOSE read \in ShardMDB(self)!Read(k) : TRUE).value];
             overlap := [t \in TxId |-> IF t = tid THEN tx 
                                        ELSE IF t \in tx THEN overlap[t] \union {tid} 
                                             ELSE overlap[t]];
         };       
     };
 READ: 
-        with (  op = rlog[self][lsn].op; 
-                k = rlog[self][lsn].k; ){
+        with (  tid \in TxId;
+                op = rlog[self][tid][lsn].op; 
+                k = rlog[self][tid][lsn].k; ){
             if (op = "read") {
                 \* log read for CC isolation check 
                 ops := Append( ops, rOp(k, snapshotStore[k]) );
@@ -115,8 +131,8 @@ READ:
 
 WRITE:            
         with (  tid \in TxId;
-                op = rlog[tid][lsn].op; 
-                k = rlog[tid][lsn].k; ){        
+                op = rlog[self][tid][lsn].op; 
+                k = rlog[self][tid][lsn].k; ){        
             \* perform write on my snapshot if there is no conflict with a non-aborted txn
             if ( \A t \in overlap[self] \ {tid}: k \notin updated[t] ) {
                 updated[tid] := updated[tid] \union {k}; 
@@ -132,7 +148,7 @@ WRITE:
                 };
             } else { \* abort
                     tx := tx \ {tid};  \* take self off of active txn set
-                    aborted[tid] := TRUE;
+                    \* aborted[tid] := TRUE;
                     updated[tid] := {};
                     ops := <<>>; \* update CC view because the txn is aborted
             };
@@ -145,13 +161,24 @@ WRITE:
 }
 *)
 
-\* \* BEGIN TRANSLATION (chksum(pcal) = "b0e973d7" /\ chksum(tla) = "ba3e4b0a")
+\* \* BEGIN TRANSLATION (chksum(pcal) = "2ae1c653" /\ chksum(tla) = "d1befa68")
 VARIABLES tx, updated, overlap, rlog, aborted, log, commitIndex, epoch, pc
 
 (* define statement *)
 MDB == INSTANCE MDB
 
-MDBS(s) == INSTANCE MDB WITH log <- log[s]
+
+
+
+
+
+
+ShardMDB(s) == INSTANCE MDB WITH log <- log[s]
+
+
+
+
+
 ASSUME WC \in MDB!WCVALUES
 ASSUME RC \in MDB!RCVALUES
 
@@ -164,33 +191,33 @@ VARIABLES rtxn, lsn, snapshotStore, ops
 vars == << tx, updated, overlap, rlog, aborted, log, commitIndex, epoch, pc, 
            rtxn, lsn, snapshotStore, ops >>
 
-ProcSet == {"Router"} \cup (Shards)
+ProcSet == {"Router"} \cup (Shard)
 
 Init == (* Global variables *)
         /\ tx = {}
         /\ updated = [t \in TxId |-> {}]
         /\ overlap = [t \in TxId |-> {}]
-        /\ rlog = [t \in TxId |->  <<>>]
+        /\ rlog = [s \in Shard |-> [t \in TxId |->  <<>>]]
         /\ aborted = [t \in TxId |-> FALSE]
-        /\ log = [s \in Shards |-> <<>>]
-        /\ commitIndex = 0
-        /\ epoch = 1
+        /\ log = [s \in Shard |-> <<>>]
+        /\ commitIndex = [s \in Shard |-> 0]
+        /\ epoch = [s \in Shard |-> 1]
         (* Process Router *)
         /\ rtxn = [t \in TxId |-> 0]
         (* Process s *)
-        /\ lsn = [self \in Shards |-> 0]
-        /\ snapshotStore = [self \in Shards |-> [k \in Keys |-> NoValue]]
-        /\ ops = [self \in Shards |-> <<>>]
+        /\ lsn = [self \in Shard |-> 0]
+        /\ snapshotStore = [self \in Shard |-> [k \in Keys |-> NoValue]]
+        /\ ops = [self \in Shard |-> <<>>]
         /\ pc = [self \in ProcSet |-> CASE self = "Router" -> "ROUTER"
-                                        [] self \in Shards -> "TXN"]
+                                        [] self \in Shard -> "TXN"]
 
 ROUTER == /\ pc["Router"] = "ROUTER"
-          /\ IF \E t \in TxId: rtxn[t] < STMTS /\ ~aborted[t]
-                THEN /\ \E t \in {tid \in TxId: rtxn[tid] < STMTS /\ ~aborted[tid]}:
+          /\ IF \E t \in TxId: rtxn[t] < STMTS
+                THEN /\ \E t \in {tid \in TxId: rtxn[tid] < STMTS}:
                           \E k \in Keys:
                             \E op \in Ops:
-                              \E s \in Shards:
-                                /\ rlog' = [rlog EXCEPT ![t] = Append(rlog[t], CreateEntry(k, op, s))]
+                              \E s \in Shard:
+                                /\ rlog' = [rlog EXCEPT ![s][t] = Append(rlog[s][t], CreateEntry(k, op, s))]
                                 /\ rtxn' = [rtxn EXCEPT ![t] = rtxn[t]+1]
                      /\ pc' = [pc EXCEPT !["Router"] = "ROUTER"]
                 ELSE /\ pc' = [pc EXCEPT !["Router"] = "Done"]
@@ -201,13 +228,13 @@ ROUTER == /\ pc["Router"] = "ROUTER"
 Router == ROUTER
 
 TXN(self) == /\ pc[self] = "TXN"
-             /\ IF lsn[self] < STMTS /\ ~aborted[self]
+             /\ IF lsn[self] < STMTS
                    THEN /\ \E tid \in TxId:
-                             /\ lsn[self] < Len(rlog[tid])
+                             /\ lsn[self] < Len(rlog[self][tid])
                              /\ lsn' = [lsn EXCEPT ![self] = lsn[self] + 1]
                              /\ IF lsn'[self] = 1
                                    THEN /\ tx' = (tx \union {tid})
-                                        /\ snapshotStore' = [snapshotStore EXCEPT ![self] = [k \in Keys |-> (CHOOSE read \in MDBS(self)!Read(k) : TRUE).value]]
+                                        /\ snapshotStore' = [snapshotStore EXCEPT ![self] = [k \in Keys |-> (CHOOSE read \in ShardMDB(self)!Read(k) : TRUE).value]]
                                         /\ overlap' = [t \in TxId |-> IF t = tid THEN tx'
                                                                       ELSE IF t \in tx' THEN overlap[t] \union {tid}
                                                                            ELSE overlap[t]]
@@ -221,20 +248,21 @@ TXN(self) == /\ pc[self] = "TXN"
                              rtxn, ops >>
 
 READ(self) == /\ pc[self] = "READ"
-              /\ LET op == rlog[self][lsn[self]].op IN
-                   LET k == rlog[self][lsn[self]].k IN
-                     IF op = "read"
-                        THEN /\ ops' = [ops EXCEPT ![self] = Append( ops[self], rOp(k, snapshotStore[self][k]) )]
-                             /\ pc' = [pc EXCEPT ![self] = "TXN"]
-                        ELSE /\ pc' = [pc EXCEPT ![self] = "WRITE"]
-                             /\ ops' = ops
+              /\ \E tid \in TxId:
+                   LET op == rlog[self][tid][lsn[self]].op IN
+                     LET k == rlog[self][tid][lsn[self]].k IN
+                       IF op = "read"
+                          THEN /\ ops' = [ops EXCEPT ![self] = Append( ops[self], rOp(k, snapshotStore[self][k]) )]
+                               /\ pc' = [pc EXCEPT ![self] = "TXN"]
+                          ELSE /\ pc' = [pc EXCEPT ![self] = "WRITE"]
+                               /\ ops' = ops
               /\ UNCHANGED << tx, updated, overlap, rlog, aborted, log, 
                               commitIndex, epoch, rtxn, lsn, snapshotStore >>
 
 WRITE(self) == /\ pc[self] = "WRITE"
                /\ \E tid \in TxId:
-                    LET op == rlog[tid][lsn[self]].op IN
-                      LET k == rlog[tid][lsn[self]].k IN
+                    LET op == rlog[self][tid][lsn[self]].op IN
+                      LET k == rlog[self][tid][lsn[self]].k IN
                         IF \A t \in overlap[self] \ {tid}: k \notin updated[t]
                            THEN /\ updated' = [updated EXCEPT ![tid] = updated[tid] \union {k}]
                                 /\ snapshotStore' = [snapshotStore EXCEPT ![self][k] = tid]
@@ -246,15 +274,13 @@ WRITE(self) == /\ pc[self] = "WRITE"
                                       ELSE /\ TRUE
                                            /\ UNCHANGED << tx, log, 
                                                            commitIndex >>
-                                /\ UNCHANGED aborted
                            ELSE /\ tx' = tx \ {tid}
-                                /\ aborted' = [aborted EXCEPT ![tid] = TRUE]
                                 /\ updated' = [updated EXCEPT ![tid] = {}]
                                 /\ ops' = [ops EXCEPT ![self] = <<>>]
                                 /\ UNCHANGED << log, commitIndex, 
                                                 snapshotStore >>
                /\ pc' = [pc EXCEPT ![self] = "TXN"]
-               /\ UNCHANGED << overlap, rlog, epoch, rtxn, lsn >>
+               /\ UNCHANGED << overlap, rlog, aborted, epoch, rtxn, lsn >>
 
 s(self) == TXN(self) \/ READ(self) \/ WRITE(self)
 
@@ -263,12 +289,12 @@ Terminating == /\ \A self \in ProcSet: pc[self] = "Done"
                /\ UNCHANGED vars
 
 Next == Router
-           \/ (\E self \in Shards: s(self))
+           \/ (\E self \in Shard: s(self))
            \/ Terminating
 
 Spec == /\ Init /\ [][Next]_vars
         /\ WF_vars(Router)
-        /\ \A self \in Shards : WF_vars(s(self))
+        /\ \A self \in Shard : WF_vars(s(self))
 
 Termination == <>(\A self \in ProcSet: pc[self] = "Done")
 
