@@ -155,7 +155,12 @@ ShardTxnWriteConflict(s, tid, k) ==
     /\ aborted' = [aborted EXCEPT ![s][tid] = TRUE]
     /\ UNCHANGED << shardTxns, log, commitIndex, epoch, lsn, overlap, rlog, rtxn, updated >>
 
-\* Shard processes a transaction write operation which encoutners a write conflict, triggering an abort.
+\* 
+\* Shard processes a transaction commit operation, which triggers a 2PC to commit the transaction using this
+\* shard as coordinator.
+\* 
+\* TODO: Do we need to explicitly track a "coordinator" identity for each transaction when transactions start?
+\* 
 ShardTxnCommit(s, tid) == 
     \* Transaction started on this shard and has new statements in the router log.
     /\ tid \in shardTxns[s]
