@@ -286,6 +286,8 @@ ShardTxnWrite(s, tid, k) ==
     \* Transaction started on this shard and has new statements in the router log.
     /\ tid \in shardTxns[s]
     /\ lsn[s][tid] < Len(rlog[s][tid])
+    /\ rlog[s][tid][lsn[s][tid] + 1].op = "write"
+    /\ rlog[s][tid][lsn[s][tid] + 1].k = k
     \* The write to this key does not overlap with any writes to the same key
     \* from other, concurrent transactions.
     /\ \A t \in overlap[s][tid] \ {tid} : k \notin updated[s][t]
