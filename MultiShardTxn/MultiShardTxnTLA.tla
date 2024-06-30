@@ -308,12 +308,23 @@ ShardTxnWriteConflict(s, tid, k) ==
     /\ aborted' = [aborted EXCEPT ![s][tid] = TRUE]
     /\ UNCHANGED << shardTxns, log, commitIndex, epoch, lsn, overlap, rlog, rtxn, updated >>
 
+\* Shard processes a transaction write operation which encoutners a write conflict, triggering an abort.
+ShardTxnCommit(s, tid) == 
+    \* Transaction started on this shard and has new statements in the router log.
+    /\ tid \in shardTxns[s]
+    /\ lsn[s][tid] < Len(rlog[s][tid])
+    /\ rlog[s][tid][lsn[s][tid] + 1].op = "commit"
+    \* TODO: Initiate 2PC to commit the transaction, then go ahead and commit it and
+    \* update the local shard MongoDB instances state.
+    /\ UNCHANGED << shardTxns, log, commitIndex, epoch, lsn, overlap, rlog, rtxn, updated, aborted >>
+
 Next == 
     \/ \E s \in Shard, t \in TxId, k \in Keys, op \in Ops: RouterTxnOp(s, t, k, op)
     \/ \E s \in Shard, tid \in TxId: ShardTxnStart(s, tid)
     \/ \E s \in Shard, tid \in TxId, k \in Keys: ShardTxnRead(s, tid, k)
     \/ \E s \in Shard, tid \in TxId, k \in Keys: ShardTxnWrite(s, tid, k)
     \/ \E s \in Shard, tid \in TxId, k \in Keys: ShardTxnWriteConflict(s, tid, k)
+    \/ \E s \in Shard, tid \in TxId, k \in Keys: ShardTxnCommit(s, tid)
 
 Spec == Init /\ [][Next]_vars
 
