@@ -1,6 +1,6 @@
 --------------------------- MODULE MultiShardTxnTLA ---------------------------------
 (**************************************************************************)
-(* Pluscal algoritm for a simple key-value store with snapshot isolation  *)
+(* Model of distributed, cross-shard transactions in MongoDB.             *)
 (**************************************************************************)
 EXTENDS Integers, Sequences, FiniteSets, Util, TLC
 
