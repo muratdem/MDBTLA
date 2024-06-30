@@ -151,7 +151,7 @@ ShardTxnWriteConflict(s, tid, k) ==
     /\ tid \in shardTxns[s]
     /\ lsn[s][tid] < Len(rlog[s][tid])
     \* The write to this key conflicts with another concurrent transaction on this shard.
-    /\ \E t \in overlap[s][tid] \ {tid} : k \notin updated[s][t]
+    /\ \E t \in overlap[s][tid] \ {tid} : k \in updated[s][t]
     /\ aborted' = [aborted EXCEPT ![s][tid] = TRUE]
     /\ UNCHANGED << shardTxns, log, commitIndex, epoch, lsn, overlap, rlog, rtxn, updated >>
 
