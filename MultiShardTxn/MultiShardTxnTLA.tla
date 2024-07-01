@@ -36,27 +36,38 @@ VARIABLE overlap
 \* For each shard, the set of keys updated by a transaction running on that shard.
 VARIABLE updated
 
-\* We maintain a MongoDB "log" (i.e. a replica set/oplog abstraction) for each shard.
-VARIABLE log 
-VARIABLE commitIndex 
-VARIABLE epoch
-
 \* For each shard and each transaction, a counter which tracks the 
 \* current statement number of that transaction. 
 VARIABLE lsn
 
 VARIABLE rtxn
 
+\* Each shard, for each transaction, maintains a record of whether it has been designated as
+\* the 2PC coordinator for that transaction.
+VARIABLE isCoordinator
+
+\* For each transaction, the router tracks a list of shards that are participants in that
+\* transaction. The router forwards this information to the coordinator when ready to commit.
+\* By default, the first participant in this list is designated as the coordinator.
+VARIABLE participants
+
+\* Global history of all operations per transaction.
 VARIABLE ops
 
-vars == << shardTxns, updated, overlap, rlog, aborted, log, commitIndex, epoch, rtxn, lsn, snapshotStore, ops >>
+\* We maintain a MongoDB "log" (i.e. a replica set/oplog abstraction) for each shard.
+VARIABLE log 
+VARIABLE commitIndex 
+VARIABLE epoch
+
+vars == << shardTxns, updated, overlap, rlog, aborted, log, commitIndex, epoch, rtxn, lsn, snapshotStore, ops, participants, isCoordinator >>
 
 \* Instance of a MongoDB replica set log for a given shard.
 ShardMDB(s) == INSTANCE MDB WITH log <- log[s], commitIndex <- commitIndex[s], epoch <- epoch[s]
 
 Ops == {"read", "write", "commit"}
 Entry == [k: Keys, op: Ops]
-CreateEntry(k, op, s) == [k |-> k, op |-> op, shard |-> s]
+CreateEntry(k, op, s, coord) == [k |-> k, op |-> op, shard |-> s, coordinator |-> coord]
+CreateCommitEntry(k, op, s, p) == [k |-> k, op |-> op, shard |-> s, participants |-> p]
 
 
 Init ==
@@ -72,25 +83,30 @@ Init ==
     /\ log = [s \in Shard |-> <<>>]
     /\ commitIndex = [s \in Shard |-> 0]
     /\ epoch = [s \in Shard |-> 1]
+    /\ participants = [t \in TxId |-> <<>>]
+    /\ isCoordinator = [s \in Shard |-> [t \in TxId |-> FALSE]]
 
 \* Router handles a new transaction operation that is routed to the appropriate shard.
 RouterTxnOp(s, tid, k, op) == 
     \* TODO: Router selects a specific cluster time to start the transaction at (?)
     \* TODO: How should we consider how an op gets routed to a shard based on key in the op (e.g. catalog routing info)?
     \* Route the new transaction op to the shard.
+    \* TODO: Mark first op of transaction with 'coordinator' label.
     /\ op \in {"read", "write"}
-    /\ rlog' = [rlog EXCEPT ![s][tid] = Append(rlog[s][tid], CreateEntry(k, op, s))]
+    /\ rlog' = [rlog EXCEPT ![s][tid] = Append(rlog[s][tid], CreateEntry(k, op, s, rtxn[tid] = 0))]
     /\ rtxn' = [rtxn EXCEPT ![tid] = rtxn[tid]+1]
-    /\ UNCHANGED << shardTxns, updated, overlap, aborted, log, commitIndex, epoch, lsn, snapshotStore, ops >>
+    \* Update participants list if new participant joined the transaction.
+    /\ participants' = [participants EXCEPT ![tid] = participants[tid] \o (IF s \in Range(participants[tid]) THEN <<>> ELSE <<s>>)]
+    /\ UNCHANGED << shardTxns, updated, overlap, aborted, log, commitIndex, epoch, lsn, snapshotStore, ops,isCoordinator >>
 
 \* Router handles a transaction commit operation, which it forwards to the appropriate shard to initiate 2PC to
 \* commit the transaction.
 RouterTxnCommit(s, tid, k, op) == 
     \* TODO: Router handles commits any differently than other ops in terms of forwarding behavior?
     /\ op = "commit"
-    /\ rlog' = [rlog EXCEPT ![s][tid] = Append(rlog[s][tid], CreateEntry(k, op, s))]
+    /\ rlog' = [rlog EXCEPT ![s][tid] = Append(rlog[s][tid], CreateCommitEntry(k, op, s, participants[tid]))]
     /\ rtxn' = [rtxn EXCEPT ![tid] = rtxn[tid]+1]
-    /\ UNCHANGED << shardTxns, updated, overlap, aborted, log, commitIndex, epoch, lsn, snapshotStore, ops >>
+    /\ UNCHANGED << shardTxns, updated, overlap, aborted, log, commitIndex, epoch, lsn, snapshotStore, ops, participants, isCoordinator >>
 
 \*****************************************
 \* Shard transaction operations.
@@ -113,7 +129,8 @@ ShardTxnStart(s, tid) ==
                     [t \in TxId |-> IF t = tid THEN shardTxns'[s] 
                                     ELSE IF t \in shardTxns'[s] THEN overlap[s][t] \union {tid} 
                                     ELSE overlap[s][t]]]
-    /\ UNCHANGED << lsn, updated, rlog, aborted, log, commitIndex, epoch, rtxn, ops >>   
+    /\ isCoordinator' = [isCoordinator EXCEPT ![s][tid] = rlog[s][tid][lsn[s][tid] + 1].coordinator]
+    /\ UNCHANGED << lsn, updated, rlog, aborted, log, commitIndex, epoch, rtxn, ops, participants >>   
 
 \* Shard processes a transaction read operation.
 ShardTxnRead(s, tid, k) == 
@@ -127,7 +144,7 @@ ShardTxnRead(s, tid, k) ==
     \* advance to the next transaction statement.
     /\ ops' = [ops EXCEPT ![tid] = Append( ops[tid], rOp(k, snapshotStore[s][tid][k]) )]
     /\ lsn' = [lsn EXCEPT ![s][tid] = lsn[s][tid] + 1]
-    /\ UNCHANGED << shardTxns, updated, overlap, rlog, aborted, log, commitIndex, epoch, rtxn, snapshotStore >>    
+    /\ UNCHANGED << shardTxns, updated, overlap, rlog, aborted, log, commitIndex, epoch, rtxn, snapshotStore, participants, isCoordinator >>    
 
 \* Shard processes a transaction write operation.
 ShardTxnWrite(s, tid, k) == 
@@ -144,7 +161,7 @@ ShardTxnWrite(s, tid, k) ==
     /\ updated' = [updated EXCEPT ![s][tid] = updated[s][tid] \union {k}]
     /\ ops' = [ops EXCEPT ![tid] = Append( ops[tid], wOp(k, tid) )]
     /\ lsn' = [lsn EXCEPT ![s][tid] = lsn[s][tid] + 1]
-    /\ UNCHANGED << shardTxns, log, commitIndex, aborted, epoch, overlap, rlog, rtxn >>
+    /\ UNCHANGED << shardTxns, log, commitIndex, aborted, epoch, overlap, rlog, rtxn, participants, isCoordinator >>
 
 \* Shard processes a transaction write operation which encoutners a write conflict, triggering an abort.
 ShardTxnWriteConflict(s, tid, k) == 
@@ -154,7 +171,7 @@ ShardTxnWriteConflict(s, tid, k) ==
     \* The write to this key conflicts with another concurrent transaction on this shard.
     /\ \E t \in overlap[s][tid] \ {tid} : k \in updated[s][t]
     /\ aborted' = [aborted EXCEPT ![s][tid] = TRUE]
-    /\ UNCHANGED << shardTxns, log, commitIndex, epoch, lsn, overlap, rlog, rtxn, updated, snapshotStore, ops >>
+    /\ UNCHANGED << shardTxns, log, commitIndex, epoch, lsn, overlap, rlog, rtxn, updated, snapshotStore, ops, participants, isCoordinator >>
 
 \* 
 \* Shard processes a transaction commit operation, which triggers a 2PC to commit the transaction using this
@@ -169,7 +186,7 @@ ShardTxnCommit(s, tid) ==
     /\ rlog[s][tid][lsn[s][tid] + 1].op = "commit"
     \* TODO: Initiate 2PC to commit the transaction, then go ahead and commit it and
     \* update the local shard MongoDB instances state.
-    /\ UNCHANGED << shardTxns, log, commitIndex, epoch, lsn, overlap, rlog, rtxn, updated, aborted, snapshotStore >>
+    /\ UNCHANGED << shardTxns, log, commitIndex, epoch, lsn, overlap, rlog, rtxn, updated, aborted, snapshotStore, participants, isCoordinator >>
 
 Next == 
     \/ \E s \in Shard, t \in TxId, k \in Keys, op \in Ops: RouterTxnOp(s, t, k, op)
