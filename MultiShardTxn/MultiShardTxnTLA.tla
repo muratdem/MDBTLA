@@ -76,6 +76,7 @@ Init ==
 \* Router handles a new transaction operation that is routed to the appropriate shard.
 RouterTxnOp(s, tid, k, op) == 
     \* TODO: Router selects a specific cluster time to start the transaction at (?)
+    \* TODO: How should we consider how an op gets routed to a shard based on key in the op (e.g. catalog routing info)?
     \* Route the new transaction op to the shard.
     /\ op \in {"read", "write"}
     /\ rlog' = [rlog EXCEPT ![s][tid] = Append(rlog[s][tid], CreateEntry(k, op, s))]
@@ -153,7 +154,7 @@ ShardTxnWriteConflict(s, tid, k) ==
     \* The write to this key conflicts with another concurrent transaction on this shard.
     /\ \E t \in overlap[s][tid] \ {tid} : k \in updated[s][t]
     /\ aborted' = [aborted EXCEPT ![s][tid] = TRUE]
-    /\ UNCHANGED << shardTxns, log, commitIndex, epoch, lsn, overlap, rlog, rtxn, updated >>
+    /\ UNCHANGED << shardTxns, log, commitIndex, epoch, lsn, overlap, rlog, rtxn, updated, snapshotStore, ops >>
 
 \* 
 \* Shard processes a transaction commit operation, which triggers a 2PC to commit the transaction using this
@@ -168,7 +169,7 @@ ShardTxnCommit(s, tid) ==
     /\ rlog[s][tid][lsn[s][tid] + 1].op = "commit"
     \* TODO: Initiate 2PC to commit the transaction, then go ahead and commit it and
     \* update the local shard MongoDB instances state.
-    /\ UNCHANGED << shardTxns, log, commitIndex, epoch, lsn, overlap, rlog, rtxn, updated, aborted >>
+    /\ UNCHANGED << shardTxns, log, commitIndex, epoch, lsn, overlap, rlog, rtxn, updated, aborted, snapshotStore >>
 
 Next == 
     \/ \E s \in Shard, t \in TxId, k \in Keys, op \in Ops: RouterTxnOp(s, t, k, op)
@@ -208,8 +209,8 @@ Symmetry == Permutations(TxId) \cup Permutations(Keys)
 
 BaitLog == 
     /\ TRUE
-    /\ \A s \in Shard, t \in TxId : Cardinality(overlap[s][t]) <= 1
-    \* /\ \A s \in Shard, t \in TxId : lsn[s][t] = 0
+    \* /\ \A s \in Shard, t \in TxId : Cardinality(overlap[s][t]) <= 1
+    /\ \A s \in Shard, t \in TxId : aborted[s][t] = FALSE
     \* /\ \A s \in Shard, t \in TxId : Len(rlog[s][t]) = 0
     \* /\ commitIndex < 5
     \* /\ Len(log) < 6
