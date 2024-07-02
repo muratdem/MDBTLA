@@ -257,6 +257,7 @@ Next ==
     \* Router actions.
     \/ \E s \in Shard, t \in TxId, k \in Keys, op \in Ops: RouterTxnOp(s, t, k, op)
     \/ \E s \in Shard, t \in TxId, k \in Keys, op \in Ops: RouterTxnCoordinateCommit(s, t, k, op)
+    \* TODO: Router handles abort notifications from shards.
     \* Shard transaction actions.
     \/ \E s \in Shard, tid \in TxId: ShardTxnStart(s, tid)
     \/ \E s \in Shard, tid \in TxId, k \in Keys: ShardTxnRead(s, tid, k)
