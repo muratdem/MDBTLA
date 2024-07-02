@@ -222,9 +222,11 @@ ShardTxnCoordinateCommit(s, tid) ==
     /\ UNCHANGED << shardTxns, log, commitIndex, epoch, overlap, rlog, rtxn, updated, aborted, snapshotStore, participants, msgsPrepare, msgsVoteCommit, ops, catalog >>
 
 \* Shard process a transaction prepare message from the router.
+\* Note that it receives prepare messages from the router, but then sends it vote decision
+\* to the coordinator shard.
 ShardTxnPrepare(s, tid) == 
     \E m \in msgsPrepare : 
-        \* TODO: Choose prepareTimestamp for this transaction (?).
+        \* TODO: Choose prepareTimestamp for this transaction and track prepared state (?).
         \* Transaction is started on this shard.
         /\ tid \in shardTxns[s]
         /\ m.shard = s /\ m.tid = tid
