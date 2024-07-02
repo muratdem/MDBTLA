@@ -126,7 +126,7 @@ RouterTxnOp(s, tid, k, op) ==
     /\ UNCHANGED << shardTxns, updated, overlap, aborted, log, commitIndex, epoch, lsn, snapshotStore, ops,coordInfo, msgsPrepare, msgsVoteCommit, coordCommitVotes, catalog >>
 
 \* Router handles a transaction commit operation, which it forwards to the appropriate shard to initiate 2PC to
-\* commit the transaction.
+\* commit the transaction. It also sends out prepare messages to all participant shards.
 RouterTxnCoordinateCommit(s, tid, k, op) == 
     \* TODO: Router handles commits any differently than other ops in terms of forwarding behavior?
     \* TODO: Send commit/coordinateCommit to the coordinator, and prepareTxn to all participant shards.
@@ -160,7 +160,7 @@ ShardTxnStart(s, tid) ==
                     [t \in TxId |-> IF t = tid THEN shardTxns'[s] 
                                     ELSE IF t \in shardTxns'[s] THEN overlap[s][t] \union {tid} 
                                     ELSE overlap[s][t]]]
-    /\ coordInfo' = [coordInfo EXCEPT ![s][tid] = [self |-> rlog[s][tid][lsn[s][tid] + 1].coordinator, participants |-> <<>>]]
+    /\ coordInfo' = [coordInfo EXCEPT ![s][tid] = [self |-> rlog[s][tid][lsn[s][tid] + 1].coordinator, participants |-> <<s>>]]
     /\ UNCHANGED << lsn, updated, rlog, aborted, log, commitIndex, epoch, rtxn, ops, participants, msgsPrepare, msgsVoteCommit, coordCommitVotes, catalog >>   
 
 \* Shard processes a transaction read operation.
