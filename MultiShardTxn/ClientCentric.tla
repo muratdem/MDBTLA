@@ -138,8 +138,8 @@ satisfyIsolationLevel(initialState, transactions, commitTest(_,_)) ==
     commitTest(transaction, execution)
 
 \* Serializability commit test
-CT_SER(transaction, execution) ==
-  Complete(execution, transaction, parentState(execution, transaction))
+CT_SER(transaction, execution) == Complete(execution, transaction, parentState(execution, transaction))
+
 Serializability(initialState, transactions) == satisfyIsolationLevel(initialState, transactions, CT_SER)
 
 \*SerializabilityDebug(initialState, transactions) == 
@@ -153,8 +153,12 @@ Serializability(initialState, transactions) == satisfyIsolationLevel(initialStat
 \*   ~ Serializability(initialState, transactions) => Print(<<"Executions not Serializable:",  executions(initialState, transactions)>>, FALSE)
 
 \* Snapshot Isolation
-CT_SI(transaction, execution) == \E state \in SeqToSet(executionStates(execution)):
-  Complete(execution, transaction, state) /\ NoConf(execution, transaction, state)
+CT_SI(transaction, execution) == 
+    \E state \in SeqToSet(executionStates(execution)):
+        /\ Complete(execution, transaction, state) 
+        /\ NoConf(execution, transaction, state)
+
+\* Takes in a set of transactions, each given as a sequence of Operations, and checks if they satisfy Snapshot Isolation.
 SnapshotIsolation(initialState, transactions) == satisfyIsolationLevel(initialState, transactions, CT_SI)
 
 \* Strict Serializability: ∀T ∈T:T <s T => s_T′ -*-> s_T.
@@ -164,6 +168,7 @@ CT_SSER(timestamps, transaction, execution) ==
      /\ \A otherTransaction \in executionTransactions(execution): 
         ComesStrictBefore(otherTransaction, transaction, timestamps) => 
           beforeOrEqualInExecution(execution, parentState(execution, otherTransaction), Sp)
+          
 \* For now inline `satisfyIsolationLevel` instead of `satisfyIsolationLevel(transactions, CT_SSER(timestamps)) because partial functions are not supported/hard`
 StrictSerializability(initialState, transactions, timestamps) ==
   \E execution \in executions(initialState, transactions): \A transaction \in transactions: CT_SSER(timestamps, transaction, execution)
