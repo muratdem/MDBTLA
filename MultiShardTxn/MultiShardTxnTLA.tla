@@ -80,7 +80,7 @@ vars == << shardTxns, updated, overlap, rlog, aborted, log, commitIndex, epoch, 
 \* Instance of a MongoDB replica set log for a given shard.
 ShardMDB(s) == INSTANCE MDB WITH log <- log[s], commitIndex <- commitIndex[s], epoch <- epoch[s]
 
-Ops == {"read", "write", "commit"}
+Ops == {"read", "write", "coordCommit"}
 Entry == [k: Keys, op: Ops]
 CreateEntry(k, op, s, coord) == [k |-> k, op |-> op, shard |-> s, coordinator |-> coord]
 CreateCommitEntry(k, op, s, p) == [k |-> k, op |-> op, shard |-> s, participants |-> p]
@@ -127,10 +127,10 @@ RouterTxnOp(s, tid, k, op) ==
 
 \* Router handles a transaction commit operation, which it forwards to the appropriate shard to initiate 2PC to
 \* commit the transaction.
-RouterTxnCommit(s, tid, k, op) == 
+RouterTxnCoordinateCommit(s, tid, k, op) == 
     \* TODO: Router handles commits any differently than other ops in terms of forwarding behavior?
     \* TODO: Send commit/coordinateCommit to the coordinator, and prepareTxn to all participant shards.
-    /\ op = "commit"
+    /\ op = "coordCommit"
     /\ participants[tid] # <<>>
     /\ s = participants[tid][1] \* Coordinator shard is the first participant in the list.
     /\ rlog' = [rlog EXCEPT ![s][tid] = Append(rlog[s][tid], CreateCommitEntry(k, op, s, participants[tid]))]
@@ -204,9 +204,27 @@ ShardTxnWriteConflict(s, tid, k) ==
     /\ aborted' = [aborted EXCEPT ![s][tid] = TRUE]
     /\ UNCHANGED << shardTxns, log, commitIndex, epoch, lsn, overlap, rlog, rtxn, updated, snapshotStore, ops, participants, coordInfo, msgsPrepare, msgsVoteCommit, coordCommitVotes, catalog >>
 
+\*******************
+\* Shard 2PC actions.
+\*******************
+
+\* Transaction coordinator shard receives a message from router to start coordinating commit for a transaction.
+ShardTxnCoordinateCommit(s, tid) == 
+    /\ tid \in shardTxns[s]
+    /\ lsn[s][tid] < Len(rlog[s][tid])
+    /\ rlog[s][tid][lsn[s][tid] + 1].op = "coordCommit"
+    \* I am the coordinator shard of this transaction.
+    /\ coordInfo[s][tid].self  
+    \* Record the set of all transaction participants and get ready to receive votes from them.
+    /\ coordInfo' = [coordInfo EXCEPT ![s][tid] = [self |-> TRUE, participants |-> (rlog[s][tid][lsn[s][tid] + 1].participants)]] 
+    /\ coordCommitVotes' = [coordCommitVotes EXCEPT ![s][tid] = {}]
+    /\ lsn' = [lsn EXCEPT ![s][tid] = lsn[s][tid] + 1]
+    /\ UNCHANGED << shardTxns, log, commitIndex, epoch, overlap, rlog, rtxn, updated, aborted, snapshotStore, participants, msgsPrepare, msgsVoteCommit, ops, catalog >>
+
 \* Shard process a transaction prepare message from the router.
 ShardTxnPrepare(s, tid) == 
     \E m \in msgsPrepare : 
+        \* TODO: Choose prepareTimestamp for this transaction (?).
         \* Transaction is started on this shard.
         /\ tid \in shardTxns[s]
         /\ m.shard = s /\ m.tid = tid
@@ -214,22 +232,10 @@ ShardTxnPrepare(s, tid) ==
         /\ msgsVoteCommit' = msgsVoteCommit \cup { [shard |-> s, tid |-> tid, to |-> m.coordinator] }
         /\ UNCHANGED << shardTxns, log, commitIndex, epoch, lsn, overlap, rlog, rtxn, updated, aborted, snapshotStore, participants, coordInfo, msgsPrepare, ops, coordCommitVotes, catalog >>
 
-\* Transaction coordinator shard receives a message from router to coordinate commit for a transaction.
-ShardTxnCoordinateCommit(s, tid) == 
-    /\ tid \in shardTxns[s]
-    /\ lsn[s][tid] < Len(rlog[s][tid])
-    /\ rlog[s][tid][lsn[s][tid] + 1].op = "commit"
-    /\ coordInfo[s][tid].self  
-    /\ coordInfo' = [coordInfo EXCEPT ![s][tid] = [self |-> TRUE, participants |-> (rlog[s][tid][lsn[s][tid] + 1].participants)]] 
-    /\ coordCommitVotes' = [coordCommitVotes EXCEPT ![s][tid] = {}]
-    /\ lsn' = [lsn EXCEPT ![s][tid] = lsn[s][tid] + 1]
-    /\ UNCHANGED << shardTxns, log, commitIndex, epoch, overlap, rlog, rtxn, updated, aborted, snapshotStore, participants, msgsPrepare, msgsVoteCommit, ops, catalog >>
-
 \* Transaction coordinator shard receives a vote from a participant shard to commit a transaction.
 ShardTxnCoordinatorRecvCommitVote(s, tid, from) == 
     /\ tid \in shardTxns[s]
-    /\ lsn[s][tid] < Len(rlog[s][tid])
-    /\ rlog[s][tid][lsn[s][tid] + 1].op = "commit"
+    /\ \E m \in msgsVoteCommit : m.shard = from /\ m.tid = tid
     /\ coordInfo[s][tid].self   
     /\ coordCommitVotes' = [coordCommitVotes EXCEPT ![s][tid] = coordCommitVotes[s][tid] \union {from}]
     /\ UNCHANGED << shardTxns, log, commitIndex, epoch, lsn, overlap, rlog, rtxn, updated, aborted, snapshotStore, participants, coordInfo, msgsPrepare, msgsVoteCommit, ops, catalog >>
@@ -238,21 +244,23 @@ ShardTxnCoordinatorRecvCommitVote(s, tid, from) ==
 ShardTxnCommit(s, tid) == 
     \* Transaction started on this shard and has new statements in the router log.
     /\ tid \in shardTxns[s]
-    /\ lsn[s][tid] < Len(rlog[s][tid])
-    /\ rlog[s][tid][lsn[s][tid] + 1].op = "commit"
+    \* I am the coordinator, and I received all commit votes from participants.
     /\ coordInfo[s][tid].self
-    \* TODO: Coordinator shard needs to know participant list?
     /\ coordCommitVotes[s][tid] = Range(coordInfo[s][tid].participants)
+    \* TODO: Decide to commit and send out commit decision to participants.
     /\ UNCHANGED << shardTxns, log, commitIndex, epoch, lsn, overlap, rlog, rtxn, updated, aborted, snapshotStore, participants, coordInfo, msgsPrepare, msgsVoteCommit, ops, coordCommitVotes, catalog >>
 
 
 Next == 
+    \* Router actions.
     \/ \E s \in Shard, t \in TxId, k \in Keys, op \in Ops: RouterTxnOp(s, t, k, op)
-    \/ \E s \in Shard, t \in TxId, k \in Keys, op \in Ops: RouterTxnCommit(s, t, k, op)
+    \/ \E s \in Shard, t \in TxId, k \in Keys, op \in Ops: RouterTxnCoordinateCommit(s, t, k, op)
+    \* Shard transaction actions.
     \/ \E s \in Shard, tid \in TxId: ShardTxnStart(s, tid)
     \/ \E s \in Shard, tid \in TxId, k \in Keys: ShardTxnRead(s, tid, k)
     \/ \E s \in Shard, tid \in TxId, k \in Keys: ShardTxnWrite(s, tid, k)
     \/ \E s \in Shard, tid \in TxId, k \in Keys: ShardTxnWriteConflict(s, tid, k)
+    \* Shard 2PC actions.
     \/ \E s \in Shard, tid \in TxId, k \in Keys: ShardTxnPrepare(s, tid)
     \/ \E s \in Shard, tid \in TxId, k \in Keys: ShardTxnCoordinateCommit(s, tid)
     \/ \E s, from \in Shard, tid \in TxId, k \in Keys: ShardTxnCoordinatorRecvCommitVote(s, tid, from)
@@ -285,7 +293,8 @@ BaitLog ==
     /\ TRUE
     \* /\ \A s \in Shard, t \in TxId : Cardinality(overlap[s][t]) <= 1
     \* /\ \A s \in Shard, t \in TxId : aborted[s][t] = FALSE
-    /\ msgsPrepare = {}
+    \* /\ Cardinality(msgsPrepare) # 2
+    /\ \A s \in Shard, tid \in TxId : Cardinality(coordCommitVotes[s][tid]) # 2
     \* /\ \A s \in Shard, t \in TxId : Len(rlog[s][t]) = 0
     \* /\ commitIndex < 5
     \* /\ Len(log) < 6
