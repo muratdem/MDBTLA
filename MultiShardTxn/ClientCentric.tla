@@ -94,7 +94,15 @@ WriteSet(transaction) ==
   LET writes == { operation \in SeqToSet(transaction) : operation.op = "write" } 
   IN { operation.key : operation \in writes } 
 
+\* 
 \* "Denoting the set of keys in which s and s′ differ as ∆(s, s′), we express this as NO-CONF_T (s) ≡ ∆(s, sp) ∩ WT = ∅"
+\* 
+\* This condition, which is a necessary condition for snapshot isolation (SI),
+\* ensures that a transaction did not modify any keys that changed during the
+\* execution between its read state, S, and its parent state, Sp. Note that SI,
+\* unlike serializability, does not require that a transaction's read state is
+\* equal to its parent state.
+\* 
 NoConf(execution, transaction, state) == 
   LET Sp == parentState(execution, transaction)
       delta == { key \in DOMAIN Sp : Sp[key] /= state[key] }
@@ -168,7 +176,7 @@ CT_SSER(timestamps, transaction, execution) ==
      /\ \A otherTransaction \in executionTransactions(execution): 
         ComesStrictBefore(otherTransaction, transaction, timestamps) => 
           beforeOrEqualInExecution(execution, parentState(execution, otherTransaction), Sp)
-          
+
 \* For now inline `satisfyIsolationLevel` instead of `satisfyIsolationLevel(transactions, CT_SSER(timestamps)) because partial functions are not supported/hard`
 StrictSerializability(initialState, transactions, timestamps) ==
   \E execution \in executions(initialState, transactions): \A transaction \in transactions: CT_SSER(timestamps, transaction, execution)
