@@ -324,6 +324,9 @@ BaitLog ==
     \* /\ \A s \in Shard, t \in TxId : Len(rlog[s][t]) = 0
     \* /\ commitIndex < 5
     \* /\ Len(log) < 6
+
+CONSTANT MaxStmts
+StateConstraint == \A t \in TxId : rtxn[t] <= MaxStmts
     
 \* Alias == [
 \*     log |-> log,
