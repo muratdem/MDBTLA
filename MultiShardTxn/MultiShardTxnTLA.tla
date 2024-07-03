@@ -298,13 +298,11 @@ Spec == Init /\ [][Next]_vars
         \* /\ WF_vars(Router)
         \* /\ \A self \in Shard : WF_vars(s(self))
 
-\* \* Snapshot isolation invariant
+\* Snapshot isolation invariant
 SnapshotIsolation == CC!SnapshotIsolation(InitialState, Range(ops))
 
-\* \* Serializability would not be satisfied due to write-skew
-\* Serialization == CC!Serializability(InitialState, Range(ops))
-
-Symmetry == Permutations(TxId) \cup Permutations(Keys) \cup Permutations(Shard)
+\* Serializability would not be satisfied due to write-skew
+Serialization == CC!Serializability(InitialState, Range(ops))
 
 \* \* LogIndicesImpl == 1..4
 
@@ -325,10 +323,16 @@ BaitLog ==
     \* /\ commitIndex < 5
     \* /\ Len(log) < 6
 
+-----------------------------------------
+
 CONSTANT MaxStmts
+
 \* Don't execute more than a max number of statements per transaction.
 StateConstraint == \A t \in TxId : rtxn[t] <= MaxStmts
     
+Symmetry == Permutations(TxId) \cup Permutations(Keys) \cup Permutations(Shard)
+
+
 \* Alias == [
 \*     log |-> log,
 \*     commitIndex |-> commitIndex,
