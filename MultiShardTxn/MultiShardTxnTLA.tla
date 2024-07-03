@@ -85,7 +85,7 @@ ShardMDB(s) == INSTANCE MDB WITH log <- log[s], commitIndex <- commitIndex[s], e
 Ops == {"read", "write", "coordCommit"}
 Entry == [k: Keys, op: Ops]
 CreateEntry(k, op, s, coord) == [k |-> k, op |-> op, shard |-> s, coordinator |-> coord]
-CreateCommitEntry(k, op, s, p) == [k |-> k, op |-> op, shard |-> s, participants |-> p]
+CreateCoordCommitEntry(k, op, s, p) == [k |-> k, op |-> op, shard |-> s, participants |-> p]
 
 
 Init ==
@@ -117,9 +117,8 @@ Init ==
 \* Router handles a new transaction operation that is routed to the appropriate shard.
 RouterTxnOp(s, tid, k, op) == 
     \* TODO: Router selects a specific cluster time to start the transaction at (?)
-    \* TODO: How should we consider how an op gets routed to a shard based on key in the op (e.g. catalog routing info)?
+    \* TODO: Asssume/enforce globally unique transaction IDs that are used once and never again?
     \* Route the new transaction op to the shard.
-    \* TODO: Mark first op of transaction with 'coordinator' label.
     /\ op \in {"read", "write"}
     \* If a shard of this transaction has aborted, don't continue the transaction.
     /\ ~\E as \in Shard : aborted[as][tid]
@@ -134,14 +133,13 @@ RouterTxnOp(s, tid, k, op) ==
 \* Router handles a transaction commit operation, which it forwards to the appropriate shard to initiate 2PC to
 \* commit the transaction. It also sends out prepare messages to all participant shards.
 RouterTxnCoordinateCommit(s, tid, k, op) == 
-    \* TODO: Router handles commits any differently than other ops in terms of forwarding behavior?
-    \* TODO: Send commit/coordinateCommit to the coordinator, and prepareTxn to all participant shards.
     /\ op = "coordCommit"
     /\ participants[tid] # <<>>
     \* No shard of this transaction has aborted.
     /\ ~\E as \in Shard : aborted[as][tid]
     /\ s = participants[tid][1] \* Coordinator shard is the first participant in the list.
-    /\ rlog' = [rlog EXCEPT ![s][tid] = Append(rlog[s][tid], CreateCommitEntry(k, op, s, participants[tid]))]
+    \* Send coordinate commit message to the coordinator shard.
+    /\ rlog' = [rlog EXCEPT ![s][tid] = Append(rlog[s][tid], CreateCoordCommitEntry(k, op, s, participants[tid]))]
     /\ rtxn' = [rtxn EXCEPT ![tid] = rtxn[tid]+1]
     \* Send prepare messages to all participant shards.
     /\ msgsPrepare' = msgsPrepare \cup {[shard |-> p, tid |-> tid, coordinator |-> s] : p \in Range(participants[tid])}
