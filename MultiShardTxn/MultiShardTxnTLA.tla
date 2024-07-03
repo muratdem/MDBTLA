@@ -4,7 +4,7 @@
 (**************************************************************************)
 EXTENDS Integers, Sequences, FiniteSets, Util, TLC
 
-CONSTANTS Keys, Values, TxId, Shard
+CONSTANTS Keys, TxId, Shard
 CONSTANT NoValue
 CONSTANTS WC, RC
 
@@ -79,7 +79,7 @@ VARIABLE catalog
 vars == << shardTxns, updated, overlap, rlog, aborted, log, commitIndex, epoch, rtxn, lsn, snapshotStore, ops, participants, coordInfo, msgsPrepare, msgsVoteCommit, msgsAbort, coordCommitVotes, catalog >>
 
 \* Instance of a MongoDB replica set log for a given shard.
-ShardMDB(s) == INSTANCE MDB WITH log <- log[s], commitIndex <- commitIndex[s], epoch <- epoch[s]
+ShardMDB(s) == INSTANCE MDB WITH log <- log[s], commitIndex <- commitIndex[s], epoch <- epoch[s], Values <- TxId
 
 Ops == {"read", "write", "coordCommit"}
 Entry == [k: Keys, op: Ops]
