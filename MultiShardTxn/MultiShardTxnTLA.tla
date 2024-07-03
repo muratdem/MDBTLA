@@ -326,6 +326,7 @@ BaitLog ==
     \* /\ Len(log) < 6
 
 CONSTANT MaxStmts
+\* Don't execute more than a max number of statements per transaction.
 StateConstraint == \A t \in TxId : rtxn[t] <= MaxStmts
     
 \* Alias == [
