@@ -224,21 +224,39 @@ ShardTxnWriteConflict(s, tid, k) ==
 \*******************
 
 \* Transaction coordinator shard receives a message from router to start coordinating commit for a transaction.
+\* In this message, it will also receive the set of shards that are participants in this transaction.
 ShardTxnCoordinateCommit(s, tid) == 
     /\ tid \in shardTxns[s]
     /\ lsn[s][tid] < Len(rlog[s][tid])
     /\ rlog[s][tid][lsn[s][tid] + 1].op = "coordCommit"
     \* I am the coordinator shard of this transaction.
     /\ coordInfo[s][tid].self  
-    \* Record the set of all transaction participants and get ready to receive votes from them.
+    \* Record the set of all transaction participants and get ready to receive votes (i.e. prepare responses) from them.
     /\ coordInfo' = [coordInfo EXCEPT ![s][tid] = [self |-> TRUE, participants |-> (rlog[s][tid][lsn[s][tid] + 1].participants)]] 
     /\ coordCommitVotes' = [coordCommitVotes EXCEPT ![s][tid] = {}]
     /\ lsn' = [lsn EXCEPT ![s][tid] = lsn[s][tid] + 1]
     /\ UNCHANGED << shardTxns, log, commitIndex, epoch, overlap, rlog, rtxn, updated, aborted, snapshotStore, participants, msgsPrepare, msgsVoteCommit, ops, catalog, msgsAbort, msgsCommit >>
 
-\* Shard process a transaction prepare message from the router.
-\* Note that it receives prepare messages from the router, but then sends it vote decision
-\* to the coordinator shard.
+\* Transaction coordinator shard receives a vote from a participant shard to commit a transaction.
+ShardTxnCoordinatorRecvCommitVote(s, tid, from) == 
+    /\ tid \in shardTxns[s]
+    /\ \E m \in msgsVoteCommit : m.shard = from /\ m.tid = tid
+    /\ coordInfo[s][tid].self   
+    /\ coordCommitVotes' = [coordCommitVotes EXCEPT ![s][tid] = coordCommitVotes[s][tid] \union {from}]
+    /\ UNCHANGED << shardTxns, log, commitIndex, epoch, lsn, overlap, rlog, rtxn, updated, aborted, snapshotStore, participants, coordInfo, msgsPrepare, msgsVoteCommit, ops, catalog, msgsAbort, msgsCommit >>
+
+\* Coordinator shard decides to commit a transaction, if it has gathered all the necessary commit votes.
+ShardTxnCoordinatorDecideCommit(s, tid) == 
+    \* Transaction started on this shard and has new statements in the router log.
+    /\ tid \in shardTxns[s]
+    \* I am the coordinator, and I received all commit votes from participants.
+    /\ coordInfo[s][tid].self
+    /\ coordCommitVotes[s][tid] = Range(coordInfo[s][tid].participants)
+    /\ msgsCommit' = msgsCommit \cup { [shard |-> p, tid |-> tid] : p \in Range(coordInfo[s][tid].participants) }
+    /\ UNCHANGED << shardTxns, log, commitIndex, epoch, lsn, overlap, rlog, rtxn, updated, aborted, snapshotStore, participants, coordInfo, msgsPrepare, msgsVoteCommit, ops, coordCommitVotes, catalog, msgsAbort >>
+
+\* Shard processes a transaction prepare message.
+\* Note that it will receive prepare messages from the router, but sends it vote decision to the coordinator shard.
 ShardTxnPrepare(s, tid) == 
     \E m \in msgsPrepare : 
         \* TODO: Choose prepareTimestamp for this transaction and track prepared state (?).
@@ -250,24 +268,6 @@ ShardTxnPrepare(s, tid) ==
         \* Prepare and then send your vote to the coordinator.
         /\ msgsVoteCommit' = msgsVoteCommit \cup { [shard |-> s, tid |-> tid, to |-> m.coordinator] }
         /\ UNCHANGED << shardTxns, log, commitIndex, epoch, lsn, overlap, rlog, rtxn, updated, aborted, snapshotStore, participants, coordInfo, msgsPrepare, ops, coordCommitVotes, catalog, msgsAbort, msgsCommit >>
-
-\* Transaction coordinator shard receives a vote from a participant shard to commit a transaction.
-ShardTxnCoordinatorRecvCommitVote(s, tid, from) == 
-    /\ tid \in shardTxns[s]
-    /\ \E m \in msgsVoteCommit : m.shard = from /\ m.tid = tid
-    /\ coordInfo[s][tid].self   
-    /\ coordCommitVotes' = [coordCommitVotes EXCEPT ![s][tid] = coordCommitVotes[s][tid] \union {from}]
-    /\ UNCHANGED << shardTxns, log, commitIndex, epoch, lsn, overlap, rlog, rtxn, updated, aborted, snapshotStore, participants, coordInfo, msgsPrepare, msgsVoteCommit, ops, catalog, msgsAbort, msgsCommit >>
-
-\* Coordinator shard commits a transaction, if it has gathered all the necessary commit votes.
-ShardTxnCoordinatorDecideCommit(s, tid) == 
-    \* Transaction started on this shard and has new statements in the router log.
-    /\ tid \in shardTxns[s]
-    \* I am the coordinator, and I received all commit votes from participants.
-    /\ coordInfo[s][tid].self
-    /\ coordCommitVotes[s][tid] = Range(coordInfo[s][tid].participants)
-    /\ msgsCommit' = msgsCommit \cup { [shard |-> p, tid |-> tid] : p \in Range(coordInfo[s][tid].participants) }
-    /\ UNCHANGED << shardTxns, log, commitIndex, epoch, lsn, overlap, rlog, rtxn, updated, aborted, snapshotStore, participants, coordInfo, msgsPrepare, msgsVoteCommit, ops, coordCommitVotes, catalog, msgsAbort >>
 
 \* Shard receives a commit message for transaction, and commits.
 ShardTxnCommit(s, tid) == 
