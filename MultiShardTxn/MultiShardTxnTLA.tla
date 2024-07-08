@@ -122,10 +122,13 @@ RouterTxnOp(s, tid, k, op) ==
     /\ op \in {"read", "write"}
     \* If a shard of this transaction has aborted, don't continue the transaction.
     /\ ~\E as \in Shard : aborted[as][tid]
-    /\ rlog' = [rlog EXCEPT ![s][tid] = Append(rlog[s][tid], CreateEntry(k, op, s, rtxn[tid] = 0))]
-    /\ rtxn' = [rtxn EXCEPT ![tid] = rtxn[tid]+1]
+    \* Assume that after a client has sent a commit for a given transaction id,
+    \* it will no longer send any more statements for that transaction id.
+    /\ \A d \in Shard : ~\E m \in Range(rlog[d][tid]) : m.op = "coordCommit"
     \* Route to the shard that owns this key.
     /\ catalog[k] = s
+    /\ rlog' = [rlog EXCEPT ![s][tid] = Append(rlog[s][tid], CreateEntry(k, op, s, rtxn[tid] = 0))]
+    /\ rtxn' = [rtxn EXCEPT ![tid] = rtxn[tid]+1]
     \* Update participants list if new participant joined the transaction.
     /\ participants' = [participants EXCEPT ![tid] = participants[tid] \o (IF s \in Range(participants[tid]) THEN <<>> ELSE <<s>>)]
     /\ UNCHANGED << shardTxns, updated, overlap, aborted, log, commitIndex, epoch, lsn, snapshotStore, ops,coordInfo, msgsPrepare, msgsVoteCommit, msgsAbort, coordCommitVotes, catalog, msgsCommit >>
