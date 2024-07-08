@@ -1,3 +1,5 @@
+@commit ca5907d78cac4b15d28f41a2267c4b8aa9c162a1
+$ tlc -workers 8 -simulate -seed -947384246260006092 -depth 35 MultiShardTxnTLA | tee logout
 TLC2 Version 2.18 of Day Month 20?? (rev: f2d0ab8)
 Warning: Please run the Java VM, which executes TLC with a throughput optimized garbage collector, by passing the "-XX:+UseParallelGC" property.
 (Use the -nowarning option to disable this warning.)
