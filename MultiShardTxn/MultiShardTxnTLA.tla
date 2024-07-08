@@ -285,7 +285,12 @@ ShardTxnAbort(s, tid) ==
     /\ \E m \in msgsAbort : m.shard = s /\ m.tid = tid
     /\ aborted' = [aborted EXCEPT ![s][tid] = TRUE]
     /\ shardTxns' = [shardTxns EXCEPT ![s] = shardTxns[s] \ {tid}]
-    /\ UNCHANGED << log, commitIndex, epoch, lsn, overlap, rlog, rtxn, updated, snapshotStore, participants, coordInfo, msgsPrepare, msgsVoteCommit, ops, coordCommitVotes, catalog, msgsAbort, msgsCommit >>
+    \* Since it was aborted on this shard, update the transaction's op history.
+    \* We remove all transaction ops that occurred for this transaction on this
+    \* shard, by removing ops with keys that (a) were touched by this transaction and
+    \* (b) are owned by this shard.
+    /\ ops' = [ops EXCEPT ![tid] = SelectSeq(ops[tid], LAMBDA op : catalog[op.key] # s)]
+    /\ UNCHANGED << log, commitIndex, epoch, lsn, overlap, rlog, rtxn, updated, snapshotStore, participants, coordInfo, msgsPrepare, msgsVoteCommit, coordCommitVotes, catalog, msgsAbort, msgsCommit >>
 
 
 Next == 
