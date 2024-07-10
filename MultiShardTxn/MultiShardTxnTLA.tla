@@ -96,7 +96,7 @@ Init ==
     /\ shardTxns = [s \in Shard |-> {}]
     /\ rtxn = [t \in TxId |-> 0]
     /\ lsn = [s \in Shard |-> [t \in TxId |-> 0]]
-    /\ snapshotStore = [s \in Shard |-> [t \in TxId |-> [k \in Keys |-> NoValue]]]
+    /\ snapshotStore = [s \in Shard |-> [t \in TxId |-> [ts |-> NoValue, data |-> [k \in Keys |-> NoValue]]]]
     /\ updated = [s \in Shard |-> [t \in TxId |-> {}]]
     /\ overlap = [s \in Shard |-> [t \in TxId |-> {}]]
     /\ ops = [s \in TxId |-> <<>>]
@@ -178,9 +178,13 @@ ShardTxnStart(s, tid) ==
     \* having started on this shard, so transaction statements can now be processed.
     /\ shardTxns' = [shardTxns EXCEPT ![s] = shardTxns[s] \union {tid}]
     \* Save a snapshot of the current MongoDB instance at this shard for this transaction to use.
+    \* Store the timestamp of the snapshot read as well, alongside the key-value snapshot.
     /\ LET readTs == rlog[s][tid][lsn[s][tid] + 1].readTs IN
         snapshotStore' = [snapshotStore EXCEPT ![s][tid] = 
-                            [k \in Keys |-> (CHOOSE read \in ShardMDB(s)!GeneralRead(readTs, k, TRUE) : TRUE).value]]
+                            [
+                                ts |-> readTs,
+                                data |-> [k \in Keys |-> (CHOOSE read \in ShardMDB(s)!GeneralRead(readTs, k, TRUE) : TRUE).value]
+                            ]]
     \* Update the record of which transactions are running concurrently with each other.
     /\ overlap' = [overlap EXCEPT ![s] = 
                     [t \in TxId |-> IF t = tid THEN shardTxns'[s] 
@@ -199,9 +203,17 @@ ShardTxnRead(s, tid, k) ==
     /\ rlog[s][tid][lsn[s][tid] + 1].k = k
     \* Read the value of the key from the snapshot store, record the op, and 
     \* advance to the next transaction statement.
-    /\ ops' = [ops EXCEPT ![tid] = Append( ops[tid], rOp(k, snapshotStore[s][tid][k]) )]
+    /\ ops' = [ops EXCEPT ![tid] = Append( ops[tid], rOp(k, snapshotStore[s][tid].data[k]) )]
     /\ lsn' = [lsn EXCEPT ![s][tid] = lsn[s][tid] + 1]
     /\ UNCHANGED << shardTxns, updated, overlap, rlog, aborted, log, commitIndex, epoch, rtxn, snapshotStore, participants, coordInfo, msgsPrepare, msgsVoteCommit, coordCommitVotes, catalog, msgsAbort, msgsCommit, rTxnReadTs >>    
+
+\* Has this key been written to since the snapshot timestamp at which the transaction started?
+WriteConflictExists(s, tid, k) ==
+    \E tOther \in TxId : 
+    \E <<kOther,ts>> \in updated[s][tOther] :
+        \* Someone else wrote to this key at a timestamp newer than your snapshot.
+        /\ kOther = k
+        /\ ts > snapshotStore[s][tid].ts
 
 \* Shard processes a transaction write operation.
 ShardTxnWrite(s, tid, k) == 
@@ -212,10 +224,11 @@ ShardTxnWrite(s, tid, k) ==
     /\ rlog[s][tid][lsn[s][tid] + 1].k = k
     \* The write to this key does not overlap with any writes to the same key
     \* from other, concurrent transactions.
-    /\ \A t \in overlap[s][tid] \ {tid} : k \notin updated[s][t]
+    /\ ~WriteConflictExists(s, tid, k)
     \* Update the transaction's snapshot data, and advance to the next statement.
-    /\ snapshotStore' = [snapshotStore EXCEPT ![s][tid][k] = tid]
-    /\ updated' = [updated EXCEPT ![s][tid] = updated[s][tid] \union {k}]
+    /\ snapshotStore' = [snapshotStore EXCEPT ![s][tid]["data"][k] = tid]
+    \* Record timestamp of the write to the key as well.
+    /\ updated' = [updated EXCEPT ![s][tid] = updated[s][tid] \union {<<k,snapshotStore[s][tid].ts + 1>>}]
     /\ ops' = [ops EXCEPT ![tid] = Append( ops[tid], wOp(k, tid) )]
     /\ lsn' = [lsn EXCEPT ![s][tid] = lsn[s][tid] + 1]
     /\ UNCHANGED << shardTxns, log, commitIndex, aborted, epoch, overlap, rlog, rtxn, participants, coordInfo, msgsPrepare, msgsVoteCommit, coordCommitVotes, catalog, msgsAbort, msgsCommit, rTxnReadTs >>
@@ -226,7 +239,7 @@ ShardTxnWriteConflict(s, tid, k) ==
     /\ tid \in shardTxns[s]
     /\ lsn[s][tid] < Len(rlog[s][tid])
     \* The write to this key conflicts with another concurrent transaction on this shard.
-    /\ \E t \in overlap[s][tid] \ {tid} : k \in updated[s][t]
+    /\ WriteConflictExists(s, tid, k)
     /\ aborted' = [aborted EXCEPT ![s][tid] = TRUE]
     /\ UNCHANGED << shardTxns, log, commitIndex, epoch, lsn, overlap, rlog, rtxn, updated, snapshotStore, ops, participants, coordInfo, msgsPrepare, msgsVoteCommit, coordCommitVotes, catalog, msgsAbort, msgsCommit, rTxnReadTs >>
 
@@ -286,7 +299,7 @@ ShardTxnCommit(s, tid) ==
     /\ \E m \in msgsCommit : m.shard = s /\ m.tid = tid
     /\ shardTxns' = [shardTxns EXCEPT ![s] = shardTxns[s] \ {tid}]
     \* Write all updated keys back to the shard oplog.
-    /\ log' = [log EXCEPT ![s] = log[s] \o SetToSeq({[key |-> key, value |-> tid]: key \in updated[s][tid]})]
+    /\ log' = [log EXCEPT ![s] = log[s] \o SetToSeq({[key |-> key, value |-> tid]: <<key,ts>> \in updated[s][tid]})]
     /\ commitIndex' = [commitIndex EXCEPT ![s] = Len(log'[s])]
     /\ UNCHANGED << lsn, overlap, rlog, epoch, rtxn, updated, snapshotStore, participants, coordInfo, msgsPrepare, msgsVoteCommit, ops, coordCommitVotes, catalog, msgsAbort, msgsCommit, aborted, rTxnReadTs >>
 
