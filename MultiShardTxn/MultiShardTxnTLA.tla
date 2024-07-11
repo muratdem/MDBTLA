@@ -88,7 +88,7 @@ ShardMDB(s) == INSTANCE MDB WITH mlog <- log[s], mcommitIndex <- commitIndex[s],
 Ops == {"read", "write", "coordCommit"}
 Entry == [k: Keys, op: Ops]
 CreateEntry(k, op, s, coord, ts) == [k |-> k, op |-> op, shard |-> s, coordinator |-> coord, readTs |-> ts]
-CreateCoordCommitEntry(k, op, s, p) == [k |-> k, op |-> op, shard |-> s, participants |-> p]
+CreateCoordCommitEntry(op, s, p) == [op |-> op, shard |-> s, participants |-> p]
 
 
 Init ==
@@ -142,14 +142,14 @@ RouterTxnOp(s, tid, k, op) ==
 
 \* Router handles a transaction commit operation, which it forwards to the appropriate shard to initiate 2PC to
 \* commit the transaction. It also sends out prepare messages to all participant shards.
-RouterTxnCoordinateCommit(s, tid, k, op) == 
+RouterTxnCoordinateCommit(s, tid, op) == 
     /\ op = "coordCommit"
     /\ participants[tid] # <<>>
     \* No shard of this transaction has aborted.
     /\ ~\E as \in Shard : aborted[as][tid]
     /\ s = participants[tid][1] \* Coordinator shard is the first participant in the list.
     \* Send coordinate commit message to the coordinator shard.
-    /\ rlog' = [rlog EXCEPT ![s][tid] = Append(rlog[s][tid], CreateCoordCommitEntry(k, op, s, participants[tid]))]
+    /\ rlog' = [rlog EXCEPT ![s][tid] = Append(rlog[s][tid], CreateCoordCommitEntry(op, s, participants[tid]))]
     /\ rtxn' = [rtxn EXCEPT ![tid] = rtxn[tid]+1]
     \* Send prepare messages to all participant shards.
     /\ msgsPrepare' = msgsPrepare \cup {[shard |-> p, tid |-> tid, coordinator |-> s] : p \in Range(participants[tid])}
@@ -328,7 +328,7 @@ ShardTxnAbort(s, tid) ==
 Next == 
     \* Router actions.
     \/ \E s \in Shard, t \in TxId, k \in Keys, op \in Ops: RouterTxnOp(s, t, k, op)
-    \/ \E s \in Shard, t \in TxId, k \in Keys, op \in Ops: RouterTxnCoordinateCommit(s, t, k, op)
+    \/ \E s \in Shard, t \in TxId, op \in Ops: RouterTxnCoordinateCommit(s, t, op)
     \/ \E t \in TxId : RouterTxnAbort(t)
     \* Shard transaction actions.
     \/ \E s \in Shard, tid \in TxId: ShardTxnStart(s, tid)
