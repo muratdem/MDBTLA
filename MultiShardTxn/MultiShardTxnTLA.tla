@@ -208,12 +208,20 @@ ShardTxnRead(s, tid, k) ==
     /\ UNCHANGED << shardTxns, updated, overlap, rlog, aborted, log, commitIndex, epoch, rtxn, snapshotStore, participants, coordInfo, msgsPrepare, msgsVoteCommit, coordCommitVotes, catalog, msgsAbort, msgsCommit, rTxnReadTs >>    
 
 \* Has this key been written to since the snapshot timestamp at which the transaction started?
+\* WriteConflictExists(s, tid, k) ==
+    \* \E tOther \in TxId : 
+    \* \E <<kOther,ts>> \in updated[s][tOther] :
+    \*     \* Someone else wrote to this key at a timestamp newer than your snapshot.
+    \*     /\ kOther = k
+    \*     /\ ts > snapshotStore[s][tid].ts
+
+\* Alternate equivalent definition of the above.
 WriteConflictExists(s, tid, k) ==
     \E tOther \in TxId : 
-    \E <<kOther,ts>> \in updated[s][tOther] :
+    \E val \in updated[s][tOther] :
         \* Someone else wrote to this key at a timestamp newer than your snapshot.
-        /\ kOther = k
-        /\ ts > snapshotStore[s][tid].ts
+        /\ val[1] = k
+        /\ val[2] > snapshotStore[s][tid].ts
 
 \* Shard processes a transaction write operation.
 ShardTxnWrite(s, tid, k) == 
