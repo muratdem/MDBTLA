@@ -83,7 +83,7 @@ VARIABLE rTxnReadTs
 vars == << shardTxns, updated, overlap, rlog, aborted, log, commitIndex, epoch, rtxn, lsn, snapshotStore, ops, participants, coordInfo, msgsPrepare, msgsVoteCommit, msgsAbort, coordCommitVotes, catalog, msgsCommit, rTxnReadTs >>
 
 \* Instance of a MongoDB replica set log for a given shard.
-ShardMDB(s) == INSTANCE MDB WITH log <- log[s], commitIndex <- commitIndex[s], epoch <- epoch[s], Values <- TxId
+ShardMDB(s) == INSTANCE MDB WITH mlog <- log[s], mcommitIndex <- commitIndex[s], mepoch <- epoch[s], Values <- TxId
 
 Ops == {"read", "write", "coordCommit"}
 Entry == [k: Keys, op: Ops]

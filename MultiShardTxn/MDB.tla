@@ -23,7 +23,7 @@ Epochs == Nat \ {0}
 
 \* The result a read will have if no value can be found.
 NotFoundReadResult == [
-    logIndex |-> 0,
+    mlogIndex |-> 0,
     value |-> NoValue
 ]
 
@@ -40,52 +40,52 @@ Max(S) == CHOOSE x \in S : \A y \in S : x >= y
 
 
 ---------------------------------------------------------------------
-\* CommitIndex and epoch express a high-level view of
+\* CommitIndex and mepoch express a high-level view of
 \* underlying processes like replication and failure recovery:
-\* - the commitIndex indicates a position in the log (or 0 for no position)
+\* - the mcommitIndex indicates a position in the mlog (or 0 for no position)
 \*   before which data is durable.
-\* - the epoch increments strictly monotonically whenever log is non-deterministically
-\*   truncated in the range (commitIndex+1)..Len(log)), modeling loss of uncommitted data
+\* - the mepoch increments strictly monotonically whenever mlog is non-deterministically
+\*   truncated in the range (mcommitIndex+1)..Len(mlog)), modeling loss of uncommitted data
 \*   due to node failures
 
-VARIABLES log, commitIndex, epoch
+VARIABLES mlog, mcommitIndex, mepoch
 
-mvars == <<log, commitIndex, epoch>>
+mvars == <<mlog, mcommitIndex, mepoch>>
 
 TypesOK ==
-    /\ log \in Logs
-    /\ commitIndex \in Nat
-    /\ epoch \in Epochs
+    /\ mlog \in Logs
+    /\ mcommitIndex \in Nat
+    /\ mepoch \in Epochs
 
-\* This operator initiates a write, adding it to the log.
+\* This operator initiates a write, adding it to the mlog.
 WriteInit(key, value) ==
-    /\ log' = Append(log, [
+    /\ mlog' = Append(mlog, [
             key |-> key,
             value |-> value
        ])
 
 \* For a given key, a read can be entirely defined by a value and a flag:
-\* - point is a point in the log to which the read should be applied.
-\*   for log entries at or "before" (index <=) point, the latest
+\* - point is a point in the mlog to which the read should be applied.
+\*   for mlog entries at or "before" (index <=) point, the latest
 \*   value associated with key will be included in the result.
-\*   If the log at or before point does not mention the given key at all,
+\*   If the mlog at or before point does not mention the given key at all,
 \*   then the result set will include NotFoundReadResult.
 \*   An empty set as a result means the read is not possible; any valid read, even
 \*   one that returns a "not found" result, will have at least one element in
 \*   its set.
-\* - allowDirty controls a secondary behavior: for elements of the log
+\* - allowDirty controls a secondary behavior: for elements of the mlog
 \*   whose index > point, if allowDirty = TRUE then they will also
 \*   be included in the result set. If allowDirty = FALSE, then only
 \*   the single latest value whose index <= point will be in the result set.
 GeneralRead(key, index, allowDirty) ==
-    LET maxCandidateIndices == { i \in DOMAIN log :
-            /\ log[i].key = key
+    LET maxCandidateIndices == { i \in DOMAIN mlog :
+            /\ mlog[i].key = key
             /\ i <= index }
-        allIndices == { i \in DOMAIN log :
+        allIndices == { i \in DOMAIN mlog :
             /\ allowDirty
-            /\ log[i].key = key
+            /\ mlog[i].key = key
             /\ i > index }
-    IN  { [logIndex |-> i, value |-> log[i].value]
+    IN  { [mlogIndex |-> i, value |-> mlog[i].value]
           : i \in allIndices \cup (
             IF   maxCandidateIndices # {}
             THEN {Max(maxCandidateIndices)}
@@ -95,18 +95,18 @@ GeneralRead(key, index, allowDirty) ==
          ELSE {})
 
 Read(key) == CASE
-            \* linearizable reads from commitIndex and forbids dirty reads
-            RC = "linearizable" -> GeneralRead(key, commitIndex, FALSE)
+            \* linearizable reads from mcommitIndex and forbids dirty reads
+            RC = "linearizable" -> GeneralRead(key, mcommitIndex, FALSE)
 
-        \*     \* available reads from readIndex, because the node we reach may be behind commitIndex; 
+        \*     \* available reads from readIndex, because the node we reach may be behind mcommitIndex; 
         \*     \* it also allows dirty reads
         \*  [] RC = "available"    -> GeneralRead(key, readIndex, TRUE)
 
 \* causal hlc read at or more recent than what we received last from a read/write
 ReadAtTime(token, key) ==
         IF   TRUE
-             \* \/ epoch = token.epoch  \* invalidate token on epoch change
-             \* \/ token = [checkpoint |-> 0,epoch |-> 0] \* NoSessionToken hack !!
+             \* \/ mepoch = token.mepoch  \* invalidate token on mepoch change
+             \* \/ token = [checkpoint |-> 0,mepoch |-> 0] \* NoSessionToken hack !!
         THEN LET sessionIndex ==  token.checkpoint \* Max({token.checkpoint, readIndex})
              IN  GeneralRead(key, sessionIndex, TRUE)
         ELSE {}
@@ -114,25 +114,25 @@ ReadAtTime(token, key) ==
 ---------------------------------------------------------------------
 \* actions and main spec
 
-\* Expand the prefix of the log that can no longer be lost.
+\* Expand the prefix of the mlog that can no longer be lost.
 IncreaseCommitIndex ==
-    /\ commitIndex' \in commitIndex..Len(log)
-    /\ UNCHANGED <<log, epoch>>
+    /\ mcommitIndex' \in mcommitIndex..Len(mlog)
+    /\ UNCHANGED <<mlog, mepoch>>
 
-\* Any data that is not part of the checkpointed log prefix may be lost at any time. 
+\* Any data that is not part of the checkpointed mlog prefix may be lost at any time. 
 TruncateLog ==
-    \E i \in (commitIndex+1)..Len(log) :
-        /\ log' = SubSeq(log, 1, i - 1)
-        /\ epoch' = epoch + 1
-        /\ UNCHANGED <<commitIndex>>
+    \E i \in (mcommitIndex+1)..Len(mlog) :
+        /\ mlog' = SubSeq(mlog, 1, i - 1)
+        /\ mepoch' = mepoch + 1
+        /\ UNCHANGED <<mcommitIndex>>
 
 \* Init ==
-\*     /\ log = <<>>
+\*     /\ mlog = <<>>
 \*     /\ readIndex = 0
-\*     /\ commitIndex = 0
-\*     /\ epoch = 1
+\*     /\ mcommitIndex = 0
+\*     /\ mepoch = 1
 
-\* \* This relation models all possible log actions, without performing any write.
+\* \* This relation models all possible mlog actions, without performing any write.
 \* Next ==
 \*     \/ IncreaseCommitIndex
 \*     \/ TruncateLog
