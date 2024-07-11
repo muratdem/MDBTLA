@@ -2,6 +2,8 @@
 
 The goal of this specification is to show transactions on a sharded cluster.
 
+Open the current model in web explorer [here](https://will62794.github.io/tla-web/#!/home?specpath=https%3A%2F%2Fraw.githubusercontent.com%2Fmuratdem%2FMDBTLA%2Fmain%2FMultiShardTxn%2FMultiShardTxnTLA.tla&trace=c99c20ba%2C30c6b350_0890eb82%2C59f88843_3e1659f8%2C0d5b83ed_1b98ff2e&constants%5BKeys%5D=%7Bk1%2Ck2%7D&constants%5BTxId%5D=%7Bt1%2Ct2%7D&constants%5BShard%5D=%7Bs1%7D&constants%5BNoValue%5D=%22NoVal%22&constants%5BWC%5D=%22majority%22&constants%5BRC%5D=%22linearizable%22&constants%5BMaxStmts%5D=2).
+
 
 ## Main specs in this directory
 
