@@ -64,6 +64,22 @@ WriteInit(key, value) ==
             value |-> value
        ])
 
+\* 
+\* Perform a snapshot read of a given key at timestamp=index.
+\* 
+\* That is, return the latest value associated with the key 
+\* that was written at ts <= index. If no value was yet written
+\* to the key, then return NotFoundReadResult.
+\* 
+SnapshotRead(key, index) == 
+    LET snapshotKeyWrites == 
+        { i \in DOMAIN mlog :
+            /\ mlog[i].key = key
+            /\ i <= index } IN
+        IF snapshotKeyWrites = {}
+            THEN NotFoundReadResult
+            ELSE [mlogIndex |-> Max(snapshotKeyWrites), value |-> mlog[Max(snapshotKeyWrites)].value]
+
 \* For a given key, a read can be entirely defined by a value and a flag:
 \* - point is a point in the mlog to which the read should be applied.
 \*   for mlog entries at or "before" (index <=) point, the latest

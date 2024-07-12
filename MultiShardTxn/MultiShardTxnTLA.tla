@@ -183,7 +183,7 @@ ShardTxnStart(s, tid) ==
         snapshotStore' = [snapshotStore EXCEPT ![s][tid] = 
                             [
                                 ts |-> readTs,
-                                data |-> [k \in Keys |-> (CHOOSE read \in ShardMDB(s)!GeneralRead(readTs, k, TRUE) : TRUE).value]
+                                data |-> [k \in Keys |-> ShardMDB(s)!SnapshotRead(k, readTs).value]
                             ]]
     \* Update the record of which transactions are running concurrently with each other.
     /\ overlap' = [overlap EXCEPT ![s] = 
