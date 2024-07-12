@@ -217,7 +217,7 @@ ShardTxnRead(s, tid, k) ==
 
 \* Alternate equivalent definition of the above.
 WriteConflictExists(s, tid, k) ==
-    \E tOther \in TxId : 
+    \E tOther \in TxId \ {tid}: 
     \E val \in updated[s][tOther] :
         \* Someone else wrote to this key at a timestamp newer than your snapshot.
         /\ val[1] = k
