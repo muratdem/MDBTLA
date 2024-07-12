@@ -96,7 +96,7 @@ Init ==
     /\ shardTxns = [s \in Shard |-> {}]
     /\ rtxn = [t \in TxId |-> 0]
     /\ lsn = [s \in Shard |-> [t \in TxId |-> 0]]
-    /\ snapshotStore = [s \in Shard |-> [t \in TxId |-> [ts |-> NoValue, data |-> [k \in Keys |-> NoValue]]]]
+    /\ snapshotStore = [s \in Shard |-> [t \in TxId |-> [ts |-> NoValue, data |-> [k \in Keys |-> NoValue], preparedKeys |-> {}]]]
     /\ updated = [s \in Shard |-> [t \in TxId |-> {}]]
     /\ overlap = [s \in Shard |-> [t \in TxId |-> {}]]
     /\ ops = [s \in TxId |-> <<>>]
@@ -183,7 +183,8 @@ ShardTxnStart(s, tid) ==
         snapshotStore' = [snapshotStore EXCEPT ![s][tid] = 
                             [
                                 ts |-> readTs,
-                                data |-> [k \in Keys |-> ShardMDB(s)!SnapshotRead(k, readTs).value]
+                                data |-> [k \in Keys |-> ShardMDB(s)!SnapshotRead(k, readTs).value],
+                                preparedKeys |-> {}
                             ]]
     \* Update the record of which transactions are running concurrently with each other.
     /\ overlap' = [overlap EXCEPT ![s] = 
@@ -201,6 +202,8 @@ ShardTxnRead(s, tid, k) ==
     /\ tid \in shardTxns[s]
     /\ rlog[s][tid][lsn[s][tid] + 1].op = "read"
     /\ rlog[s][tid][lsn[s][tid] + 1].k = k
+    \* Prevent reads to a key if it has currently in a prepared transaction.
+    /\ ~\E tother \in TxId : k \in snapshotStore[s][tother].preparedKeys
     \* Read the value of the key from the snapshot store, record the op, and 
     \* advance to the next transaction statement.
     /\ ops' = [ops EXCEPT ![tid] = Append( ops[tid], rOp(k, snapshotStore[s][tid].data[k]) )]
@@ -301,7 +304,8 @@ ShardTxnPrepare(s, tid) ==
         /\ m.shard = s /\ m.tid = tid
         \* Prepare and then send your vote to the coordinator.
         /\ msgsVoteCommit' = msgsVoteCommit \cup { [shard |-> s, tid |-> tid, to |-> m.coordinator] }
-        /\ UNCHANGED << shardTxns, log, commitIndex, epoch, lsn, overlap, rlog, rtxn, updated, aborted, snapshotStore, participants, coordInfo, msgsPrepare, ops, coordCommitVotes, catalog, msgsAbort, msgsCommit, rTxnReadTs >>
+        /\ snapshotStore' = [snapshotStore EXCEPT ![s][tid]["preparedKeys"] = snapshotStore[s][tid]["preparedKeys"] \cup {k[1] : k \in updated[s][tid]}]
+        /\ UNCHANGED << shardTxns, log, commitIndex, epoch, lsn, overlap, rlog, rtxn, updated, aborted, participants, coordInfo, msgsPrepare, ops, coordCommitVotes, catalog, msgsAbort, msgsCommit, rTxnReadTs >>
 
 \* Shard receives a commit message for transaction, and commits.
 ShardTxnCommit(s, tid) == 
@@ -311,7 +315,9 @@ ShardTxnCommit(s, tid) ==
     \* Write all updated keys back to the shard oplog.
     /\ log' = [log EXCEPT ![s] = log[s] \o SetToSeq({[key |-> key, value |-> tid]: <<key,ts>> \in updated[s][tid]})]
     /\ commitIndex' = [commitIndex EXCEPT ![s] = Len(log'[s])]
-    /\ UNCHANGED << lsn, overlap, rlog, epoch, rtxn, updated, snapshotStore, participants, coordInfo, msgsPrepare, msgsVoteCommit, ops, coordCommitVotes, catalog, msgsAbort, msgsCommit, aborted, rTxnReadTs >>
+    \* Remove prepared keys.
+    /\ snapshotStore' = [snapshotStore EXCEPT ![s][tid]["preparedKeys"] = {}]
+    /\ UNCHANGED << lsn, overlap, rlog, epoch, rtxn, updated, participants, coordInfo, msgsPrepare, msgsVoteCommit, ops, coordCommitVotes, catalog, msgsAbort, msgsCommit, aborted, rTxnReadTs >>
 
 \* Shard receives an abort message for transaction, and aborts.
 ShardTxnAbort(s, tid) == 
