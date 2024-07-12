@@ -105,7 +105,7 @@ Init ==
     /\ commitIndex = [s \in Shard |-> 0]
     /\ epoch = [s \in Shard |-> 1]
     /\ participants = [t \in TxId |-> <<>>]
-    /\ coordInfo = [s \in Shard |-> [t \in TxId |-> [self |-> FALSE, participants |-> <<>>]]]
+    /\ coordInfo = [s \in Shard |-> [t \in TxId |-> [self |-> FALSE, participants |-> <<>>, committing |-> FALSE]]]
     /\ msgsPrepare = {}
     /\ msgsVoteCommit = {}
     /\ msgsAbort = {}
@@ -190,7 +190,7 @@ ShardTxnStart(s, tid) ==
                     [t \in TxId |-> IF t = tid THEN shardTxns'[s] 
                                     ELSE IF t \in shardTxns'[s] THEN overlap[s][t] \union {tid} 
                                     ELSE overlap[s][t]]]
-    /\ coordInfo' = [coordInfo EXCEPT ![s][tid] = [self |-> rlog[s][tid][lsn[s][tid] + 1].coordinator, participants |-> <<s>>]]
+    /\ coordInfo' = [coordInfo EXCEPT ![s][tid] = [self |-> rlog[s][tid][lsn[s][tid] + 1].coordinator, participants |-> <<s>>, committing |-> FALSE]]
     /\ UNCHANGED << lsn, updated, rlog, aborted, log, commitIndex, epoch, rtxn, ops, participants, msgsPrepare, msgsVoteCommit, coordCommitVotes, catalog, msgsAbort, msgsCommit, rTxnReadTs >>   
 
 \* Shard processes a transaction read operation.
@@ -264,7 +264,7 @@ ShardTxnCoordinateCommit(s, tid) ==
     \* I am the coordinator shard of this transaction.
     /\ coordInfo[s][tid].self  
     \* Record the set of all transaction participants and get ready to receive votes (i.e. prepare responses) from them.
-    /\ coordInfo' = [coordInfo EXCEPT ![s][tid] = [self |-> TRUE, participants |-> (rlog[s][tid][lsn[s][tid] + 1].participants)]] 
+    /\ coordInfo' = [coordInfo EXCEPT ![s][tid] = [self |-> TRUE, participants |-> (rlog[s][tid][lsn[s][tid] + 1].participants), committing |-> TRUE]] 
     /\ coordCommitVotes' = [coordCommitVotes EXCEPT ![s][tid] = {}]
     /\ lsn' = [lsn EXCEPT ![s][tid] = lsn[s][tid] + 1]
     /\ UNCHANGED << shardTxns, log, commitIndex, epoch, overlap, rlog, rtxn, updated, aborted, snapshotStore, participants, msgsPrepare, msgsVoteCommit, ops, catalog, msgsAbort, msgsCommit, rTxnReadTs >>
@@ -273,7 +273,9 @@ ShardTxnCoordinateCommit(s, tid) ==
 ShardTxnCoordinatorRecvCommitVote(s, tid, from) == 
     /\ tid \in shardTxns[s]
     /\ \E m \in msgsVoteCommit : m.shard = from /\ m.tid = tid
-    /\ coordInfo[s][tid].self   
+    \* We are the coordinator and received coordinateCommit with full participant list, indicating we are now ready to run 2PC to commit.
+    /\ coordInfo[s][tid].self 
+    /\ coordInfo[s][tid].committing  
     /\ coordCommitVotes' = [coordCommitVotes EXCEPT ![s][tid] = coordCommitVotes[s][tid] \union {from}]
     /\ UNCHANGED << shardTxns, log, commitIndex, epoch, lsn, overlap, rlog, rtxn, updated, aborted, snapshotStore, participants, coordInfo, msgsPrepare, msgsVoteCommit, ops, catalog, msgsAbort, msgsCommit, rTxnReadTs >>
 
