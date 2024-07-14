@@ -399,8 +399,15 @@ BaitLog ==
 
 CONSTANT MaxStmts
 
+KeysOwnedByShard(s) == { k \in Keys : catalog[k] = s }
+
+CatalogConstraint == 
+    \* Prevents cases where all keys are distributed to a single shard.
+    /\ \A s \in Shard : KeysOwnedByShard(s) # Keys
+
 \* Don't execute more than a max number of statements per transaction.
-StateConstraint == \A t \in TxId : rtxn[t] <= MaxStmts
+StateConstraint == 
+    /\ \A t \in TxId : rtxn[t] <= MaxStmts
     
 Symmetry == Permutations(TxId) \cup Permutations(Keys) \cup Permutations(Shard)
 
