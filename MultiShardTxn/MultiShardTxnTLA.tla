@@ -325,11 +325,12 @@ ShardTxnCommit(s, tid) ==
     /\ tid \in shardTxns[s]
     /\ \E m \in msgsCommit : m.shard = s /\ m.tid = tid
     /\ shardTxns' = [shardTxns EXCEPT ![s] = shardTxns[s] \ {tid}]
+    /\ shardPreparedTxns' = [shardPreparedTxns EXCEPT ![s] = shardPreparedTxns[s] \ {tid}]
     \* Write all updated keys back to the shard oplog.
     /\ log' = [log EXCEPT ![s] = log[s] \o SetToSeq({[key |-> key, value |-> tid]: <<key,ts>> \in updated[s][tid]})]
     /\ commitIndex' = [commitIndex EXCEPT ![s] = Len(log'[s])]
     \* Remove prepared keys.
-    /\ UNCHANGED << lsn, overlap, rlog, epoch, rtxn, updated, participants, coordInfo, msgsPrepare, snapshotStore, msgsVoteCommit, ops, coordCommitVotes, catalog, msgsAbort, msgsCommit, aborted, rTxnReadTs, shardPreparedTxns >>
+    /\ UNCHANGED << lsn, overlap, rlog, epoch, rtxn, updated, participants, coordInfo, msgsPrepare, snapshotStore, msgsVoteCommit, ops, coordCommitVotes, catalog, msgsAbort, msgsCommit, aborted, rTxnReadTs >>
 
 \* Shard receives an abort message for transaction, and aborts.
 ShardTxnAbort(s, tid) == 
