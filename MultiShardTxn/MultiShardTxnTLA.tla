@@ -329,8 +329,10 @@ ShardTxnCommit(s, tid) ==
     \* Write all updated keys back to the shard oplog.
     /\ log' = [log EXCEPT ![s] = log[s] \o SetToSeq({[key |-> key, value |-> tid]: <<key,ts>> \in updated[s][tid]})]
     /\ commitIndex' = [commitIndex EXCEPT ![s] = Len(log'[s])]
+    \* Increment lsn.
+    /\ lsn' = [lsn EXCEPT ![s][tid] = lsn[s][tid] + 1]
     \* Remove prepared keys.
-    /\ UNCHANGED << lsn, overlap, rlog, epoch, rtxn, updated, participants, coordInfo, msgsPrepare, snapshotStore, msgsVoteCommit, ops, coordCommitVotes, catalog, msgsAbort, msgsCommit, aborted, rTxnReadTs >>
+    /\ UNCHANGED <<  overlap, rlog, epoch, rtxn, updated, participants, coordInfo, msgsPrepare, snapshotStore, msgsVoteCommit, ops, coordCommitVotes, catalog, msgsAbort, msgsCommit, aborted, rTxnReadTs >>
 
 \* Shard receives an abort message for transaction, and aborts.
 ShardTxnAbort(s, tid) == 
