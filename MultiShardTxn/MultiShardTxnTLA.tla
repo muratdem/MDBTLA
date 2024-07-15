@@ -158,7 +158,14 @@ RouterTxnCoordinateCommit(s, tid, op) ==
     /\ msgsPrepare' = msgsPrepare \cup {[shard |-> p, tid |-> tid, coordinator |-> s] : p \in Range(participants[tid])}
     /\ UNCHANGED << shardTxns, updated, overlap, aborted, log, commitIndex, epoch, lsn, snapshotStore, ops, participants, coordInfo, msgsVoteCommit, coordCommitVotes, catalog, msgsAbort, msgsCommit, rTxnReadTs, shardPreparedTxns >>
 
+\* 
 \* Router aborts the transaction, which it can do at any point.
+\* 
+\* In practice, a router may also abort if it hears about failure of a statement
+\* executed in the midst of an ongoing transaction (e.g. due to write conflict),
+\* but this covers the more general case i.e. where a router could potentially
+\* send abort at any time for any reason (e.g client sends explicit abort.)
+\* 
 RouterTxnAbort(tid) == 
     /\ participants[tid] # <<>>
     /\ msgsAbort' = msgsAbort \cup {[tid |-> tid, shard |-> s] : s \in Range(participants[tid])}
@@ -194,12 +201,8 @@ ShardTxnStart(s, tid) ==
                                 data |-> [k \in Keys |-> ShardMDB(s)!SnapshotRead(k, readTs).value]
                             ]]
     \* Update the record of which transactions are running concurrently with each other.
-    /\ overlap' = [overlap EXCEPT ![s] = 
-                    [t \in TxId |-> IF t = tid THEN shardTxns'[s] 
-                                    ELSE IF t \in shardTxns'[s] THEN overlap[s][t] \union {tid} 
-                                    ELSE overlap[s][t]]]
     /\ coordInfo' = [coordInfo EXCEPT ![s][tid] = [self |-> rlog[s][tid][lsn[s][tid] + 1].coordinator, participants |-> <<s>>, committing |-> FALSE]]
-    /\ UNCHANGED << lsn, updated, rlog, aborted, log, commitIndex, epoch, rtxn, ops, participants, msgsPrepare, msgsVoteCommit, coordCommitVotes, catalog, msgsAbort, msgsCommit, rTxnReadTs, shardPreparedTxns >>   
+    /\ UNCHANGED << lsn, updated, rlog, aborted, overlap, log, commitIndex, epoch, rtxn, ops, participants, msgsPrepare, msgsVoteCommit, coordCommitVotes, catalog, msgsAbort, msgsCommit, rTxnReadTs, shardPreparedTxns >>   
 
 \* Shard processes a transaction read operation.
 ShardTxnRead(s, tid, k) == 
@@ -211,21 +214,11 @@ ShardTxnRead(s, tid, k) ==
     /\ tid \notin shardPreparedTxns[s]
     /\ rlog[s][tid][lsn[s][tid] + 1].op = "read"
     /\ rlog[s][tid][lsn[s][tid] + 1].k = k
-    \* Prevent reads to a key if it has currently in a prepared transaction.
-    \* /\ ~\E tother \in TxId : k \in snapshotStore[s][tother].preparedKeys
     \* Read the value of the key from the snapshot store, record the op, and 
     \* advance to the next transaction statement.
     /\ ops' = [ops EXCEPT ![tid] = Append( ops[tid], rOp(k, snapshotStore[s][tid].data[k]) )]
     /\ lsn' = [lsn EXCEPT ![s][tid] = lsn[s][tid] + 1]
     /\ UNCHANGED << shardTxns, updated, overlap, rlog, aborted, log, commitIndex, epoch, rtxn, snapshotStore, participants, coordInfo, msgsPrepare, msgsVoteCommit, coordCommitVotes, catalog, msgsAbort, msgsCommit, rTxnReadTs, shardPreparedTxns >>    
-
-\* Has this key been written to since the snapshot timestamp at which the transaction started?
-\* WriteConflictExists(s, tid, k) ==
-    \* \E tOther \in TxId : 
-    \* \E <<kOther,ts>> \in updated[s][tOther] :
-    \*     \* Someone else wrote to this key at a timestamp newer than your snapshot.
-    \*     /\ kOther = k
-    \*     /\ ts > snapshotStore[s][tid].ts
 
 \* Alternate equivalent definition of the above.
 WriteConflictExists(s, tid, k) ==
