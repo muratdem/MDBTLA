@@ -253,12 +253,17 @@ ShardTxnWriteConflict(s, tid, k) ==
     \* Transaction started on this shard and has new statements in the router log.
     /\ tid \in shardTxns[s]
     /\ lsn[s][tid] < Len(rlog[s][tid])
+    /\ rlog[s][tid][lsn[s][tid] + 1].op = "write"
+    /\ rlog[s][tid][lsn[s][tid] + 1].k = k
     \* Transaction is not prepared.
     /\ tid \notin shardPreparedTxns[s]
     \* The write to this key conflicts with another concurrent transaction on this shard.
     /\ WriteConflictExists(s, tid, k)
+    \* Transaction gets aborted on this shard.
     /\ aborted' = [aborted EXCEPT ![s][tid] = TRUE]
-    /\ UNCHANGED << shardTxns, log, commitIndex, epoch, lsn, overlap, rlog, rtxn, updated, snapshotStore, ops, participants, coordInfo, msgsPrepare, msgsVoteCommit, coordCommitVotes, catalog, msgsAbort, msgsCommit, rTxnReadTs, shardPreparedTxns >>
+    /\ lsn' = [lsn EXCEPT ![s][tid] = lsn[s][tid] + 1]
+    /\ shardTxns' = [shardTxns EXCEPT ![s] = shardTxns[s] \ {tid}]
+    /\ UNCHANGED << log, commitIndex, epoch, overlap, rlog, rtxn, updated, snapshotStore, ops, participants, coordInfo, msgsPrepare, msgsVoteCommit, coordCommitVotes, catalog, msgsAbort, msgsCommit, rTxnReadTs, shardPreparedTxns >>
 
 \*******************
 \* Shard 2PC actions.
