@@ -310,6 +310,7 @@ ShardTxnPrepare(s, tid) ==
         \* TODO: Choose prepareTimestamp for this transaction and track prepared state (?).
         \* Transaction is started on this shard.
         /\ tid \in shardTxns[s]
+        /\ tid \notin shardPreparedTxns[s]
         \* We have not aborted.
         /\ ~aborted[s][tid]
         /\ shardPreparedTxns' = [shardPreparedTxns EXCEPT ![s] = shardPreparedTxns[s] \union {tid}]
