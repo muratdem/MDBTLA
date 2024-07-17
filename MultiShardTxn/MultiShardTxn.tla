@@ -147,7 +147,8 @@ RouterTxnOp(s, tid, k, op) ==
 \* commit the transaction. It also sends out prepare messages to all participant shards.
 RouterTxnCoordinateCommit(s, tid, op) == 
     /\ op = "coordCommit"
-    /\ participants[tid] # <<>>
+    \* Transaction has started and has targeted multiple shards.
+    /\ Len(participants[tid]) > 1
     \* No shard of this transaction has aborted.
     /\ ~\E as \in Shard : aborted[as][tid]
     /\ s = participants[tid][1] \* Coordinator shard is the first participant in the list.
@@ -155,6 +156,18 @@ RouterTxnCoordinateCommit(s, tid, op) ==
     /\ rlog' = [rlog EXCEPT ![s][tid] = Append(rlog[s][tid], CreateCoordCommitEntry(op, s, participants[tid]))]
     /\ rtxn' = [rtxn EXCEPT ![tid] = rtxn[tid]+1]
     /\ UNCHANGED << shardTxns, updated, overlap, aborted, log, commitIndex, epoch, lsn, snapshotStore, ops, participants, coordInfo, msgsVoteCommit, coordCommitVotes, catalog, msgsAbort, msgsCommit, msgsPrepare, rTxnReadTs, shardPreparedTxns >>
+
+\* If a transaction only targeted a single shard, then the router can commit the
+\* transaction without going through a full 2PC. Instead, it just sends a commit
+\* message directly to that shard.
+RouterTxnCommitSingleShard(s, tid) == 
+    \* Transaction has targeted this single shard.
+    /\ participants[tid] = <<s>>
+    \* Shard hasn't aborted.
+    /\ ~aborted[s][tid]
+    \* Send commit message directly to shard (bypass 2PC).
+    /\ msgsCommit' = msgsCommit \cup { [shard |-> s, tid |-> tid] }
+    /\ UNCHANGED << shardTxns, updated, overlap, aborted, rlog, rtxn, log, commitIndex, epoch, lsn, snapshotStore, ops, participants, coordInfo, msgsVoteCommit, coordCommitVotes, catalog, msgsAbort, msgsCommit, msgsPrepare, rTxnReadTs, shardPreparedTxns >>
 
 \* 
 \* Router aborts the transaction, which it can do at any point.
