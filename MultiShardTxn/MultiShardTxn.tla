@@ -167,7 +167,7 @@ RouterTxnCommitSingleShard(s, tid) ==
     /\ ~aborted[s][tid]
     \* Send commit message directly to shard (bypass 2PC).
     /\ msgsCommit' = msgsCommit \cup { [shard |-> s, tid |-> tid] }
-    /\ UNCHANGED << shardTxns, updated, overlap, aborted, rlog, rtxn, log, commitIndex, epoch, lsn, snapshotStore, ops, participants, coordInfo, msgsVoteCommit, coordCommitVotes, catalog, msgsAbort, msgsCommit, msgsPrepare, rTxnReadTs, shardPreparedTxns >>
+    /\ UNCHANGED << shardTxns, updated, overlap, aborted, rlog, rtxn, log, commitIndex, epoch, lsn, snapshotStore, ops, participants, coordInfo, msgsVoteCommit, coordCommitVotes, catalog, msgsAbort, msgsPrepare, rTxnReadTs, shardPreparedTxns >>
 
 \* 
 \* Router aborts the transaction, which it can do at any point.
@@ -364,6 +364,7 @@ Next ==
     \* Router actions.
     \/ \E s \in Shard, t \in TxId, k \in Keys, op \in Ops: RouterTxnOp(s, t, k, op)
     \/ \E s \in Shard, t \in TxId, op \in Ops: RouterTxnCoordinateCommit(s, t, op)
+    \/ \E s \in Shard, t \in TxId: RouterTxnCommitSingleShard(s, t)
     \/ \E t \in TxId : RouterTxnAbort(t)
     \* Shard transaction actions.
     \/ \E s \in Shard, tid \in TxId: ShardTxnStart(s, tid)
