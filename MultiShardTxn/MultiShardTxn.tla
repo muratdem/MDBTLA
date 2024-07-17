@@ -365,8 +365,15 @@ Next ==
     \/ \E s \in Shard, tid \in TxId, k \in Keys: ShardTxnCommit(s, tid)
     \/ \E s \in Shard, tid \in TxId, k \in Keys: ShardTxnAbort(s, tid)
 
-Spec == Init /\ [][Next]_vars
 
+
+Fairness ==
+    /\ WF_vars(\E s \in Shard, t \in TxId, k \in Keys, op \in Ops: RouterTxnOp(s, t, k, op))
+    /\ WF_vars(\E s \in Shard, t \in TxId, op \in Ops: RouterTxnCoordinateCommit(s, t, op))
+    /\ WF_vars(\E t \in TxId : RouterTxnAbort(t))
+
+
+Spec == Init /\ [][Next]_vars /\ Fairness
 
         \* /\ WF_vars(Router)
         \* /\ \A self \in Shard : WF_vars(s(self))
@@ -376,6 +383,9 @@ SnapshotIsolation == CC!SnapshotIsolation(InitialState, Range(ops))
 
 \* Serializability would not be satisfied due to write-skew
 Serialization == CC!Serializability(InitialState, Range(ops))
+
+\* Eventually all shards end up in a state with no more running transactions.
+AllTransactionsTerminate == \A s \in Shard : <>(Cardinality(shardTxns[s]) = 0)
 
 \* \* LogIndicesImpl == 1..4
 
