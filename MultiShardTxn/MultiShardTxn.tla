@@ -63,13 +63,15 @@ VARIABLE coordInfo
 \* By default, the first participant in this list is designated as the coordinator.
 VARIABLE participants
 
+
+\* The read timestamp being used for each running transaction on the router.
+VARIABLE rTxnReadTs
+
+\* Tracks whether a transaction at the router has initiated commit.
+VARIABLE rInCommit
+
 \* Global history of all operations per transaction.
 VARIABLE ops
-
-\* We maintain a MongoDB "log" (i.e. a replica set/oplog abstraction) for each shard.
-VARIABLE log 
-VARIABLE commitIndex 
-VARIABLE epoch
 
 \* 
 \* Stores a fixed mapping from keys to shards, for routing purposes.
@@ -79,11 +81,10 @@ VARIABLE epoch
 \* 
 VARIABLE catalog
 
-\* The read timestamp being used for each running transaction on the router.
-VARIABLE rTxnReadTs
-
-\* Tracks whether a transaction at the router has initiated commit.
-VARIABLE rInCommit
+\* We maintain a MongoDB "log" (i.e. a replica set/oplog abstraction) for each shard.
+VARIABLE log 
+VARIABLE commitIndex 
+VARIABLE epoch
 
 vars == << shardTxns, rInCommit, updated, overlap, rlog, aborted, log, commitIndex, epoch, rtxn, lsn, snapshotStore, ops, participants, coordInfo, msgsPrepare, msgsVoteCommit, msgsAbort, coordCommitVotes, catalog, msgsCommit, rTxnReadTs, shardPreparedTxns >>
 
