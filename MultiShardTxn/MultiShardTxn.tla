@@ -174,6 +174,26 @@ RouterTxnCommitSingleShard(s, tid) ==
     /\ rInCommit' = [rInCommit EXCEPT ![tid] = TRUE]
     /\ UNCHANGED << shardTxns, updated, overlap, aborted, rlog, rtxn, log, commitIndex, epoch, lsn, snapshotStore, ops, participants, coordInfo, msgsVoteCommit, coordCommitVotes, catalog, msgsAbort, msgsPrepare, rTxnReadTs, shardPreparedTxns >>
 
+\* The set of shard participants for a transaction that were written to.
+WriteParticipants(tid) == {s \in Shard : \E i \in DOMAIN rlog[s][tid] : rlog[s][tid][i].op = "write"}
+
+\* If a transaction has touched multiple shards, but only written to a single
+\* shard, then we optimize this case by first sending commits directly to the
+\* read only shards, and then, if these are successfully, directly sending
+\* commit to the write shard.
+\* TODO: Send commit to write shards upon hearing read responses.
+RouterTxnCommitSingleWriteShard(tid) == 
+    \* Transaction has started and has targeted multiple shards,
+    \* but only written to a single shard.
+    /\ Len(participants[tid]) > 1
+    /\ Cardinality(WriteParticipants(tid)) = 1
+    \* No shard of this transaction has aborted.
+    /\ ~\E as \in Shard : aborted[as][tid]
+    \* Send commit message directly to shard (bypass 2PC).
+    /\ msgsCommit' = msgsCommit \cup { [shard |-> s, tid |-> tid] : s \in (Shard \ WriteParticipants(tid))}
+    /\ rInCommit' = [rInCommit EXCEPT ![tid] = TRUE]
+    /\ UNCHANGED << shardTxns, updated, overlap, aborted, rlog, rtxn, log, commitIndex, epoch, lsn, snapshotStore, ops, participants, coordInfo, msgsVoteCommit, coordCommitVotes, catalog, msgsAbort, msgsPrepare, rTxnReadTs, shardPreparedTxns >>
+
 \* 
 \* Router aborts the transaction, which it can do at any point.
 \* 
@@ -370,6 +390,7 @@ Next ==
     \/ \E s \in Shard, t \in TxId, k \in Keys, op \in Ops: RouterTxnOp(s, t, k, op)
     \/ \E s \in Shard, t \in TxId, op \in Ops: RouterTxnCoordinateCommit(s, t, op)
     \/ \E s \in Shard, t \in TxId: RouterTxnCommitSingleShard(s, t)
+    \/ \E t \in TxId: RouterTxnCommitSingleWriteShard(t)
     \/ \E t \in TxId : RouterTxnAbort(t)
     \* Shard transaction actions.
     \/ \E s \in Shard, tid \in TxId: ShardTxnStart(s, tid)
