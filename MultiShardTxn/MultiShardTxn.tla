@@ -100,6 +100,7 @@ CreateCoordCommitEntry(op, s, p) == [op |-> op, shard |-> s, participants |-> p]
 Init ==
     /\ rlog = [s \in Shard |-> [t \in TxId |->  <<>>]]
     /\ shardTxns = [s \in Shard |-> {}]
+    /\ shardPreparedTxns = [s \in Shard |-> {}]
     /\ rtxn = [t \in TxId |-> 0]
     /\ lsn = [s \in Shard |-> [t \in TxId |-> 0]]
     /\ snapshotStore = [s \in Shard |-> [t \in TxId |-> [ts |-> NoValue, data |-> [k \in Keys |-> NoValue]]]]
@@ -107,20 +108,20 @@ Init ==
     /\ overlap = [s \in Shard |-> [t \in TxId |-> {}]]
     /\ ops = [s \in TxId |-> <<>>]
     /\ aborted = [s \in Shard |-> [t \in TxId |-> FALSE]]
-    /\ log = [s \in Shard |-> <<>>]
-    /\ commitIndex = [s \in Shard |-> 0]
-    /\ epoch = [s \in Shard |-> 1]
     /\ participants = [t \in TxId |-> <<>>]
     /\ coordInfo = [s \in Shard |-> [t \in TxId |-> [self |-> FALSE, participants |-> <<>>, committing |-> FALSE]]]
-    /\ msgsPrepare = {}
-    /\ msgsVoteCommit = {}
-    /\ msgsAbort = {}
-    /\ msgsCommit = {}
     /\ coordCommitVotes = [s \in Shard |-> [t \in TxId |-> {}]]
     /\ catalog \in [Keys -> Shard]
     /\ rTxnReadTs = [t \in TxId |-> NoValue]
     /\ rInCommit = [t \in TxId |-> FALSE]
-    /\ shardPreparedTxns = [s \in Shard |-> {}]
+    /\ msgsPrepare = {}
+    /\ msgsVoteCommit = {}
+    /\ msgsAbort = {}
+    /\ msgsCommit = {}
+    \* MongoDB replica set log state.
+    /\ log = [s \in Shard |-> <<>>]
+    /\ commitIndex = [s \in Shard |-> 0]
+    /\ epoch = [s \in Shard |-> 1]
 
 \*****************************************
 \* Router transaction operations.
