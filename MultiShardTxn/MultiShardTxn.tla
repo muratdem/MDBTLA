@@ -407,13 +407,20 @@ Next ==
     \/ \E s \in Shard, tid \in TxId, k \in Keys: ShardTxnCommit(s, tid)
     \/ \E s \in Shard, tid \in TxId, k \in Keys: ShardTxnAbort(s, tid)
 
-
-
 Fairness ==
     /\ WF_vars(\E s \in Shard, t \in TxId, k \in Keys, op \in Ops: RouterTxnOp(s, t, k, op))
     /\ WF_vars(\E s \in Shard, t \in TxId, op \in Ops: RouterTxnCoordinateCommit(s, t, op))
     /\ WF_vars(\E t \in TxId : RouterTxnAbort(t))
-
+    /\ WF_vars(\E s \in Shard, tid \in TxId: ShardTxnStart(s, tid))
+    /\ WF_vars(\E s \in Shard, tid \in TxId, k \in Keys: ShardTxnRead(s, tid, k))
+    /\ WF_vars(\E s \in Shard, tid \in TxId, k \in Keys: ShardTxnWrite(s, tid, k))
+    /\ WF_vars(\E s \in Shard, tid \in TxId, k \in Keys: ShardTxnWriteConflict(s, tid, k))
+    /\ WF_vars(\E s \in Shard, tid \in TxId, k \in Keys: ShardTxnPrepare(s, tid))
+    /\ WF_vars(\E s \in Shard, tid \in TxId, k \in Keys: ShardTxnCoordinateCommit(s, tid))
+    /\ WF_vars(\E s, from \in Shard, tid \in TxId, k \in Keys: ShardTxnCoordinatorRecvCommitVote(s, tid, from))
+    /\ WF_vars(\E s \in Shard, tid \in TxId, k \in Keys: ShardTxnCoordinatorDecideCommit(s, tid))
+    /\ WF_vars(\E s \in Shard, tid \in TxId, k \in Keys: ShardTxnCommit(s, tid))
+    /\ WF_vars(\E s \in Shard, tid \in TxId, k \in Keys: ShardTxnAbort(s, tid))
 
 Spec == Init /\ [][Next]_vars /\ Fairness
 
@@ -426,8 +433,9 @@ SnapshotIsolation == CC!SnapshotIsolation(InitialState, Range(ops))
 \* Serializability would not be satisfied due to write-skew
 Serialization == CC!Serializability(InitialState, Range(ops))
 
-\* Eventually all shards end up in a state with no more running transactions.
-AllTransactionsTerminate == \A s \in Shard : <>(Cardinality(shardTxns[s]) = 0)
+\* For all shards, if they scurrently have a running transaction at any point,
+\* then eventually all transactions get committed or aborted on that shard.
+AllRunningTransactionsTerminate == \A s \in Shard : (shardTxns[s] # {}) ~> (shardTxns[s] = {})
 
 \* \* LogIndicesImpl == 1..4
 
