@@ -204,6 +204,8 @@ RouterTxnCommitSingleWriteShard(tid) ==
 \* 
 RouterTxnAbort(tid) == 
     /\ participants[tid] # <<>>
+    \* Didn't already initiate commit.
+    /\ ~rInCommit[tid]
     /\ msgsAbort' = msgsAbort \cup {[tid |-> tid, shard |-> s] : s \in Range(participants[tid])}
     /\ UNCHANGED << shardTxns, updated, overlap, aborted, log, commitIndex, epoch, lsn, snapshotStore, ops, rlog, rtxn, coordInfo, msgsPrepare, msgsVoteCommit, coordCommitVotes, catalog, participants, msgsCommit, rTxnReadTs, shardPreparedTxns, rInCommit >>
 
