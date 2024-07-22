@@ -272,23 +272,21 @@ ShardTxnStart(s, tid) ==
     \* currently prepared transaction at timestamp < T.
     /\ ~\E tother \in TxId : 
         /\ tother \in shardPreparedTxns[s] 
-        /\ snapshotStore[s][tother].ts < rlog[s][tid][lsn[s][tid] + 1].readTs
+        /\ snapshotStore[s][tother].ts < Head(rlog[s][tid]).readTs
     \* We don't advance to the next statement (lsn), but mark the transaction as
     \* having started on this shard, so transaction statements can now be processed.
     /\ shardTxns' = [shardTxns EXCEPT ![s] = shardTxns[s] \union {tid}]
     \* Save a snapshot of the current MongoDB instance at this shard for this transaction to use.
     \* Store the timestamp of the snapshot read as well, alongside the key-value snapshot.
-    /\ LET readTs == rlog[s][tid][lsn[s][tid] + 1].readTs IN
+    /\ LET readTs == Head(rlog[s][tid]).readTs IN
         snapshotStore' = [snapshotStore EXCEPT ![s][tid] = 
                             [
                                 ts |-> readTs,
                                 data |-> [k \in Keys |-> ShardMDB(s)!SnapshotRead(k, readTs).value]
                             ]]
     \* Update the record of which transactions are running concurrently with each other.
-    /\ coordInfo' = [coordInfo EXCEPT ![s][tid] = [self |-> rlog[s][tid][lsn[s][tid] + 1].coord, participants |-> <<s>>, committing |-> FALSE]]
-    \* Consume the transaction op.
-    /\ rlog' = [rlog EXCEPT ![s][tid] = Tail(rlog[s][tid])]
-    /\ UNCHANGED << lsn, updated, aborted, overlap, log, commitIndex, epoch, rtxn, ops, rParticipants, msgsPrepare, msgsVoteCommit, coordCommitVotes, catalog, msgsAbort, msgsCommit, rTxnReadTs, shardPreparedTxns, rInCommit >>   
+    /\ coordInfo' = [coordInfo EXCEPT ![s][tid] = [self |-> Head(rlog[s][tid]).coord, participants |-> <<s>>, committing |-> FALSE]]
+    /\ UNCHANGED << lsn, rlog, updated, aborted, overlap, log, commitIndex, epoch, rtxn, ops, rParticipants, msgsPrepare, msgsVoteCommit, coordCommitVotes, catalog, msgsAbort, msgsCommit, rTxnReadTs, shardPreparedTxns, rInCommit >>   
 
 \* Shard processes a transaction read operation.
 ShardTxnRead(s, tid, k) == 
@@ -370,7 +368,7 @@ ShardTxnCoordinateCommit(s, tid) ==
     \* I am the coordinator shard of this transaction.
     /\ coordInfo[s][tid].self  
     \* Record the set of all transaction rParticipants and get ready to receive votes (i.e. prepare responses) from them.
-    /\ coordInfo' = [coordInfo EXCEPT ![s][tid] = [self |-> TRUE, participants |-> (rlog[s][tid][lsn[s][tid] + 1].participants), committing |-> TRUE]] 
+    /\ coordInfo' = [coordInfo EXCEPT ![s][tid] = [self |-> TRUE, participants |-> (Head(rlog[s][tid]).participants), committing |-> TRUE]] 
     /\ coordCommitVotes' = [coordCommitVotes EXCEPT ![s][tid] = {}]
     /\ lsn' = [lsn EXCEPT ![s][tid] = lsn[s][tid] + 1]
     \* Send prepare messages to all participant shards.
