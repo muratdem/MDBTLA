@@ -180,6 +180,9 @@ RouterTxnOp(r, s, tid, k, op) ==
     /\ rInCommit[r][tid] = FALSE
     \* Route to the shard that owns this key.
     /\ catalog[k] = s
+    \* Assume that the router interacts with shards over a request-response RPC mechanism i.e.
+    \* so we wait for an op to be processed before sending the next op.
+    /\ rlog[s][tid] = <<>>
     \* Update rParticipants list if new participant joined the transaction.
     /\ rParticipants' = [rParticipants EXCEPT ![r][tid] = rParticipants[r][tid] \o (IF s \in Range(rParticipants[r][tid]) THEN <<>> ELSE <<s>>)]
     \* For now, we just pick our read timestamp as the latest timestamp on the
