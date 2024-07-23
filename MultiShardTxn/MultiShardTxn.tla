@@ -205,6 +205,9 @@ ShardMDBTxnPrepare(s, tid) ==
     /\ txnSnapshots' = [txnSnapshots EXCEPT ![s][tid]["prepared"] = TRUE]
     /\ UNCHANGED <<log, commitIndex, epoch>>
 
+ShardMDBTxnAbort(s, tid) == 
+    /\ txnSnapshots' = [txnSnapshots EXCEPT ![s][tid] = NoValue]
+    /\ UNCHANGED <<log, commitIndex, epoch>>
 
 -------------------------------------------------
 
@@ -379,13 +382,14 @@ ShardTxnWriteConflict(s, tid, k) ==
     /\ tid \notin shardPreparedTxns[s]
     \* The write to this key conflicts with another concurrent transaction on this shard.
     /\ ShardMDB(s)!WriteConflictExists(tid, k)
+    /\ ShardMDBTxnAbort(s, tid)
     \* Transaction gets aborted on this shard.
     /\ aborted' = [aborted EXCEPT ![s][tid] = TRUE]
     /\ lsn' = [lsn EXCEPT ![s][tid] = lsn[s][tid] + 1]
     /\ shardTxns' = [shardTxns EXCEPT ![s] = shardTxns[s] \ {tid}]
     \* Consume the transaction op.
     /\ rlog' = [rlog EXCEPT ![s][tid] = Tail(rlog[s][tid])]
-    /\ UNCHANGED << log, commitIndex, epoch, overlap, rtxn, updated, txnSnapshots, ops, rParticipants, coordInfo, msgsPrepare, msgsVoteCommit, coordCommitVotes, catalog, msgsAbort, msgsCommit, rTxnReadTs, shardPreparedTxns, rInCommit >>
+    /\ UNCHANGED << log, commitIndex, epoch, overlap, rtxn, updated, ops, rParticipants, coordInfo, msgsPrepare, msgsVoteCommit, coordCommitVotes, catalog, msgsAbort, msgsCommit, rTxnReadTs, shardPreparedTxns, rInCommit >>
 
 \*******************
 \* Shard 2PC actions.
@@ -476,7 +480,8 @@ ShardTxnAbort(s, tid) ==
     /\ ops' = [ops EXCEPT ![tid] = SelectSeq(ops[tid], LAMBDA op : catalog[op.key] # s)]
     \* If we abort, we by default clear out any incoming RPC requests.
     /\ rlog' = [rlog EXCEPT ![s][tid] = <<>>]
-    /\ UNCHANGED << log, commitIndex, epoch, lsn, overlap, rtxn, updated, txnSnapshots, rParticipants, coordInfo, msgsPrepare, msgsVoteCommit, coordCommitVotes, catalog, msgsAbort, msgsCommit, rTxnReadTs, shardPreparedTxns, rInCommit>>
+    /\ ShardMDBTxnAbort(s, tid)
+    /\ UNCHANGED << log, commitIndex, epoch, lsn, overlap, rtxn, updated, rParticipants, coordInfo, msgsPrepare, msgsVoteCommit, coordCommitVotes, catalog, msgsAbort, msgsCommit, rTxnReadTs, shardPreparedTxns, rInCommit>>
 
 
 \* Migrate a key from one shard to another.
