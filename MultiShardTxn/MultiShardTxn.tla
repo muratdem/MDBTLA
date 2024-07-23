@@ -108,7 +108,7 @@ ShardMDB(s) == INSTANCE MDB WITH
                     mepoch <- epoch[s], 
                     mtxnSnapshots <- txnSnapshots[s],
                     Values <- TxId,
-                    TxId <- TxId,
+                    MTxId <- TxId,
                     Nil <- NoValue
 
 Ops == {"read", "write", "coordCommit"}
