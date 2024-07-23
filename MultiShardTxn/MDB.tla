@@ -1,12 +1,14 @@
 ---- MODULE MDB ----
-EXTENDS Sequences, Naturals
+EXTENDS Sequences, Naturals, Util
 
 CONSTANTS WC,  \* write concern
           RC   \* read concern
 
 CONSTANTS Keys, 
           Values, 
-          NoValue
+          NoValue,
+          TxId,
+          Nil
 
 WCVALUES == {"one", 
              "majority"}
@@ -48,9 +50,14 @@ Max(S) == CHOOSE x \in S : \A y \in S : x >= y
 \*   truncated in the range (mcommitIndex+1)..Len(mlog)), modeling loss of uncommitted data
 \*   due to node failures
 
-VARIABLES mlog, mcommitIndex, mepoch
+VARIABLE mlog
+VARIABLE mcommitIndex
+VARIABLE mepoch
 
-mvars == <<mlog, mcommitIndex, mepoch>>
+\* Stores snapshots for running transactions on the underlying MongoDB instance.
+VARIABLE mtxnSnapshots
+
+mvars == <<mlog, mcommitIndex, mepoch, mtxnSnapshots>>
 
 TypesOK ==
     /\ mlog \in Logs
@@ -74,11 +81,19 @@ WriteInit(key, value) ==
 SnapshotRead(key, index) == 
     LET snapshotKeyWrites == 
         { i \in DOMAIN mlog :
-            /\ mlog[i].key = key
+            /\ \E k \in DOMAIN mlog[i] : k = key \* mlog[i].key = key
             /\ i <= index } IN
         IF snapshotKeyWrites = {}
             THEN NotFoundReadResult
-            ELSE [mlogIndex |-> Max(snapshotKeyWrites), value |-> mlog[Max(snapshotKeyWrites)].value]
+            ELSE [mlogIndex |-> Max(snapshotKeyWrites), value |-> mlog[Max(snapshotKeyWrites)][key]]
+
+\* Snapshot of the full KV store at a given index/timestamp.
+SnapshotFullKV(index) == 
+    [
+        ts |-> index,
+        data |-> [k \in Keys |-> SnapshotRead(k, index).value]
+    ]
+    
 
 \* For a given key, a read can be entirely defined by a value and a flag:
 \* - point is a point in the mlog to which the read should be applied.
@@ -142,11 +157,41 @@ TruncateLog ==
         /\ mepoch' = mepoch + 1
         /\ UNCHANGED <<mcommitIndex>>
 
+\* Alternate equivalent definition of the above.
+WriteConflictExists(tid, k) ==
+    \E tOther \in TxId \ {tid}:
+        \* Transaction is running. 
+        /\ mtxnSnapshots[tid] # Nil
+        /\ mtxnSnapshots[tOther] # Nil
+        \* The other transaction is on the same snapshot and also wrote to this value.
+        /\ mtxnSnapshots[tOther].ts = mtxnSnapshots[tOther].ts
+        /\ mtxnSnapshots[tOther].data[k] = tOther
+
+TxnRead(tid, k) == mtxnSnapshots[tid].data[k]
+
+UpdateSnapshot(tid, k, v) == [mtxnSnapshots EXCEPT ![tid].data[k] = v]
+
+SnapshotUpdatedKeys(tid) == {k \in Keys : mtxnSnapshots[tid] # Nil /\ mtxnSnapshots[tid].data[k] = tid}
+
+CommitTxnToLog(tid) == mlog \o <<[key \in SnapshotUpdatedKeys(tid) |-> tid]>>
+
+\*  SetToSeq({[key |-> key, value |-> tid] : key \in SnapshotUpdatedKeys(tid)})
+    
+StartTxn(tid, readTs) ==
+    /\ mtxnSnapshots' = [mtxnSnapshots EXCEPT ![tid] = SnapshotFullKV(readTs)]
+    /\ UNCHANGED <<mlog, mcommitIndex, mepoch>>
+
+\* Explicit initialization for each state variable.
+Init_mlog == <<>>
+Init_mcommitIndex == 0
+Init_mepoch == 1
+Init_mtxnSnapshots == [t \in TxId |-> Nil]
+
 \* Init ==
 \*     /\ mlog = <<>>
-\*     /\ readIndex = 0
 \*     /\ mcommitIndex = 0
 \*     /\ mepoch = 1
+\*     /\ mtxnSnapshots = [t \in TxId |-> Nil]
 
 \* \* This relation models all possible mlog actions, without performing any write.
 \* Next ==
