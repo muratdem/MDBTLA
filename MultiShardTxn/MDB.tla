@@ -7,7 +7,7 @@ CONSTANTS WC,  \* write concern
 CONSTANTS Keys, 
           Values, 
           NoValue,
-          TxId,
+          MTxId,
           Nil
 
 WCVALUES == {"one", 
@@ -159,7 +159,7 @@ TruncateLog ==
 
 \* Alternate equivalent definition of the above.
 WriteConflictExists(tid, k) ==
-    \E tOther \in TxId \ {tid}:
+    \E tOther \in MTxId \ {tid}:
         \* Transaction is running. 
         /\ mtxnSnapshots[tid] # Nil
         /\ mtxnSnapshots[tOther] # Nil
@@ -185,7 +185,7 @@ StartTxn(tid, readTs) ==
 Init_mlog == <<>>
 Init_mcommitIndex == 0
 Init_mepoch == 1
-Init_mtxnSnapshots == [t \in TxId |-> Nil]
+Init_mtxnSnapshots == [t \in MTxId |-> Nil]
 
 \* Init ==
 \*     /\ mlog = <<>>
