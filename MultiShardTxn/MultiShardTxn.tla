@@ -479,6 +479,13 @@ ShardTxnAbort(s, tid) ==
     /\ UNCHANGED << log, commitIndex, epoch, lsn, overlap, rtxn, updated, txnSnapshots, rParticipants, coordInfo, msgsPrepare, msgsVoteCommit, coordCommitVotes, catalog, msgsAbort, msgsCommit, rTxnReadTs, shardPreparedTxns, rInCommit>>
 
 
+\* Migrate a key from one shard to another.
+\* TODO: Abstract placeholder for a more accurate chunk/key migration protocol.
+MoveKey(k, sfrom, sto) == 
+    /\ sfrom # sto
+    /\ catalog' = [catalog EXCEPT ![k] = sto]
+    /\ UNCHANGED << shardTxns, updated, overlap, rlog, rtxn, epoch, lsn, txnSnapshots, ops, rParticipants, coordInfo, msgsPrepare, msgsVoteCommit, coordCommitVotes, msgsAbort, msgsCommit, rTxnReadTs, shardPreparedTxns, rInCommit, aborted, log, commitIndex >>
+
 Next == 
     \* Router actions.
     \/ \E r \in Router, s \in Shard, t \in TxId, k \in Keys, op \in Ops: RouterTxnOp(r, s, t, k, op)
@@ -499,6 +506,8 @@ Next ==
     \/ \E s \in Shard, tid \in TxId, k \in Keys: ShardTxnCoordinatorDecideCommit(s, tid)
     \/ \E s \in Shard, tid \in TxId, k \in Keys: ShardTxnCommit(s, tid)
     \/ \E s \in Shard, tid \in TxId, k \in Keys: ShardTxnAbort(s, tid)
+    \* Environment/background actions (crashes, chunk migration, etc.)
+    \* \/ \E k \in Keys, sfrom \in Shard, sto \in Shard : MoveKey(k, sfrom, sto)
     \* \/ \E s \in Shard: Restart(s)
 
 Fairness == TRUE
