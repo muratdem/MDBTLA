@@ -91,7 +91,8 @@ SnapshotRead(key, index) ==
 SnapshotFullKV(index) == 
     [
         ts |-> index,
-        data |-> [k \in Keys |-> SnapshotRead(k, index).value]
+        data |-> [k \in Keys |-> SnapshotRead(k, index).value],
+        prepared |-> FALSE
     ]
     
 
@@ -176,7 +177,15 @@ SnapshotUpdatedKeys(tid) == {k \in Keys : mtxnSnapshots[tid] # Nil /\ mtxnSnapsh
 CommitTxnToLog(tid) == mlog \o <<[key \in SnapshotUpdatedKeys(tid) |-> tid]>>
 
 \*  SetToSeq({[key |-> key, value |-> tid] : key \in SnapshotUpdatedKeys(tid)})
-    
+
+TxnCanStart(tid, readTs) ==
+    \* Cannot start a transaction at a timestamp T if there is another 
+    \* currently prepared transaction at timestamp < T.
+    ~\E tother \in MTxId :
+        /\ mtxnSnapshots[tother] # Nil 
+        /\ mtxnSnapshots[tother].prepared 
+        /\ mtxnSnapshots[tother].ts < readTs 
+
 StartTxn(tid, readTs) ==
     /\ mtxnSnapshots' = [mtxnSnapshots EXCEPT ![tid] = SnapshotFullKV(readTs)]
     /\ UNCHANGED <<mlog, mcommitIndex, mepoch>>

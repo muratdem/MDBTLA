@@ -181,9 +181,10 @@ Restart(s) ==
 ShardMDBTxnStart(s, tid, readTs) == 
     \* Start the transaction on the MDB KV store.
     \* Save a snapshot of the current MongoDB instance at this shard for this transaction to use.
+    /\ ShardMDB(s)!TxnCanStart(tid, readTs)
     /\ txnSnapshots' = [txnSnapshots EXCEPT ![s][tid] = ShardMDB(s)!SnapshotFullKV(readTs)]
     /\ UNCHANGED <<log, commitIndex, epoch>>
-
+   
 \* Writes to the local KV store of a shard.
 ShardMDBTxnWrite(s, tid, k) == 
     \* The write to this key does not overlap with any writes to the same key
@@ -199,6 +200,10 @@ ShardMDBTxnCommit(s, tid) ==
     /\ log' = [log EXCEPT ![s] = ShardMDB(s)!CommitTxnToLog(tid)]
     /\ commitIndex' = [commitIndex EXCEPT ![s] = Len(log'[s])]
     /\ UNCHANGED <<txnSnapshots, epoch>>
+
+ShardMDBTxnPrepare(s, tid) == 
+    /\ txnSnapshots' = [txnSnapshots EXCEPT ![s][tid]["prepared"] = TRUE]
+    /\ UNCHANGED <<log, commitIndex, epoch>>
 
 
 -------------------------------------------------
@@ -322,11 +327,6 @@ ShardTxnStart(s, tid) ==
     \* First statement of the transaction on this shard.
     /\ Head(rlog[s][tid]).start
     /\ tid \notin shardTxns[s]
-    \* Cannot start a transaction at a timestamp T if there is another 
-    \* currently prepared transaction at timestamp < T.
-    /\ ~\E tother \in TxId : 
-        /\ tother \in shardPreparedTxns[s] 
-        /\ txnSnapshots[s][tother].ts < Head(rlog[s][tid]).readTs
     \* We don't advance to the next statement (lsn), but mark the transaction as
     \* having started on this shard, so transaction statements can now be processed.
     /\ shardTxns' = [shardTxns EXCEPT ![s] = shardTxns[s] \union {tid}]
@@ -443,7 +443,9 @@ ShardTxnPrepare(s, tid) ==
         /\ m.shard = s /\ m.tid = tid
         \* Prepare and then send your vote to the coordinator.
         /\ msgsVoteCommit' = msgsVoteCommit \cup { [shard |-> s, tid |-> tid, to |-> m.coordinator] }
-        /\ UNCHANGED << shardTxns, log, commitIndex, epoch, lsn, overlap, rlog, rtxn, updated, aborted, txnSnapshots, rParticipants, coordInfo, msgsPrepare, ops, coordCommitVotes, catalog, msgsAbort, msgsCommit, rTxnReadTs, rInCommit >>
+        \* Prepare the transaction in the underyling snapshot store.
+        /\ ShardMDBTxnPrepare(s, tid)
+        /\ UNCHANGED << shardTxns, lsn, overlap, rlog, rtxn, updated, aborted, rParticipants, coordInfo, msgsPrepare, ops, coordCommitVotes, catalog, msgsAbort, msgsCommit, rTxnReadTs, rInCommit >>
 
 \* Shard receives a commit message for transaction, and commits.
 ShardTxnCommit(s, tid) == 
