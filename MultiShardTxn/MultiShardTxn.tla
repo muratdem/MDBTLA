@@ -157,7 +157,7 @@ Restart(s) ==
     /\ shardTxns' = [shardTxns EXCEPT ![s] = {}]
     /\ shardPreparedTxns' = [shardPreparedTxns EXCEPT ![s] = {}]
     /\ lsn' = [lsn EXCEPT ![s] = [t \in TxId |-> 0]]
-    /\ txnSnapshots' = [txnSnapshots EXCEPT ![s] = [t \in TxId |-> [ts |-> NoValue, data |-> [k \in Keys |-> NoValue]]]]
+    /\ txnSnapshots' = [txnSnapshots EXCEPT ![s] = ShardMDB(s)!CleanSnapshots]
     /\ updated' = [updated EXCEPT ![s] = [t \in TxId |-> {}]]
     /\ overlap' = [overlap EXCEPT ![s] = [t \in TxId |-> {}]]
     /\ aborted' = [aborted EXCEPT ![s] = [t \in TxId |-> FALSE]]
