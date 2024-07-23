@@ -160,13 +160,22 @@ TruncateLog ==
 
 \* Alternate equivalent definition of the above.
 WriteConflictExists(tid, k) ==
+    \* Exists another running transaction on the same snapshot
+    \* that has written to the same key.
     \E tOther \in MTxId \ {tid}:
         \* Transaction is running. 
-        /\ mtxnSnapshots[tid] # Nil
-        /\ mtxnSnapshots[tOther] # Nil
-        \* The other transaction is on the same snapshot and also wrote to this value.
-        /\ mtxnSnapshots[tOther].ts = mtxnSnapshots[tOther].ts
-        /\ mtxnSnapshots[tOther].data[k] = tOther
+        \/ /\ mtxnSnapshots[tid] # Nil
+           /\ mtxnSnapshots[tOther] # Nil
+           \* The other transaction is on the same snapshot and also wrote to this value.
+           /\ mtxnSnapshots[tOther].ts = mtxnSnapshots[tOther].ts
+           /\ mtxnSnapshots[tOther].data[k] = tOther
+        \* If there exists another transaction that has written to this key and committed at a 
+        \* timestamp newer than your snapshot, this also should manifest as a conflict. 
+        \/ \E ind \in DOMAIN mlog :
+            /\ ind >= mtxnSnapshots[tid].ts
+            /\ k \in (DOMAIN mlog[ind])
+
+CleanSnapshots == [t \in MTxId |-> Nil]
 
 TxnRead(tid, k) == mtxnSnapshots[tid].data[k]
 
