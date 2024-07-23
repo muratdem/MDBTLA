@@ -428,7 +428,9 @@ ShardTxnCommit(s, tid) ==
     \* Increment lsn.
     /\ lsn' = [lsn EXCEPT ![s][tid] = lsn[s][tid] + 1]
     \* Remove prepared keys.
-    /\ UNCHANGED <<  overlap, rlog, epoch, rtxn, updated, rParticipants, coordInfo, msgsPrepare, snapshotStore, msgsVoteCommit, ops, coordCommitVotes, catalog, msgsAbort, msgsCommit, aborted, rTxnReadTs, rInCommit >>
+    \* If we commit, we by default clear out any incoming RPC requests.
+    /\ rlog' = [rlog EXCEPT ![s][tid] = <<>>]
+    /\ UNCHANGED <<  overlap, epoch, rtxn, updated, rParticipants, coordInfo, msgsPrepare, snapshotStore, msgsVoteCommit, ops, coordCommitVotes, catalog, msgsAbort, msgsCommit, aborted, rTxnReadTs, rInCommit >>
 
 \* Shard receives an abort message for transaction, and aborts.
 ShardTxnAbort(s, tid) == 
@@ -441,7 +443,9 @@ ShardTxnAbort(s, tid) ==
     \* shard, by removing ops with keys that (a) were touched by this transaction and
     \* (b) are owned by this shard.
     /\ ops' = [ops EXCEPT ![tid] = SelectSeq(ops[tid], LAMBDA op : catalog[op.key] # s)]
-    /\ UNCHANGED << log, commitIndex, epoch, lsn, overlap, rlog, rtxn, updated, snapshotStore, rParticipants, coordInfo, msgsPrepare, msgsVoteCommit, coordCommitVotes, catalog, msgsAbort, msgsCommit, rTxnReadTs, shardPreparedTxns, rInCommit>>
+    \* If we abort, we by default clear out any incoming RPC requests.
+    /\ rlog' = [rlog EXCEPT ![s][tid] = <<>>]
+    /\ UNCHANGED << log, commitIndex, epoch, lsn, overlap, rtxn, updated, snapshotStore, rParticipants, coordInfo, msgsPrepare, msgsVoteCommit, coordCommitVotes, catalog, msgsAbort, msgsCommit, rTxnReadTs, shardPreparedTxns, rInCommit>>
 
 
 Next == 
