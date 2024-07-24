@@ -175,7 +175,11 @@ Restart(s) ==
 -------------------------------------------------
 
 \* 
-\* Wrapper sub-actions for operations on the ShardMDB shard instances.
+\* Sub-action wrappers for operations on the per-shard MDB instances.
+\* 
+\* This should more or less be the abstract transaction interface each shard
+\* needs to consider when executing transactions that are part of distributed,
+\* cross-shard transaction.
 \* 
 
 ShardMDBTxnStart(s, tid, readTs) == 
