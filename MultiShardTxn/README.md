@@ -18,7 +18,7 @@ TODO.
 
 ## Model Checking
 
-Currently, we check a core, high level safety property, which is that the overall transaction protocol implements [snapshot isolation](https://github.com/muratdem/MDBTLA/blob/3989af405310e74dee45a702be9831e0c6dad7ab/MultiShardTxn/MultiShardTxn.tla#L553-L554) correctly. We have so far checked small models for correctness e.g. 2 keys, 2 shards, a single router, and ~2-3 operations max per transaction:
+Currently, we check a core, high level safety property, which is that the overall transaction protocol implements [snapshot isolation](https://github.com/muratdem/MDBTLA/blob/3989af405310e74dee45a702be9831e0c6dad7ab/MultiShardTxn/MultiShardTxn.tla#L553-L554) correctly. This is done using a global history of transaction operations maintained in the [`ops`](https://github.com/muratdem/MDBTLA/blob/21d23fc50d391629e0a4d7a31c2cfc851c024a62/MultiShardTxn/MultiShardTxn.tla#L85-L86) map. We have so far checked small models for correctness e.g. 2 keys, 2 shards, a single router, and ~2-3 operations max per transaction:
 
 ```
 Keys = {k1, k2}
