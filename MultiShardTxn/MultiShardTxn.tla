@@ -262,6 +262,8 @@ RouterTxnOp(r, s, tid, k, op) ==
 \* commit the transaction. It also sends out prepare messages to all participant shards.
 RouterTxnCoordinateCommit(r, s, tid, op) == 
     /\ op = "coordCommit"
+    \* Assume that the router interacts with shards over a request-response RPC mechanism.
+    /\ rlog[s][tid] = <<>>
     \* Transaction has started and has targeted multiple shards.
     /\ Len(rParticipants[r][tid]) > 1
     \* No shard of this transaction has aborted.
@@ -279,6 +281,8 @@ RouterTxnCoordinateCommit(r, s, tid, op) ==
 RouterTxnCommitSingleShard(r, s, tid) == 
     \* Transaction has targeted this single shard.
     /\ rParticipants[r][tid] = <<s>>
+    \* Assume that the router interacts with shards over a request-response RPC mechanism.
+    /\ rlog[s][tid] = <<>>
     \* Shard hasn't aborted.
     /\ ~aborted[s][tid]
     \* Send commit message directly to shard (bypass 2PC).
@@ -476,7 +480,10 @@ ShardTxnCommit(s, tid) ==
 \* Shard receives an abort message for transaction, and aborts.
 ShardTxnAbort(s, tid) == 
     /\ tid \in shardTxns[s]
-    /\ \E m \in msgsAbort : m.shard = s /\ m.tid = tid
+    /\ \E m \in msgsAbort : 
+        /\ m.shard = s 
+        /\ m.tid = tid
+        /\ msgsAbort' = msgsAbort \ {m}
     /\ aborted' = [aborted EXCEPT ![s][tid] = TRUE]
     /\ shardTxns' = [shardTxns EXCEPT ![s] = shardTxns[s] \ {tid}]
     \* Since it was aborted on this shard, update the transaction's op history.
@@ -487,7 +494,7 @@ ShardTxnAbort(s, tid) ==
     \* If we abort, we by default clear out any incoming RPC requests.
     /\ rlog' = [rlog EXCEPT ![s][tid] = <<>>]
     /\ ShardMDBTxnAbort(s, tid)
-    /\ UNCHANGED << log, commitIndex, epoch, lsn, overlap, rtxn, updated, rParticipants, coordInfo, msgsPrepare, msgsVoteCommit, coordCommitVotes, catalog, msgsAbort, msgsCommit, rTxnReadTs, shardPreparedTxns, rInCommit>>
+    /\ UNCHANGED << log, commitIndex, epoch, lsn, overlap, rtxn, updated, rParticipants, coordInfo, msgsPrepare, msgsVoteCommit, coordCommitVotes, catalog, msgsCommit, rTxnReadTs, shardPreparedTxns, rInCommit>>
 
 
 \* Migrate a key from one shard to another.
