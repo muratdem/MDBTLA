@@ -16,6 +16,20 @@ The current specification [models a static catalog](https://github.com/muratdem/
 
 TODO.
 
+## Model Checking
+
+Currently, we check a core, high level safety property, which is that the overall transaction protocol implements [snapshot isolation](https://github.com/muratdem/MDBTLA/blob/3989af405310e74dee45a702be9831e0c6dad7ab/MultiShardTxn/MultiShardTxn.tla#L553-L554) correctly. We have so far checked small models for correctness e.g. 2 keys, 2 shards, a single router, and ~2-3 operations max per transaction:
+
+```
+Keys = {k1, k2}
+TxId = {t1, t2}
+Shard = {s1, s2}
+Router = {r1}
+MaxStmts = 3
+```
+We verify snapshot isolation using the [client-centric isolation model of Crooks](https://www.cs.cornell.edu/lorenzo/papers/Crooks17Seeing.pdf), and utilizing the [formalization of this in TLA+](https://github.com/muratdem/MDBTLA/blob/3989af405310e74dee45a702be9831e0c6dad7ab/MultiShardTxn/ClientCentric.tla) by [Soethout](https://link.springer.com/chapter/10.1007/978-3-030-67220-1_4).
+
+
 ## Other specs in this directory
 
 `MDB.tla`: This spec models the replica set as a single log at a high level
