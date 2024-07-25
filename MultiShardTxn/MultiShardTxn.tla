@@ -113,7 +113,15 @@ ShardMDB(s) == INSTANCE MDB WITH
 
 Ops == {"read", "write", "coordCommit"}
 Entry == [k: Keys, op: Ops]
-CreateEntry(k, op, s, coord, start, ts) == [k |-> k, op |-> op, shard |-> s, coord |-> coord, start |-> start, readTs |-> ts]
+CreateEntry(k, op, s, coord, start, ts) == [
+    k |-> k, 
+    op |-> op, 
+    shard |-> s, 
+    coord |-> coord, 
+    start |-> start, 
+    readTs |-> ts,
+    rc |-> RC \* fixed, global read concern for now.
+]
 CreateCoordCommitEntry(op, s, p) == [op |-> op, shard |-> s, participants |-> p]
 
 
@@ -182,11 +190,11 @@ Restart(s) ==
 \* cross-shard transaction.
 \* 
 
-ShardMDBTxnStart(s, tid, readTs) == 
+ShardMDBTxnStart(s, tid, readTs, rc) == 
     \* Start the transaction on the MDB KV store.
     \* Save a snapshot of the current MongoDB instance at this shard for this transaction to use.
     /\ ShardMDB(s)!TxnCanStart(tid, readTs)
-    /\ txnSnapshots' = [txnSnapshots EXCEPT ![s][tid] = ShardMDB(s)!SnapshotFullKV(readTs)]
+    /\ txnSnapshots' = [txnSnapshots EXCEPT ![s][tid] = ShardMDB(s)!SnapshotKV(readTs, rc)]
     /\ UNCHANGED <<log, commitIndex, epoch>>
    
 \* Writes to the local KV store of a shard.
@@ -342,7 +350,7 @@ ShardTxnStart(s, tid) ==
     \* having started on this shard, so transaction statements can now be processed.
     /\ shardTxns' = [shardTxns EXCEPT ![s] = shardTxns[s] \union {tid}]
     /\ coordInfo' = [coordInfo EXCEPT ![s][tid] = [self |-> Head(rlog[s][tid]).coord, participants |-> <<s>>, committing |-> FALSE]]
-    /\ ShardMDBTxnStart(s, tid, Head(rlog[s][tid]).readTs)
+    /\ ShardMDBTxnStart(s, tid, Head(rlog[s][tid]).readTs, Head(rlog[s][tid]).rc)
     /\ UNCHANGED << lsn, rlog, updated, aborted, overlap, log, commitIndex, epoch, rtxn, ops, rParticipants, msgsPrepare, msgsVoteCommit, coordCommitVotes, catalog, msgsAbort, msgsCommit, rTxnReadTs, shardPreparedTxns, rInCommit >>   
 
 \* Shard processes a transaction read operation.

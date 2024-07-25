@@ -88,10 +88,12 @@ SnapshotRead(key, index) ==
             ELSE [mlogIndex |-> Max(snapshotKeyWrites), value |-> mlog[Max(snapshotKeyWrites)][key]]
 
 \* Snapshot of the full KV store at a given index/timestamp.
-SnapshotFullKV(index) == 
+SnapshotKV(index, rc) == 
+    \* Local reads just read at the latest timestamp in the log.
+    LET readIndex == IF rc = "snapshot" THEN index ELSE Len(mlog) IN
     [
         ts |-> index,
-        data |-> [k \in Keys |-> SnapshotRead(k, index).value],
+        data |-> [k \in Keys |-> SnapshotRead(k, readIndex).value],
         prepared |-> FALSE
     ]
     
@@ -195,9 +197,9 @@ TxnCanStart(tid, readTs) ==
         /\ mtxnSnapshots[tother].prepared 
         /\ mtxnSnapshots[tother].ts < readTs 
 
-StartTxn(tid, readTs) ==
-    /\ mtxnSnapshots' = [mtxnSnapshots EXCEPT ![tid] = SnapshotFullKV(readTs)]
-    /\ UNCHANGED <<mlog, mcommitIndex, mepoch>>
+\* StartTxn(tid, readTs) ==
+    \* /\ mtxnSnapshots' = [mtxnSnapshots EXCEPT ![tid] = SnapshotFullKV(readTs)]
+    \* /\ UNCHANGED <<mlog, mcommitIndex, mepoch>>
 
 \* Explicit initialization for each state variable.
 Init_mlog == <<>>
