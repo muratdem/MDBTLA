@@ -548,11 +548,16 @@ Spec == Init /\ [][Next]_vars /\ Fairness
         \* /\ WF_vars(Router)
         \* /\ \A self \in Shard : WF_vars(s(self))
 
+
+ReadUncommittedIsolation == CC!ReadUncommitted(InitialState, Range(ops))
+
+ReadCommittedIsolation == CC!ReadCommitted(InitialState, Range(ops))
+
 \* Snapshot isolation invariant
 SnapshotIsolation == CC!SnapshotIsolation(InitialState, Range(ops))
 
 \* Serializability would not be satisfied due to write-skew
-Serialization == CC!Serializability(InitialState, Range(ops))
+SerializableIsolation == CC!Serializability(InitialState, Range(ops))
 
 \* For all shards, if they scurrently have a running transaction at any point,
 \* then eventually all transactions get committed or aborted on that shard.
