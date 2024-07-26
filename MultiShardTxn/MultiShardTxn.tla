@@ -231,6 +231,16 @@ ShardMDBTxnAbort(s, tid) ==
 \* recovery/coordinator shard.
 \* 
 
+\* Update router shard participant list for a transaction, while also
+\* recording the type of ops done on each shard, and maintaining order when 
+\* shards joined the transaction.
+UpdateParticipants(r, tid, snew, op) == 
+    (IF (\E el \in Range(rParticipants[r][tid]) : el[1] = snew) 
+        THEN [ind \in DOMAIN rParticipants[r][tid] |-> 
+                (IF rParticipants[r][tid][ind][1] = snew 
+                    THEN <<snew, rParticipants[r][tid][ind][2] \cup {op}>> 
+                    ELSE rParticipants[r][tid][ind])] 
+        ELSE Append(rParticipants[r][tid], <<snew, {op}>>))
 
 \* Router handles a new transaction operation that is routed to the appropriate shard.
 RouterTxnOp(r, s, tid, k, op) == 
@@ -244,14 +254,14 @@ RouterTxnOp(r, s, tid, k, op) ==
     \* Assume that the router interacts with shards over a request-response RPC mechanism i.e.
     \* so we wait for an op to be processed before sending the next op.
     /\ rlog[s][tid] = <<>>
-    \* Update rParticipants list if new participant joined the transaction.
-    /\ rParticipants' = [rParticipants EXCEPT ![r][tid] = rParticipants[r][tid] \o (IF s \in Range(rParticipants[r][tid]) THEN <<>> ELSE <<s>>)]
+    \* Update rParticipants list if new participant joined the transaction, and also 
+    /\ rParticipants' = [rParticipants EXCEPT ![r][tid] = UpdateParticipants(r, tid, s, op)]
     \* Pick a read timestamp non-deterministically at any point in the existing log of any shard. 
     \* This is a generalized version of what we do in practice, which will be a
     \* best effort guess at read timestamp to select will be maintained on a
     \* router based on previous responses from commands.
     /\ \E ts \in UNION {0..Len(log[sh]) : sh \in Shard} : rTxnReadTs' = [rTxnReadTs EXCEPT ![r][tid] = IF rtxn[r][tid] = 0 THEN ts ELSE rTxnReadTs[r][tid]]
-    /\ LET firstShardOp == s \notin Range(rParticipants[r][tid]) IN
+    /\ LET firstShardOp == ~\E el \in Range(rParticipants[r][tid]) : el[1] = s IN
            rlog' = [rlog EXCEPT ![s][tid] = Append(rlog[s][tid], CreateEntry(k, op, s, rtxn[r][tid] = 0, firstShardOp, rTxnReadTs'[r][tid]))]
     /\ rtxn' = [rtxn EXCEPT ![r][tid] = rtxn[r][tid]+1]
     /\ UNCHANGED << shardTxns,   aborted, log, commitIndex, epoch, lsn, txnSnapshots, ops,coordInfo, msgsPrepare, msgsVoteCommit, msgsAbort, coordCommitVotes, catalog, msgsCommit, shardPreparedTxns, rInCommit >>
@@ -266,19 +276,35 @@ RouterTxnCoordinateCommit(r, s, tid, op) ==
     /\ Len(rParticipants[r][tid]) > 1
     \* No shard of this transaction has aborted.
     /\ ~\E as \in Shard : aborted[as][tid]
-    /\ s = rParticipants[r][tid][1] \* Coordinator shard is the first participant in the list.
+    /\ s = rParticipants[r][tid][1][1] \* Coordinator shard is the first participant in the list.
     \* Send coordinate commit message to the coordinator shard.
     /\ rlog' = [rlog EXCEPT ![s][tid] = Append(rlog[s][tid], CreateCoordCommitEntry(op, s, rParticipants[r][tid]))]
     /\ rtxn' = [rtxn EXCEPT ![r][tid] = rtxn[r][tid]+1]
     /\ rInCommit' = [rInCommit EXCEPT ![r][tid] = TRUE]
     /\ UNCHANGED << shardTxns,   aborted, log, commitIndex, epoch, lsn, txnSnapshots, ops, rParticipants, coordInfo, msgsVoteCommit, coordCommitVotes, catalog, msgsAbort, msgsCommit, msgsPrepare, rTxnReadTs, shardPreparedTxns >>
 
+\* If a transaction only executed reads, even against multiple shards, then the
+\* router can bypass 2PC and send commits directly to shards.
+RouterTxnCommitReadOnly(r, s, tid) == 
+    \* Transaction has targeted this single shard.
+    /\ Len(rParticipants[r][tid]) > 1
+    \* All shards were reads.
+    /\ \A p \in Range(rParticipants[r][tid]) : p[2] = {"read"}
+    \* Assume that the router interacts with shards over a request-response RPC mechanism.
+    /\ rlog[s][tid] = <<>>
+    \* Shard hasn't aborted.
+    /\ ~aborted[s][tid]
+    \* Send commit message directly to shard (bypass 2PC).
+    /\ msgsCommit' = msgsCommit \cup { [shard |-> s, tid |-> tid] : sp \in Range(rParticipants[r][tid])}
+    /\ rInCommit' = [rInCommit EXCEPT ![r][tid] = TRUE]
+    /\ UNCHANGED << shardTxns,   aborted, rlog, rtxn, log, commitIndex, epoch, lsn, txnSnapshots, ops, rParticipants, coordInfo, msgsVoteCommit, coordCommitVotes, catalog, msgsAbort, msgsPrepare, rTxnReadTs, shardPreparedTxns >>
+
 \* If a transaction only targeted a single shard, then the router can commit the
 \* transaction without going through a full 2PC. Instead, it just sends a commit
 \* message directly to that shard.
 RouterTxnCommitSingleShard(r, s, tid) == 
     \* Transaction has targeted this single shard.
-    /\ rParticipants[r][tid] = <<s>>
+    /\ Len(rParticipants[r][tid]) = 1 /\ rParticipants[r][tid][1][1] = s
     \* Assume that the router interacts with shards over a request-response RPC mechanism.
     /\ rlog[s][tid] = <<>>
     \* Shard hasn't aborted.
@@ -506,6 +532,7 @@ Next ==
     \* Router actions.
     \/ \E r \in Router, s \in Shard, t \in TxId, k \in Keys, op \in Ops: RouterTxnOp(r, s, t, k, op)
     \/ \E r \in Router, s \in Shard, t \in TxId, op \in Ops: RouterTxnCoordinateCommit(r, s, t, op)
+    \/ \E r \in Router, s \in Shard, t \in TxId: RouterTxnCommitReadOnly(r, s, t)
     \/ \E r \in Router, s \in Shard, t \in TxId: RouterTxnCommitSingleShard(r, s, t)
     \* TODO: Enable this single write shard optimization once modeled fully.
     \* \/ \E r \in Router, t \in TxId: RouterTxnCommitSingleWriteShard(r, t)
