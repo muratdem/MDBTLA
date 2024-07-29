@@ -154,11 +154,10 @@ IncreaseCommitIndex ==
     /\ UNCHANGED <<mlog, mepoch>>
 
 \* Any data that is not part of the checkpointed mlog prefix may be lost at any time. 
-TruncateLog ==
-    \E i \in (mcommitIndex+1)..Len(mlog) :
-        /\ mlog' = SubSeq(mlog, 1, i - 1)
-        /\ mepoch' = mepoch + 1
-        /\ UNCHANGED <<mcommitIndex>>
+TruncatedLog == \E i \in (mcommitIndex+1)..Len(mlog) :
+    /\ mlog' = SubSeq(mlog, 1, i - 1)
+    /\ mepoch' = mepoch + 1
+    /\ UNCHANGED <<mcommitIndex>>
 
 \* Alternate equivalent definition of the above.
 WriteConflictExists(tid, k) ==
@@ -197,9 +196,11 @@ TxnCanStart(tid, readTs) ==
         /\ mtxnSnapshots[tother].prepared 
         /\ mtxnSnapshots[tother].ts < readTs 
 
-\* StartTxn(tid, readTs) ==
-    \* /\ mtxnSnapshots' = [mtxnSnapshots EXCEPT ![tid] = SnapshotFullKV(readTs)]
-    \* /\ UNCHANGED <<mlog, mcommitIndex, mepoch>>
+
+
+StartTxn(tid, readTs) ==
+    /\ mtxnSnapshots' = [mtxnSnapshots EXCEPT ![tid] = SnapshotKV(readTs, "snapshot")]
+    /\ UNCHANGED <<mlog, mcommitIndex, mepoch>>
 
 \* Explicit initialization for each state variable.
 Init_mlog == <<>>

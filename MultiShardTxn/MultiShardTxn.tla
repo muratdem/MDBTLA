@@ -53,8 +53,6 @@ VARIABLE shardPreparedTxns
 \* Set of commit votes recorded by each coordinator shard, for each transaction.
 VARIABLE coordCommitVotes
 
-\* Snapshot of data store for each transaction on each shard.
-VARIABLE txnSnapshots
 
 \* For each shard and transaction, keeps track of whether that transaction aborted e.g.
 \* due to a write conflict.
@@ -91,6 +89,8 @@ VARIABLE catalog
 VARIABLE log 
 VARIABLE commitIndex 
 VARIABLE epoch
+\* Snapshot of data store for each transaction on each shard.
+VARIABLE txnSnapshots
 
 vars == << shardTxns, rInCommit,   rlog, aborted, log, commitIndex, epoch, rtxn, lsn, txnSnapshots, ops, rParticipants, coordInfo, msgsPrepare, msgsVoteCommit, msgsAbort, coordCommitVotes, catalog, msgsCommit, rTxnReadTs, shardPreparedTxns >>
 
@@ -200,7 +200,8 @@ ShardMDBTxnCommit(s, tid) ==
     \* Commit the transaction on the MDB KV store.
     \* Write all updated keys back to the shard oplog.
     /\ log' = [log EXCEPT ![s] = ShardMDB(s)!CommitTxnToLog(tid)]
-    /\ commitIndex' = [commitIndex EXCEPT ![s] = Len(log'[s])]
+    \* /\ commitIndex' = [commitIndex EXCEPT ![s] = Len(log'[s])]
+    /\ commitIndex' = commitIndex
     /\ UNCHANGED <<txnSnapshots, epoch>>
 
 ShardMDBTxnPrepare(s, tid) == 
@@ -210,6 +211,19 @@ ShardMDBTxnPrepare(s, tid) ==
 ShardMDBTxnAbort(s, tid) == 
     /\ txnSnapshots' = [txnSnapshots EXCEPT ![s][tid] = NoValue]
     /\ UNCHANGED <<log, commitIndex, epoch>>
+
+ShardMDBRollback(s) == 
+    \E i \in (commitIndex[s]+1)..Len(log[s]) :
+        /\ log' = [log EXCEPT ![s] = SubSeq(log[s], 1, i - 1)]
+        /\ UNCHANGED <<commitIndex, epoch, txnSnapshots>>
+        /\ UNCHANGED <<rlog, rtxn, shardTxns, shardPreparedTxns, lsn, rInCommit, rParticipants, coordInfo, msgsPrepare, msgsVoteCommit, msgsAbort, msgsCommit, coordCommitVotes, catalog, rTxnReadTs, ops, aborted>>
+    
+ShardMDBAdvanceCommitIndex(s) == 
+    /\ commitIndex[s] < Len(log[s])
+    /\ \E newCommitIndex \in (commitIndex[s]+1)..Len(log[s]) : commitIndex' = [commitIndex EXCEPT ![s] = newCommitIndex]
+    /\ UNCHANGED <<log, epoch, txnSnapshots>>
+    /\ UNCHANGED <<rlog, rtxn, shardTxns, shardPreparedTxns, lsn, rInCommit, rParticipants, coordInfo, msgsPrepare, msgsVoteCommit, msgsAbort, msgsCommit, coordCommitVotes, catalog, rTxnReadTs, ops, aborted>>
+
 
 -------------------------------------------------
 
@@ -552,6 +566,8 @@ Next ==
     \* Environment/background actions (crashes, chunk migration, etc.)
     \* \/ \E k \in Keys, sfrom \in Shard, sto \in Shard : MoveKey(k, sfrom, sto)
     \* \/ \E s \in Shard: Restart(s)
+    \/ \E s \in Shard : ShardMDBRollback(s)
+    \/ \E s \in Shard : ShardMDBAdvanceCommitIndex(s)
 
 Fairness == TRUE
     /\ WF_vars(\E r \in Router, s \in Shard, t \in TxId, k \in Keys, op \in Ops: RouterTxnOp(r, s, t, k, op))
