@@ -292,7 +292,7 @@ RouterTxnCoordinateCommit(r, s, tid, op) ==
     /\ ~\E as \in Shard : aborted[as][tid]
     /\ s = rParticipants[r][tid][1][1] \* Coordinator shard is the first participant in the list.
     \* Send coordinate commit message to the coordinator shard.
-    /\ rlog' = [rlog EXCEPT ![s][tid] = Append(rlog[s][tid], CreateCoordCommitEntry(op, s, rParticipants[r][tid]))]
+    /\ rlog' = [rlog EXCEPT ![s][tid] = Append(rlog[s][tid], CreateCoordCommitEntry(op, s, [i \in DOMAIN rParticipants[r][tid] |-> rParticipants[r][tid][i][1]]))]
     /\ rtxn' = [rtxn EXCEPT ![r][tid] = rtxn[r][tid]+1]
     /\ rInCommit' = [rInCommit EXCEPT ![r][tid] = TRUE]
     /\ UNCHANGED << shardTxns,   aborted, log, commitIndex, epoch, lsn, txnSnapshots, ops, rParticipants, coordInfo, msgsVoteCommit, coordCommitVotes, catalog, msgsAbort, msgsCommit, msgsPrepare, rTxnReadTs, shardPreparedTxns >>
@@ -309,7 +309,7 @@ RouterTxnCommitReadOnly(r, s, tid) ==
     \* Shard hasn't aborted.
     /\ ~aborted[s][tid]
     \* Send commit message directly to shard (bypass 2PC).
-    /\ msgsCommit' = msgsCommit \cup { [shard |-> s, tid |-> tid] : sp \in Range(rParticipants[r][tid])}
+    /\ msgsCommit' = msgsCommit \cup { [shard |-> sp[1], tid |-> tid] : sp \in Range(rParticipants[r][tid])}
     /\ rInCommit' = [rInCommit EXCEPT ![r][tid] = TRUE]
     /\ UNCHANGED << shardTxns,   aborted, rlog, rtxn, log, commitIndex, epoch, lsn, txnSnapshots, ops, rParticipants, coordInfo, msgsVoteCommit, coordCommitVotes, catalog, msgsAbort, msgsPrepare, rTxnReadTs, shardPreparedTxns >>
 
@@ -360,7 +360,7 @@ RouterTxnAbort(r, tid) ==
     /\ rParticipants[r][tid] # <<>>
     \* Didn't already initiate commit.
     /\ ~rInCommit[r][tid]
-    /\ msgsAbort' = msgsAbort \cup {[tid |-> tid, shard |-> s] : s \in Range(rParticipants[r][tid])}
+    /\ msgsAbort' = msgsAbort \cup {[tid |-> tid, shard |-> s[1]] : s \in Range(rParticipants[r][tid])}
     /\ UNCHANGED << shardTxns,   aborted, log, commitIndex, epoch, lsn, txnSnapshots, ops, rlog, rtxn, coordInfo, msgsPrepare, msgsVoteCommit, coordCommitVotes, catalog, rParticipants, msgsCommit, rTxnReadTs, shardPreparedTxns, rInCommit >>
 
 
@@ -464,12 +464,15 @@ ShardTxnCoordinateCommit(s, tid) ==
 \* Transaction coordinator shard receives a vote from a participant shard to commit a transaction.
 ShardTxnCoordinatorRecvCommitVote(s, tid, from) == 
     /\ tid \in shardTxns[s]
-    /\ \E m \in msgsVoteCommit : m.shard = from /\ m.tid = tid
+    /\ \E m \in msgsVoteCommit : 
+        /\ m.shard = from 
+        /\ m.tid = tid
+        /\ msgsVoteCommit' = msgsVoteCommit \ {m}
     \* We are the coordinator and received coordinateCommit with full participant list, indicating we are now ready to run 2PC to commit.
     /\ coordInfo[s][tid].self 
     /\ coordInfo[s][tid].committing  
     /\ coordCommitVotes' = [coordCommitVotes EXCEPT ![s][tid] = coordCommitVotes[s][tid] \union {from}]
-    /\ UNCHANGED << shardTxns, log, commitIndex, epoch, lsn,  rlog, rtxn,  aborted, txnSnapshots, rParticipants, coordInfo, msgsPrepare, msgsVoteCommit, ops, catalog, msgsAbort, msgsCommit, rTxnReadTs, shardPreparedTxns, rInCommit >>
+    /\ UNCHANGED << shardTxns, log, commitIndex, epoch, lsn,  rlog, rtxn,  aborted, txnSnapshots, rParticipants, coordInfo, msgsPrepare, ops, catalog, msgsAbort, msgsCommit, rTxnReadTs, shardPreparedTxns, rInCommit >>
 
 \* Coordinator shard decides to commit a transaction, if it has gathered all the necessary commit votes.
 ShardTxnCoordinatorDecideCommit(s, tid) == 
@@ -477,7 +480,7 @@ ShardTxnCoordinatorDecideCommit(s, tid) ==
     /\ tid \in shardTxns[s]
     \* I am the coordinator, and I received all commit votes from rParticipants.
     /\ coordInfo[s][tid].self
-    /\ coordCommitVotes[s][tid] = Range(coordInfo[s][tid].participants)
+    /\ coordCommitVotes[s][tid] = {p : p \in Range(coordInfo[s][tid].participants)}
     /\ msgsCommit' = msgsCommit \cup { [shard |-> p, tid |-> tid] : p \in Range(coordInfo[s][tid].participants) }
     /\ UNCHANGED << shardTxns, log, commitIndex, epoch, lsn,  rlog, rtxn,  aborted, txnSnapshots, rParticipants, coordInfo, msgsPrepare, msgsVoteCommit, ops, coordCommitVotes, catalog, msgsAbort, rTxnReadTs, shardPreparedTxns, rInCommit >>
 
@@ -487,12 +490,12 @@ ShardTxnPrepare(s, tid) ==
     \E m \in msgsPrepare : 
         \* TODO: Choose prepareTimestamp for this transaction and track prepared state (?).
         \* Transaction is started on this shard.
+        /\ m.shard = s /\ m.tid = tid
         /\ tid \in shardTxns[s]
         /\ tid \notin shardPreparedTxns[s]
         \* We have not aborted.
         /\ ~aborted[s][tid]
         /\ shardPreparedTxns' = [shardPreparedTxns EXCEPT ![s] = shardPreparedTxns[s] \union {tid}]
-        /\ m.shard = s /\ m.tid = tid
         \* Prepare and then send your vote to the coordinator.
         /\ msgsVoteCommit' = msgsVoteCommit \cup { [shard |-> s, tid |-> tid, to |-> m.coordinator] }
         \* Prepare the transaction in the underyling snapshot store.
