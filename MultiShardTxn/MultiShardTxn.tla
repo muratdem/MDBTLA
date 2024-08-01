@@ -569,8 +569,8 @@ Next ==
     \* Environment/background actions (crashes, chunk migration, etc.)
     \* \/ \E k \in Keys, sfrom \in Shard, sto \in Shard : MoveKey(k, sfrom, sto)
     \* \/ \E s \in Shard: Restart(s)
-    \/ \E s \in Shard : ShardMDBRollback(s)
-    \/ \E s \in Shard : ShardMDBAdvanceCommitIndex(s)
+    \* \/ \E s \in Shard : ShardMDBRollback(s)
+    \* \/ \E s \in Shard : ShardMDBAdvanceCommitIndex(s)
 
 Fairness == TRUE
     /\ WF_vars(\E r \in Router, s \in Shard, t \in TxId, k \in Keys, op \in Ops: RouterTxnOp(r, s, t, k, op))
