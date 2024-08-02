@@ -290,6 +290,7 @@ RouterTxnCoordinateCommit(r, s, tid, op) ==
     /\ rlog[s][tid] = <<>>
     \* Transaction has started and has targeted multiple shards.
     /\ Len(rParticipants[r][tid]) > 1
+    /\ ~rInCommit[r][tid]
     \* No shard of this transaction has aborted.
     /\ ~\E as \in Shard : aborted[as][tid]
     /\ s = rParticipants[r][tid][1][1] \* Coordinator shard is the first participant in the list.
@@ -308,6 +309,7 @@ RouterTxnCommitReadOnly(r, s, tid) ==
     /\ \A p \in Range(rParticipants[r][tid]) : p[2] = {"read"}
     \* Assume that the router interacts with shards over a request-response RPC mechanism.
     /\ rlog[s][tid] = <<>>
+    /\ ~rInCommit[r][tid]
     \* Shard hasn't aborted.
     /\ ~aborted[s][tid]
     \* Send commit message directly to shard (bypass 2PC).
