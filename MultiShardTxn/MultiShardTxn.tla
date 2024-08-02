@@ -204,9 +204,7 @@ ShardMDBTxnCommit(s, tid) ==
     \* Commit the transaction on the MDB KV store.
     \* Write all updated keys back to the shard oplog.
     /\ log' = [log EXCEPT ![s] = ShardMDB(s)!CommitTxnToLog(tid)]
-    \* /\ commitIndex' = [commitIndex EXCEPT ![s] = Len(log'[s])]
-    /\ commitIndex' = commitIndex
-    /\ UNCHANGED <<txnSnapshots, epoch>>
+    /\ UNCHANGED <<txnSnapshots, epoch, commitIndex>>
 
 ShardMDBTxnPrepare(s, tid) == 
     /\ txnSnapshots' = [txnSnapshots EXCEPT ![s][tid]["prepared"] = TRUE]

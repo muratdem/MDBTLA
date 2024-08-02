@@ -184,7 +184,11 @@ UpdateSnapshot(tid, k, v) == [mtxnSnapshots EXCEPT ![tid].data[k] = v]
 
 SnapshotUpdatedKeys(tid) == {k \in Keys : mtxnSnapshots[tid] # Nil /\ mtxnSnapshots[tid].data[k] = tid}
 
-CommitTxnToLog(tid) == mlog \o <<[key \in SnapshotUpdatedKeys(tid) |-> tid]>>
+CommitTxnToLog(tid) == 
+    \* It a transaction has no updates, then no log write is needed.
+    IF SnapshotUpdatedKeys(tid) = {} 
+        THEN mlog 
+        ELSE Append(mlog, [key \in SnapshotUpdatedKeys(tid) |-> tid])
 
 \*  SetToSeq({[key |-> key, value |-> tid] : key \in SnapshotUpdatedKeys(tid)})
 
