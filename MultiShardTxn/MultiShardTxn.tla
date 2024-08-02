@@ -204,7 +204,8 @@ ShardMDBTxnCommit(s, tid) ==
     \* Commit the transaction on the MDB KV store.
     \* Write all updated keys back to the shard oplog.
     /\ log' = [log EXCEPT ![s] = ShardMDB(s)!CommitTxnToLog(tid)]
-    /\ UNCHANGED <<txnSnapshots, epoch, commitIndex>>
+    /\ txnSnapshots' = [txnSnapshots EXCEPT ![s][tid] = NoValue]
+    /\ UNCHANGED <<epoch, commitIndex>>
 
 ShardMDBTxnPrepare(s, tid) == 
     /\ txnSnapshots' = [txnSnapshots EXCEPT ![s][tid]["prepared"] = TRUE]
@@ -258,8 +259,10 @@ UpdateParticipants(r, tid, snew, op) ==
                     ELSE rParticipants[r][tid][ind])] 
         ELSE Append(rParticipants[r][tid], <<snew, {op}>>))
 
+AllLogTimestamps == UNION {0..Len(log[sh]) : sh \in Shard}
+
 \* Router handles a new transaction operation that is routed to the appropriate shard.
-RouterTxnOp(r, s, tid, k, op) == 
+RouterTxnOp(r, s, tid, k, op, readTs) == 
     /\ op \in {"read", "write"}
     \* If a shard of this transaction has aborted, don't continue the transaction.
     /\ ~\E as \in Shard : aborted[as][tid]
@@ -276,7 +279,7 @@ RouterTxnOp(r, s, tid, k, op) ==
     \* This is a generalized version of what we do in practice, which will be a
     \* best effort guess at read timestamp to select will be maintained on a
     \* router based on previous responses from commands.
-    /\ \E ts \in UNION {0..Len(log[sh]) : sh \in Shard} : rTxnReadTs' = [rTxnReadTs EXCEPT ![r][tid] = IF rtxn[r][tid] = 0 THEN ts ELSE rTxnReadTs[r][tid]]
+    /\ rTxnReadTs' = [rTxnReadTs EXCEPT ![r][tid] = IF rtxn[r][tid] = 0 THEN readTs ELSE rTxnReadTs[r][tid]]
     /\ LET firstShardOp == ~\E el \in Range(rParticipants[r][tid]) : el[1] = s IN
            rlog' = [rlog EXCEPT ![s][tid] = Append(rlog[s][tid], CreateEntry(k, op, s, rtxn[r][tid] = 0, firstShardOp, rTxnReadTs'[r][tid]))]
     /\ rtxn' = [rtxn EXCEPT ![r][tid] = rtxn[r][tid]+1]
@@ -522,7 +525,7 @@ ShardTxnCommit(s, tid) ==
     /\ rlog' = [rlog EXCEPT ![s][tid] = <<>>]
     /\ ops' = [ops EXCEPT ![tid] = ops[tid] \o shardOps[s][tid]]
     /\ ShardMDBTxnCommit(s, tid)
-    /\ UNCHANGED <<   epoch, rtxn,  rParticipants, coordInfo, msgsPrepare, txnSnapshots, msgsVoteCommit, coordCommitVotes, catalog, msgsAbort, aborted, rTxnReadTs, rInCommit, shardOps >>
+    /\ UNCHANGED <<epoch, rtxn, rParticipants, coordInfo, msgsPrepare, msgsVoteCommit, coordCommitVotes, catalog, msgsAbort, aborted, rTxnReadTs, rInCommit, shardOps >>
 
 \* Shard receives an abort message for transaction, and aborts.
 ShardTxnAbort(s, tid) == 
@@ -553,7 +556,7 @@ MoveKey(k, sfrom, sto) ==
 
 Next == 
     \* Router actions.
-    \/ \E r \in Router, s \in Shard, t \in TxId, k \in Keys, op \in Ops: RouterTxnOp(r, s, t, k, op)
+    \/ \E r \in Router, s \in Shard, t \in TxId, k \in Keys, op \in Ops, ts \in AllLogTimestamps : RouterTxnOp(r, s, t, k, op, ts)
     \/ \E r \in Router, s \in Shard, t \in TxId, op \in Ops: RouterTxnCoordinateCommit(r, s, t, op)
     \/ \E r \in Router, s \in Shard, t \in TxId: RouterTxnCommitReadOnly(r, s, t)
     \/ \E r \in Router, s \in Shard, t \in TxId: RouterTxnCommitSingleShard(r, s, t)
@@ -579,7 +582,7 @@ Next ==
     \* \/ \E s \in Shard : ShardMDBAdvanceCommitIndex(s)
 
 Fairness == TRUE
-    /\ WF_vars(\E r \in Router, s \in Shard, t \in TxId, k \in Keys, op \in Ops: RouterTxnOp(r, s, t, k, op))
+    /\ WF_vars(\E r \in Router, s \in Shard, t \in TxId, k \in Keys, op \in Ops, ts \in AllLogTimestamps: RouterTxnOp(r, s, t, k, op, ts))
     /\ WF_vars(\E r \in Router, s \in Shard, t \in TxId, op \in Ops: RouterTxnCoordinateCommit(r, s, t, op))
     /\ WF_vars(\E r \in Router, s \in Shard, t \in TxId: RouterTxnCommitSingleShard(r, s, t))
     /\ WF_vars(\E r \in Router, t \in TxId: RouterTxnCommitSingleWriteShard(r, t))
