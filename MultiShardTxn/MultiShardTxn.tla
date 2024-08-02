@@ -327,6 +327,7 @@ RouterTxnCommitSingleShard(r, s, tid) ==
     /\ rlog[s][tid] = <<>>
     \* Shard hasn't aborted.
     /\ ~aborted[s][tid]
+    /\ ~rInCommit[r][tid]
     \* Send commit message directly to shard (bypass 2PC).
     /\ msgsCommit' = msgsCommit \cup { [shard |-> s, tid |-> tid] }
     /\ rInCommit' = [rInCommit EXCEPT ![r][tid] = TRUE]
