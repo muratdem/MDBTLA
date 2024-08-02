@@ -647,14 +647,14 @@ CatalogConstraint ==
     \* Prevents cases where all keys are distributed to a single shard.
     /\ \A s \in Shard : KeysOwnedByShard(s) # Keys
 
-CatalogConstraint2KeysOnShard ==
+InitCatalogConstraint2KeysOnShard ==
     \* Prevents cases where all keys are distributed to a single shard (for 3 total keys).
+    /\ Init
     /\ \E s \in Shard : Cardinality(KeysOwnedByShard(s)) = 2
 
 \* Don't execute more than a max number of statements per transaction.
 StateConstraint == 
     /\ \A t \in TxId, r \in Router : rtxn[r][t] <= MaxStmts
-    \* /\ CatalogConstraint2KeysOnShard
     
 Symmetry == Permutations(TxId) \cup Permutations(Keys) \cup Permutations(Shard) \cup Permutations(Router)
 
