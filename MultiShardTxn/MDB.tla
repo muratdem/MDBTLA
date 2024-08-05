@@ -81,11 +81,11 @@ WriteInit(key, value) ==
 SnapshotRead(key, index) == 
     LET snapshotKeyWrites == 
         { i \in DOMAIN mlog :
-            /\ \E k \in DOMAIN mlog[i] : k = key \* mlog[i].key = key
+            /\ \E k \in DOMAIN mlog[i].data : k = key \* mlog[i].key = key
             /\ i <= index } IN
         IF snapshotKeyWrites = {}
             THEN NotFoundReadResult
-            ELSE [mlogIndex |-> Max(snapshotKeyWrites), value |-> mlog[Max(snapshotKeyWrites)][key]]
+            ELSE [mlogIndex |-> Max(snapshotKeyWrites), value |-> mlog[Max(snapshotKeyWrites)].data[key]]
 
 \* Snapshot of the full KV store at a given index/timestamp.
 SnapshotKV(index, rc) == 
@@ -174,7 +174,7 @@ WriteConflictExists(tid, k) ==
         \* timestamp newer than your snapshot, this also should manifest as a conflict. 
         \/ \E ind \in DOMAIN mlog :
             /\ ind >= mtxnSnapshots[tid].ts
-            /\ k \in (DOMAIN mlog[ind])
+            /\ k \in (DOMAIN mlog[ind].data)
 
 CleanSnapshots == [t \in MTxId |-> Nil]
 
@@ -184,11 +184,11 @@ UpdateSnapshot(tid, k, v) == [mtxnSnapshots EXCEPT ![tid].data[k] = v]
 
 SnapshotUpdatedKeys(tid) == {k \in Keys : mtxnSnapshots[tid] # Nil /\ mtxnSnapshots[tid].data[k] = tid}
 
-CommitTxnToLog(tid) == 
+CommitTxnToLog(tid, commitTs) == 
     \* It a transaction has no updates, then no log write is needed.
     IF SnapshotUpdatedKeys(tid) = {} 
         THEN mlog 
-        ELSE Append(mlog, [key \in SnapshotUpdatedKeys(tid) |-> tid])
+        ELSE Append(mlog, [data |-> [key \in SnapshotUpdatedKeys(tid) |-> tid], ts |-> commitTs])
 
 \*  SetToSeq({[key |-> key, value |-> tid] : key \in SnapshotUpdatedKeys(tid)})
 
