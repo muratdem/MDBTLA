@@ -81,8 +81,9 @@ WriteInit(key, value) ==
 SnapshotRead(key, index) == 
     LET snapshotKeyWrites == 
         { i \in DOMAIN mlog :
-            /\ \E k \in DOMAIN mlog[i].data : k = key \* mlog[i].key = key
-            /\ i <= index } IN
+            /\ \E k \in DOMAIN mlog[i].data : k = key
+            \* Determine read visibility based on commit timestamp.
+            /\ mlog[i].ts <= index } IN
         IF snapshotKeyWrites = {}
             THEN NotFoundReadResult
             ELSE [mlogIndex |-> Max(snapshotKeyWrites), value |-> mlog[Max(snapshotKeyWrites)].data[key]]
