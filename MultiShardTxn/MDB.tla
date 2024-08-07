@@ -77,7 +77,6 @@ WriteInit(key, value) ==
 \* That is, return the latest value associated with the key 
 \* that was written at ts <= index. If no value was yet written
 \* to the key, then return NotFoundReadResult.
-\* 
 SnapshotRead(key, index) == 
     LET snapshotKeyWrites == 
         { i \in DOMAIN mlog :
@@ -95,7 +94,8 @@ SnapshotKV(index, rc) ==
     [
         ts |-> index,
         data |-> [k \in Keys |-> SnapshotRead(k, readIndex).value],
-        prepared |-> FALSE
+        prepared |-> FALSE,
+        readSet |-> {}
     ]
     
 
@@ -159,6 +159,17 @@ TruncatedLog == \E i \in (mcommitIndex+1)..Len(mlog) :
     /\ mlog' = SubSeq(mlog, 1, i - 1)
     /\ mepoch' = mepoch + 1
     /\ UNCHANGED <<mcommitIndex>>
+
+WriteReadConflictExists(tid, k) ==
+    \* Exists another running transaction on the same snapshot
+    \* that has written to the same key.
+    \E tOther \in MTxId \ {tid}:
+        \* Transaction is running. 
+        \/ /\ mtxnSnapshots[tid] # Nil
+           /\ mtxnSnapshots[tOther] # Nil
+           \* The other transaction is on the same snapshot and read this value.
+           /\ mtxnSnapshots[tOther].ts = mtxnSnapshots[tOther].ts
+           /\ k \in mtxnSnapshots[tOther].readSet
 
 \* Alternate equivalent definition of the above.
 WriteConflictExists(tid, k) ==

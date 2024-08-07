@@ -196,8 +196,17 @@ ShardMDBTxnWrite(s, tid, k) ==
     \* The write to this key does not overlap with any writes to the same key
     \* from other, concurrent transactions.
     /\ ~ShardMDB(s)!WriteConflictExists(tid, k)
+    \* Did some concurrent transaction read this key?
+    \* /\ ~ShardMDB(s)!WriteReadConflictExists(tid, k)
     \* Update the transaction's snapshot data.
     /\ txnSnapshots' = [txnSnapshots EXCEPT ![s] = ShardMDB(s)!UpdateSnapshot(tid, k, tid)]
+    /\ UNCHANGED <<log, commitIndex, epoch>>
+
+\* Reads from the local KV store of a shard.
+ShardMDBTxnRead(s, tid, k) == 
+    \* Am I reading from a key that has been written to concurrently?
+    \* /\ ~ShardMDB(s)!WriteConflictExists(tid, k)
+    /\ txnSnapshots' = [txnSnapshots EXCEPT ![s][tid]["readSet"] = @ \cup {k}]
     /\ UNCHANGED <<log, commitIndex, epoch>>
 
 ShardMDBTxnCommit(s, tid, commitTs) == 
@@ -407,7 +416,8 @@ ShardTxnRead(s, tid, k) ==
     /\ lsn' = [lsn EXCEPT ![s][tid] = lsn[s][tid] + 1]
     \* Consume the transaction op.
     /\ rlog' = [rlog EXCEPT ![s][tid] = Tail(rlog[s][tid])]
-    /\ UNCHANGED << shardTxns,   aborted, log, commitIndex, epoch, rtxn, txnSnapshots, rParticipants, coordInfo, msgsPrepare, msgsVoteCommit, coordCommitVotes, catalog, msgsAbort, msgsCommit, rTxnReadTs, shardPreparedTxns, rInCommit, ops >>    
+    /\ ShardMDBTxnRead(s, tid, k)
+    /\ UNCHANGED << shardTxns, aborted, rtxn, rParticipants, coordInfo, msgsPrepare, msgsVoteCommit, coordCommitVotes, catalog, msgsAbort, msgsCommit, rTxnReadTs, shardPreparedTxns, rInCommit, ops >>    
 
 \* Shard processes a transaction write operation.
 ShardTxnWrite(s, tid, k) == 
@@ -564,7 +574,7 @@ Next ==
     \/ \E r \in Router, s \in Shard, t \in TxId: RouterTxnCommitSingleShard(r, s, t)
     \* TODO: Enable this single write shard optimization once modeled fully.
     \* \/ \E r \in Router, t \in TxId: RouterTxnCommitSingleWriteShard(r, t)
-    \/ \E r \in Router, t \in TxId : RouterTxnAbort(r, t)
+    \* \/ \E r \in Router, t \in TxId : RouterTxnAbort(r, t)
     \* Shard transaction actions.
     \/ \E s \in Shard, tid \in TxId: ShardTxnStart(s, tid)
     \/ \E s \in Shard, tid \in TxId, k \in Keys: ShardTxnRead(s, tid, k)
@@ -634,7 +644,7 @@ BaitLog ==
     \* /\ \A s \in Shard, t \in TxId : aborted[s][t] = FALSE
     \* /\ Cardinality(msgsPrepare) # 2
     \* /\ \A s \in Shard, tid \in TxId : Cardinality(coordCommitVotes[s][tid]) # 1
-    /\ \A s \in Shard, tid \in TxId : Cardinality(coordCommitVotes[s][tid]) < 2
+    /\ \A s \in Shard, tid \in TxId : Cardinality(coordCommitVotes[s][tid]) < 1
     \* /\ \A tid \in TxId : Len(ops[tid]) < 2
     \* /\ coord
     \* /\ \A s \in Shard, t \in TxId : Len(rlog[s][t]) = 0
