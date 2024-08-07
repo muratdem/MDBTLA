@@ -269,9 +269,21 @@ UpdateParticipants(r, tid, snew, op) ==
         ELSE Append(rParticipants[r][tid], <<snew, {op}>>))
 
 AllLogTimestamps == UNION {0..Len(log[sh]) : sh \in Shard}
+CandidateReadTimestamps == AllLogTimestamps \cup {max(AllLogTimestamps) + 1}
+
+\* Represents the "start" of a transaction at the router as a separate operation, 
+\* which simply consists of picking a read timestamp. 
+RouterTxnStart(r, tid, readTs) == 
+    \* Pick a read timestamp non-deterministically at any point in the existing log of any shard. 
+    \* This is a generalized version of what we do in practice, which will be a
+    \* best effort guess at read timestamp to select will be maintained on a
+    \* router based on previous responses from commands.
+    /\ rTxnReadTs[r][tid] = NoValue
+    /\ rTxnReadTs' = [rTxnReadTs EXCEPT ![r][tid] = readTs]
+    /\ UNCHANGED << shardTxns, rParticipants, rlog, rtxn,  aborted, log, commitIndex, epoch, lsn, txnSnapshots, ops,coordInfo, msgsPrepare, msgsVoteCommit, msgsAbort, coordCommitVotes, catalog, msgsCommit, shardPreparedTxns, rInCommit, shardOps >>
 
 \* Router handles a new transaction operation that is routed to the appropriate shard.
-RouterTxnOp(r, s, tid, k, op, readTs) == 
+RouterTxnOp(r, s, tid, k, op) == 
     /\ op \in {"read", "write"}
     \* If a shard of this transaction has aborted, don't continue the transaction.
     /\ ~\E as \in Shard : aborted[as][tid]
@@ -284,15 +296,13 @@ RouterTxnOp(r, s, tid, k, op, readTs) ==
     /\ rlog[s][tid] = <<>>
     \* Update rParticipants list if new participant joined the transaction, and also 
     /\ rParticipants' = [rParticipants EXCEPT ![r][tid] = UpdateParticipants(r, tid, s, op)]
-    \* Pick a read timestamp non-deterministically at any point in the existing log of any shard. 
-    \* This is a generalized version of what we do in practice, which will be a
-    \* best effort guess at read timestamp to select will be maintained on a
-    \* router based on previous responses from commands.
-    /\ rTxnReadTs' = [rTxnReadTs EXCEPT ![r][tid] = IF rtxn[r][tid] = 0 THEN readTs ELSE rTxnReadTs[r][tid]]
+    \* A read timestamp was chosen.
+    /\ rTxnReadTs[r][tid] # NoValue
+    \* /\ rTxnReadTs' = [rTxnReadTs EXCEPT ![r][tid] = IF rtxn[r][tid] = 0 THEN readTs ELSE rTxnReadTs[r][tid]]
     /\ LET firstShardOp == ~\E el \in Range(rParticipants[r][tid]) : el[1] = s IN
-           rlog' = [rlog EXCEPT ![s][tid] = Append(rlog[s][tid], CreateEntry(k, op, s, rtxn[r][tid] = 0, firstShardOp, rTxnReadTs'[r][tid]))]
+           rlog' = [rlog EXCEPT ![s][tid] = Append(rlog[s][tid], CreateEntry(k, op, s, rtxn[r][tid] = 0, firstShardOp, rTxnReadTs[r][tid]))]
     /\ rtxn' = [rtxn EXCEPT ![r][tid] = rtxn[r][tid]+1]
-    /\ UNCHANGED << shardTxns,   aborted, log, commitIndex, epoch, lsn, txnSnapshots, ops,coordInfo, msgsPrepare, msgsVoteCommit, msgsAbort, coordCommitVotes, catalog, msgsCommit, shardPreparedTxns, rInCommit, shardOps >>
+    /\ UNCHANGED << shardTxns, rTxnReadTs,  aborted, log, commitIndex, epoch, lsn, txnSnapshots, ops,coordInfo, msgsPrepare, msgsVoteCommit, msgsAbort, coordCommitVotes, catalog, msgsCommit, shardPreparedTxns, rInCommit, shardOps >>
 
 \* Router handles a transaction commit operation, which it forwards to the appropriate shard to initiate 2PC to
 \* commit the transaction. It also sends out prepare messages to all participant shards.
@@ -568,7 +578,8 @@ MoveKey(k, sfrom, sto) ==
 
 Next == 
     \* Router actions.
-    \/ \E r \in Router, s \in Shard, t \in TxId, k \in Keys, op \in Ops, ts \in AllLogTimestamps : RouterTxnOp(r, s, t, k, op, ts)
+    \/ \E r \in Router, t \in TxId, ts \in CandidateReadTimestamps : RouterTxnStart(r, t, ts)
+    \/ \E r \in Router, s \in Shard, t \in TxId, k \in Keys, op \in Ops : RouterTxnOp(r, s, t, k, op)
     \/ \E r \in Router, s \in Shard, t \in TxId, op \in Ops: RouterTxnCoordinateCommit(r, s, t, op)
     \/ \E r \in Router, s \in Shard, t \in TxId: RouterTxnCommitReadOnly(r, s, t)
     \/ \E r \in Router, s \in Shard, t \in TxId: RouterTxnCommitSingleShard(r, s, t)
@@ -594,7 +605,7 @@ Next ==
     \* \/ \E s \in Shard : ShardMDBAdvanceCommitIndex(s)
 
 Fairness == TRUE
-    /\ WF_vars(\E r \in Router, s \in Shard, t \in TxId, k \in Keys, op \in Ops, ts \in AllLogTimestamps: RouterTxnOp(r, s, t, k, op, ts))
+    /\ WF_vars(\E r \in Router, s \in Shard, t \in TxId, k \in Keys, op \in Ops: RouterTxnOp(r, s, t, k, op))
     /\ WF_vars(\E r \in Router, s \in Shard, t \in TxId, op \in Ops: RouterTxnCoordinateCommit(r, s, t, op))
     /\ WF_vars(\E r \in Router, s \in Shard, t \in TxId: RouterTxnCommitSingleShard(r, s, t))
     /\ WF_vars(\E r \in Router, t \in TxId: RouterTxnCommitSingleWriteShard(r, t))
