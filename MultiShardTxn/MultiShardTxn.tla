@@ -672,10 +672,10 @@ CatalogConstraint ==
     \* Prevents cases where all keys are distributed to a single shard.
     /\ \A s \in Shard : KeysOwnedByShard(s) # Keys
 
-InitCatalogConstraint2KeysOnShard ==
+InitCatalogConstraintKeysOnDifferentShards ==
     \* Prevents cases where all keys are distributed to a single shard (for 3 total keys).
     /\ Init
-    /\ \E s \in Shard : Cardinality(KeysOwnedByShard(s)) = 2
+    /\ \A s \in Shard : Cardinality(KeysOwnedByShard(s)) < Cardinality(Keys)
 
 \* Don't execute more than a max number of statements per transaction.
 StateConstraint == 
