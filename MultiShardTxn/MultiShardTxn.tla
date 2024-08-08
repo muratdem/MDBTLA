@@ -187,7 +187,6 @@ Restart(s) ==
 ShardMDBTxnStart(s, tid, readTs, rc) == 
     \* Start the transaction on the MDB KV store.
     \* Save a snapshot of the current MongoDB instance at this shard for this transaction to use.
-    /\ ShardMDB(s)!TxnCanStart(tid, readTs)
     /\ txnSnapshots' = [txnSnapshots EXCEPT ![s][tid] = ShardMDB(s)!SnapshotKV(readTs, rc)]
     /\ UNCHANGED <<log, commitIndex, epoch>>
    
@@ -206,6 +205,8 @@ ShardMDBTxnWrite(s, tid, k) ==
 ShardMDBTxnRead(s, tid, k) == 
     \* Am I reading from a key that has been written to concurrently?
     \* /\ ~ShardMDB(s)!WriteConflictExists(tid, k)
+    \* TODO: how to handle prepare conflicts accurately?
+    /\ ~ShardMDB(s)!PrepareConflict(tid, k)
     /\ txnSnapshots' = [txnSnapshots EXCEPT ![s][tid]["readSet"] = @ \cup {k}]
     /\ UNCHANGED <<log, commitIndex, epoch>>
 
@@ -218,7 +219,9 @@ ShardMDBTxnCommit(s, tid, commitTs) ==
 
 ShardMDBTxnPrepare(s, tid) == 
     /\ txnSnapshots' = [txnSnapshots EXCEPT ![s][tid]["prepared"] = TRUE]
-    /\ UNCHANGED <<log, commitIndex, epoch>>
+    \* Assign prepare timestamp to be the same as log entry index.
+    /\ log' = [log EXCEPT ![s] = Append(log[s], [prepare |-> TRUE, ts |-> Len(log[s]) + 1, tid |-> tid])]
+    /\ UNCHANGED <<commitIndex, epoch>>
 
 ShardMDBTxnAbort(s, tid) == 
     /\ txnSnapshots' = [txnSnapshots EXCEPT ![s][tid] = NoValue]
@@ -526,6 +529,7 @@ ShardTxnPrepare(s, tid) ==
         /\ ~aborted[s][tid]
         /\ shardPreparedTxns' = [shardPreparedTxns EXCEPT ![s] = shardPreparedTxns[s] \union {tid}]
         \* Prepare and then send your vote to the coordinator.
+        \* Prepare timestamp will be the same timestamp as the logged prepare entry.
         /\ LET prepareTs == IF log[s] = <<>> THEN 1 ELSE log[s][Len(log[s])].ts + 1 IN 
                 msgsVoteCommit' = msgsVoteCommit \cup { [shard |-> s, tid |-> tid, to |-> m.coordinator, prepareTs |-> prepareTs] }
         \* Prepare the transaction in the underyling snapshot store.

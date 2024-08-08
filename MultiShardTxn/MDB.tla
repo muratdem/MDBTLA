@@ -80,6 +80,7 @@ WriteInit(key, value) ==
 SnapshotRead(key, index) == 
     LET snapshotKeyWrites == 
         { i \in DOMAIN mlog :
+            /\ "data" \in DOMAIN mlog[i] \* exclude 'prepare' entries.
             /\ \E k \in DOMAIN mlog[i].data : k = key
             \* Determine read visibility based on commit timestamp.
             /\ mlog[i].ts <= index } IN
@@ -185,6 +186,7 @@ WriteConflictExists(tid, k) ==
         \* If there exists another transaction that has written to this key and committed at a 
         \* timestamp newer than your snapshot, this also should manifest as a conflict. 
         \/ \E ind \in DOMAIN mlog :
+            /\ "data" \in DOMAIN mlog[ind]
             /\ ind >= mtxnSnapshots[tid].ts
             /\ k \in (DOMAIN mlog[ind].data)
 
@@ -212,6 +214,16 @@ TxnCanStart(tid, readTs) ==
         /\ mtxnSnapshots[tother].prepared 
         /\ mtxnSnapshots[tother].ts < readTs 
 
+PrepareConflict(tid, k) ==
+    \* Is there another transaction prepared at T <= readTs that has modified this key?
+    ~\E tother \in MTxId :
+        /\ mtxnSnapshots[tother] # Nil 
+        /\ mtxnSnapshots[tother].prepared
+        /\ k \in SnapshotUpdatedKeys(tother)
+        /\ \E pind \in DOMAIN mlog : 
+            /\ mlog[pind].tid = tother 
+            /\ "prepare" \in DOMAIN mlog[pind] 
+            /\ mlog[pind].ts <= mtxnSnapshots[tid].ts   
 
 
 StartTxn(tid, readTs) ==
