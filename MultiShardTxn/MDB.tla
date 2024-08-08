@@ -221,8 +221,8 @@ PrepareConflict(tid, k) ==
         /\ mtxnSnapshots[tother].prepared
         /\ k \in SnapshotUpdatedKeys(tother)
         /\ \E pind \in DOMAIN mlog : 
-            /\ mlog[pind].tid = tother 
             /\ "prepare" \in DOMAIN mlog[pind] 
+            /\ mlog[pind].tid = tother 
             /\ mlog[pind].ts <= mtxnSnapshots[tid].ts   
 
 
