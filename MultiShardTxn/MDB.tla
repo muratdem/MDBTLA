@@ -187,7 +187,7 @@ WriteConflictExists(tid, k) ==
         \* timestamp newer than your snapshot, this also should manifest as a conflict. 
         \/ \E ind \in DOMAIN mlog :
             /\ "data" \in DOMAIN mlog[ind]
-            /\ ind >= mtxnSnapshots[tid].ts
+            /\ mlog[ind].ts >= mtxnSnapshots[tid].ts
             /\ k \in (DOMAIN mlog[ind].data)
 
 CleanSnapshots == [t \in MTxId |-> Nil]
@@ -216,7 +216,7 @@ TxnCanStart(tid, readTs) ==
 
 PrepareConflict(tid, k) ==
     \* Is there another transaction prepared at T <= readTs that has modified this key?
-    ~\E tother \in MTxId :
+    \E tother \in MTxId :
         /\ mtxnSnapshots[tother] # Nil 
         /\ mtxnSnapshots[tother].prepared
         /\ k \in SnapshotUpdatedKeys(tother)
