@@ -195,7 +195,21 @@ WriteConflictExists(tid, k) ==
 
 CleanSnapshots == [t \in MTxId |-> Nil]
 
-TxnRead(tid, k) == mtxnSnapshots[tid].data[k]
+\* If a prepared transaction has committed behind our snapshot read timestamp
+\* while we were running, then we must observe the effects of its writes.
+TxnRead(tid, k) == 
+    IF  \E tOther \in MTxId \ {tid}:
+        \E pmind \in DOMAIN mlog :
+        \E cmind \in DOMAIN mlog :
+            /\ "prepare" \in DOMAIN mlog[pmind]
+            /\ mlog[pmind].tid = tOther
+            /\ "data" \in DOMAIN mlog[cmind]
+            /\ mlog[cmind].ts <= mtxnSnapshots[tid].ts
+            /\ k \in DOMAIN mlog[cmind].data
+        \* Snapshot read directly from the log.
+        THEN SnapshotRead(k, mtxnSnapshots[tid].ts).value 
+        \* Just read from your stored snapshot.
+        ELSE mtxnSnapshots[tid].data[k]
 
 UpdateSnapshot(tid, k, v) == [mtxnSnapshots EXCEPT ![tid].data[k] = v]
 
