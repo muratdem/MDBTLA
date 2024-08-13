@@ -201,8 +201,10 @@ TxnRead(tid, k) ==
     IF  \E tOther \in MTxId \ {tid}:
         \E pmind \in DOMAIN mlog :
         \E cmind \in DOMAIN mlog :
+            \* Prepare log entry exists.
             /\ "prepare" \in DOMAIN mlog[pmind]
             /\ mlog[pmind].tid = tOther
+            \* Commit log entry exists and is at timestamp <= our snapshot.
             /\ "data" \in DOMAIN mlog[cmind]
             /\ mlog[cmind].tid = tOther
             /\ mlog[cmind].ts <= mtxnSnapshots[tid].ts
