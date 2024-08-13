@@ -40,9 +40,9 @@ VARIABLE rParticipants
 
 (* Shard state *)
 
-\* The router writes transaction operations for a shard to 'rlog', 
+\* The router writes transaction operations for a shard to 'shardTxnReqs', 
 \* and shards scan this log to learn transaction ops that have been routed to them. 
-VARIABLE rlog 
+VARIABLE shardTxnReqs 
 
 \* Set of in-progress transactions on each shard.
 VARIABLES shardTxns
@@ -92,7 +92,7 @@ VARIABLE epoch
 VARIABLE txnSnapshots
 VARIABLE nextTs
 
-vars == << shardTxns, rInCommit,   rlog, aborted, log, commitIndex, epoch, rtxn, txnSnapshots, ops, shardOps, rParticipants, coordInfo, msgsPrepare, msgsVoteCommit, msgsAbort, coordCommitVotes, catalog, msgsCommit, rTxnReadTs, shardPreparedTxns >>
+vars == << shardTxns, rInCommit,   shardTxnReqs, aborted, log, commitIndex, epoch, rtxn, txnSnapshots, ops, shardOps, rParticipants, coordInfo, msgsPrepare, msgsVoteCommit, msgsAbort, coordCommitVotes, catalog, msgsCommit, rTxnReadTs, shardPreparedTxns >>
 
 \* Instance of a MongoDB replica set log for a given shard, that 
 \* supports abstracted snapshot KV store.
@@ -129,13 +129,13 @@ Init ==
     /\ rTxnReadTs = [r \in Router |-> [t \in TxId |-> NoValue]]
     /\ rInCommit = [r \in Router |-> [t \in TxId |-> FALSE]]
     \* Shard state.
-    /\ rlog = [s \in Shard |-> [t \in TxId |->  <<>>]]
+    /\ shardTxnReqs = [s \in Shard |-> [t \in TxId |->  <<>>]]
     /\ shardTxns = [s \in Shard |-> {}]
     /\ shardPreparedTxns = [s \in Shard |-> {}]
-    /\ aborted = [s \in Shard |-> [t \in TxId |-> FALSE]]
     /\ coordInfo = [s \in Shard |-> [t \in TxId |-> [self |-> FALSE, participants |-> <<>>, committing |-> FALSE]]]
     /\ coordCommitVotes = [s \in Shard |-> [t \in TxId |-> {}]]
     /\ shardOps = [s \in Shard |-> [t \in TxId |-> <<>>]]
+    /\ aborted = [s \in Shard |-> [t \in TxId |-> FALSE]]
     \* 2PC related messages.
     /\ msgsPrepare = {}
     /\ msgsVoteCommit = {}
@@ -162,7 +162,7 @@ Restart(s) ==
     /\ aborted' = [aborted EXCEPT ![s] = [t \in TxId |-> FALSE]]
     /\ coordInfo' = [coordInfo EXCEPT ![s] = [t \in TxId |-> [self |-> FALSE, participants |-> <<>>, committing |-> FALSE]]]
     /\ coordCommitVotes' = [coordCommitVotes EXCEPT ![s] = [t \in TxId |-> {}]]
-    /\ rlog' = [rlog EXCEPT ![s] = [t \in TxId |-> <<>>]]
+    /\ shardTxnReqs' = [shardTxnReqs EXCEPT ![s] = [t \in TxId |-> <<>>]]
     \* All in-progress transactions on this shard will be aborted, so clear out ops on this shard from unprepared txns. 
     /\ ops' = [tid \in TxId |-> 
                 IF tid \in (shardTxns[s] \ shardPreparedTxns[s]) 
@@ -232,13 +232,13 @@ ShardMDBRollback(s) ==
     \E i \in (commitIndex[s]+1)..Len(log[s]) :
         /\ log' = [log EXCEPT ![s] = SubSeq(log[s], 1, i - 1)]
         /\ UNCHANGED <<commitIndex, epoch, txnSnapshots>>
-        /\ UNCHANGED <<rlog, rtxn, shardTxns, shardPreparedTxns, rInCommit, rParticipants, coordInfo, msgsPrepare, msgsVoteCommit, msgsAbort, msgsCommit, coordCommitVotes, catalog, rTxnReadTs, ops, aborted>>
+        /\ UNCHANGED <<shardTxnReqs, rtxn, shardTxns, shardPreparedTxns, rInCommit, rParticipants, coordInfo, msgsPrepare, msgsVoteCommit, msgsAbort, msgsCommit, coordCommitVotes, catalog, rTxnReadTs, ops, aborted>>
     
 ShardMDBAdvanceCommitIndex(s) == 
     /\ commitIndex[s] < Len(log[s])
     /\ \E newCommitIndex \in (commitIndex[s]+1)..Len(log[s]) : commitIndex' = [commitIndex EXCEPT ![s] = newCommitIndex]
     /\ UNCHANGED <<log, epoch, txnSnapshots>>
-    /\ UNCHANGED <<rlog, rtxn, shardTxns, shardPreparedTxns, rInCommit, rParticipants, coordInfo, msgsPrepare, msgsVoteCommit, msgsAbort, msgsCommit, coordCommitVotes, catalog, rTxnReadTs, ops, aborted>>
+    /\ UNCHANGED <<shardTxnReqs, rtxn, shardTxns, shardPreparedTxns, rInCommit, rParticipants, coordInfo, msgsPrepare, msgsVoteCommit, msgsAbort, msgsCommit, coordCommitVotes, catalog, rTxnReadTs, ops, aborted>>
 
 
 -------------------------------------------------
@@ -284,7 +284,7 @@ RouterTxnStart(r, tid, readTs) ==
     \* router based on previous responses from commands.
     /\ rTxnReadTs[r][tid] = NoValue
     /\ rTxnReadTs' = [rTxnReadTs EXCEPT ![r][tid] = readTs]
-    /\ UNCHANGED << shardTxns, rParticipants, rlog, rtxn,  aborted, log, commitIndex, epoch, txnSnapshots, ops,coordInfo, msgsPrepare, msgsVoteCommit, msgsAbort, coordCommitVotes, catalog, msgsCommit, shardPreparedTxns, rInCommit, shardOps, nextTs >>
+    /\ UNCHANGED << shardTxns, rParticipants, shardTxnReqs, rtxn,  aborted, log, commitIndex, epoch, txnSnapshots, ops,coordInfo, msgsPrepare, msgsVoteCommit, msgsAbort, coordCommitVotes, catalog, msgsCommit, shardPreparedTxns, rInCommit, shardOps, nextTs >>
 
 \* Router handles a new transaction operation that is routed to the appropriate shard.
 RouterTxnOp(r, s, tid, k, op) == 
@@ -297,14 +297,14 @@ RouterTxnOp(r, s, tid, k, op) ==
     /\ catalog[k] = s
     \* Assume that the router interacts with shards over a request-response RPC mechanism i.e.
     \* so we wait for an op to be processed before sending the next op.
-    /\ rlog[s][tid] = <<>>
+    /\ shardTxnReqs[s][tid] = <<>>
     \* Update rParticipants list if new participant joined the transaction, and also 
     /\ rParticipants' = [rParticipants EXCEPT ![r][tid] = UpdateParticipants(r, tid, s, op)]
     \* A read timestamp was chosen.
     /\ rTxnReadTs[r][tid] # NoValue
     \* /\ rTxnReadTs' = [rTxnReadTs EXCEPT ![r][tid] = IF rtxn[r][tid] = 0 THEN readTs ELSE rTxnReadTs[r][tid]]
     /\ LET firstShardOp == ~\E el \in Range(rParticipants[r][tid]) : el[1] = s IN
-           rlog' = [rlog EXCEPT ![s][tid] = Append(rlog[s][tid], CreateEntry(k, op, s, rtxn[r][tid] = 0, firstShardOp, rTxnReadTs[r][tid]))]
+           shardTxnReqs' = [shardTxnReqs EXCEPT ![s][tid] = Append(shardTxnReqs[s][tid], CreateEntry(k, op, s, rtxn[r][tid] = 0, firstShardOp, rTxnReadTs[r][tid]))]
     /\ rtxn' = [rtxn EXCEPT ![r][tid] = rtxn[r][tid]+1]
     /\ UNCHANGED << shardTxns, rTxnReadTs,  aborted, log, commitIndex, epoch, txnSnapshots, ops,coordInfo, msgsPrepare, msgsVoteCommit, msgsAbort, coordCommitVotes, catalog, msgsCommit, shardPreparedTxns, rInCommit, shardOps, nextTs >>
 
@@ -313,7 +313,7 @@ RouterTxnOp(r, s, tid, k, op) ==
 RouterTxnCoordinateCommit(r, s, tid, op) == 
     /\ op = "coordCommit"
     \* Assume that the router interacts with shards over a request-response RPC mechanism.
-    /\ rlog[s][tid] = <<>>
+    /\ shardTxnReqs[s][tid] = <<>>
     \* Transaction has started and has targeted multiple shards.
     /\ Len(rParticipants[r][tid]) > 1
     /\ ~rInCommit[r][tid]
@@ -321,7 +321,7 @@ RouterTxnCoordinateCommit(r, s, tid, op) ==
     /\ ~\E as \in Shard : aborted[as][tid]
     /\ s = rParticipants[r][tid][1][1] \* Coordinator shard is the first participant in the list.
     \* Send coordinate commit message to the coordinator shard.
-    /\ rlog' = [rlog EXCEPT ![s][tid] = Append(rlog[s][tid], CreateCoordCommitEntry(op, s, [i \in DOMAIN rParticipants[r][tid] |-> rParticipants[r][tid][i][1]]))]
+    /\ shardTxnReqs' = [shardTxnReqs EXCEPT ![s][tid] = Append(shardTxnReqs[s][tid], CreateCoordCommitEntry(op, s, [i \in DOMAIN rParticipants[r][tid] |-> rParticipants[r][tid][i][1]]))]
     /\ rtxn' = [rtxn EXCEPT ![r][tid] = rtxn[r][tid]+1]
     /\ rInCommit' = [rInCommit EXCEPT ![r][tid] = TRUE]
     /\ UNCHANGED << shardTxns,   aborted, log, commitIndex, epoch, txnSnapshots, ops, rParticipants, coordInfo, msgsVoteCommit, coordCommitVotes, catalog, msgsAbort, msgsCommit, msgsPrepare, rTxnReadTs, shardPreparedTxns, shardOps, nextTs >>
@@ -334,14 +334,14 @@ RouterTxnCommitReadOnly(r, s, tid) ==
     \* All shards were reads.
     /\ \A p \in Range(rParticipants[r][tid]) : p[2] = {"read"}
     \* Assume that the router interacts with shards over a request-response RPC mechanism.
-    /\ rlog[s][tid] = <<>>
+    /\ shardTxnReqs[s][tid] = <<>>
     /\ ~rInCommit[r][tid]
     \* Shard hasn't aborted.
     /\ ~aborted[s][tid]
     \* Send commit message directly to shard (bypass 2PC).
     /\ msgsCommit' = msgsCommit \cup { [shard |-> sp[1], tid |-> tid, commitTs |-> 0] : sp \in Range(rParticipants[r][tid])}
     /\ rInCommit' = [rInCommit EXCEPT ![r][tid] = TRUE]
-    /\ UNCHANGED << shardTxns,   aborted, rlog, rtxn, log, commitIndex, epoch, txnSnapshots, ops, rParticipants, coordInfo, msgsVoteCommit, coordCommitVotes, catalog, msgsAbort, msgsPrepare, rTxnReadTs, shardPreparedTxns, shardOps, nextTs >>
+    /\ UNCHANGED << shardTxns,   aborted, shardTxnReqs, rtxn, log, commitIndex, epoch, txnSnapshots, ops, rParticipants, coordInfo, msgsVoteCommit, coordCommitVotes, catalog, msgsAbort, msgsPrepare, rTxnReadTs, shardPreparedTxns, shardOps, nextTs >>
 
 \* If a transaction only targeted a single shard, then the router can commit the
 \* transaction without going through a full 2PC. Instead, it just sends a commit
@@ -350,17 +350,17 @@ RouterTxnCommitSingleShard(r, s, tid) ==
     \* Transaction has targeted this single shard.
     /\ Len(rParticipants[r][tid]) = 1 /\ rParticipants[r][tid][1][1] = s
     \* Assume that the router interacts with shards over a request-response RPC mechanism.
-    /\ rlog[s][tid] = <<>>
+    /\ shardTxnReqs[s][tid] = <<>>
     \* Shard hasn't aborted.
     /\ ~aborted[s][tid]
     /\ ~rInCommit[r][tid]
     \* Send commit message directly to shard (bypass 2PC).
     /\ msgsCommit' = msgsCommit \cup { [shard |-> s, tid |-> tid, commitTs |-> NoValue] }
     /\ rInCommit' = [rInCommit EXCEPT ![r][tid] = TRUE]
-    /\ UNCHANGED << shardTxns,   aborted, rlog, rtxn, log, commitIndex, epoch, txnSnapshots, ops, rParticipants, coordInfo, msgsVoteCommit, coordCommitVotes, catalog, msgsAbort, msgsPrepare, rTxnReadTs, shardPreparedTxns, shardOps, nextTs >>
+    /\ UNCHANGED << shardTxns,   aborted, shardTxnReqs, rtxn, log, commitIndex, epoch, txnSnapshots, ops, rParticipants, coordInfo, msgsVoteCommit, coordCommitVotes, catalog, msgsAbort, msgsPrepare, rTxnReadTs, shardPreparedTxns, shardOps, nextTs >>
 
 \* The set of shard rParticipants for a transaction that were written to.
-WriteParticipants(tid) == {s \in Shard : \E i \in DOMAIN rlog[s][tid] : rlog[s][tid][i].op = "write"}
+WriteParticipants(tid) == {s \in Shard : \E i \in DOMAIN shardTxnReqs[s][tid] : shardTxnReqs[s][tid][i].op = "write"}
 
 \* If a transaction has touched multiple shards, but only written to a single
 \* shard, then we optimize this case by first sending commits directly to the
@@ -377,7 +377,7 @@ RouterTxnCommitSingleWriteShard(r, tid) ==
     \* Send commit message directly to shard (bypass 2PC).
     /\ msgsCommit' = msgsCommit \cup { [shard |-> s, tid |-> tid] : s \in (Shard \ WriteParticipants(tid))}
     /\ rInCommit' = [rInCommit EXCEPT ![r][tid] = TRUE]
-    /\ UNCHANGED << shardTxns,   aborted, rlog, rtxn, log, commitIndex, epoch, txnSnapshots, ops, rParticipants, coordInfo, msgsVoteCommit, coordCommitVotes, catalog, msgsAbort, msgsPrepare, rTxnReadTs, shardPreparedTxns, shardOps, nextTs >>
+    /\ UNCHANGED << shardTxns,   aborted, shardTxnReqs, rtxn, log, commitIndex, epoch, txnSnapshots, ops, rParticipants, coordInfo, msgsVoteCommit, coordCommitVotes, catalog, msgsAbort, msgsPrepare, rTxnReadTs, shardPreparedTxns, shardOps, nextTs >>
 
 \* 
 \* Router aborts the transaction, which it can do at any point.
@@ -392,7 +392,7 @@ RouterTxnAbort(r, tid) ==
     \* Didn't already initiate commit.
     /\ ~rInCommit[r][tid]
     /\ msgsAbort' = msgsAbort \cup {[tid |-> tid, shard |-> s[1]] : s \in Range(rParticipants[r][tid])}
-    /\ UNCHANGED << shardTxns,   aborted, log, commitIndex, epoch, txnSnapshots, ops, rlog, rtxn, coordInfo, msgsPrepare, msgsVoteCommit, coordCommitVotes, catalog, rParticipants, msgsCommit, rTxnReadTs, shardPreparedTxns, rInCommit, shardOps, nextTs >>
+    /\ UNCHANGED << shardTxns,   aborted, log, commitIndex, epoch, txnSnapshots, ops, shardTxnReqs, rtxn, coordInfo, msgsPrepare, msgsVoteCommit, coordCommitVotes, catalog, rParticipants, msgsCommit, rTxnReadTs, shardPreparedTxns, rInCommit, shardOps, nextTs >>
 
 
 \*****************************************
@@ -402,33 +402,33 @@ RouterTxnAbort(r, tid) ==
 \* Shard starts a new transaction.
 ShardTxnStart(s, tid) == 
     \* Transaction has new read/write statements in the router log, and has not been started on this shard yet.
-    /\ rlog[s][tid] # <<>>
-    /\ Head(rlog[s][tid]).op \in {"read", "write"}
+    /\ shardTxnReqs[s][tid] # <<>>
+    /\ Head(shardTxnReqs[s][tid]).op \in {"read", "write"}
     \* First statement of the transaction on this shard.
-    /\ Head(rlog[s][tid]).start
+    /\ Head(shardTxnReqs[s][tid]).start
     /\ tid \notin shardTxns[s]
     \* We don't advance to the next statement (lsn), but mark the transaction as
     \* having started on this shard, so transaction statements can now be processed.
     /\ shardTxns' = [shardTxns EXCEPT ![s] = shardTxns[s] \union {tid}]
-    /\ coordInfo' = [coordInfo EXCEPT ![s][tid] = [self |-> Head(rlog[s][tid]).coord, participants |-> <<s>>, committing |-> FALSE]]
-    /\ ShardMDBTxnStart(s, tid, Head(rlog[s][tid]).readTs, Head(rlog[s][tid]).rc)
-    /\ UNCHANGED << rlog,  aborted,  log, commitIndex, epoch, rtxn, ops, rParticipants, msgsPrepare, msgsVoteCommit, coordCommitVotes, catalog, msgsAbort, msgsCommit, rTxnReadTs, shardPreparedTxns, rInCommit, shardOps >>   
+    /\ coordInfo' = [coordInfo EXCEPT ![s][tid] = [self |-> Head(shardTxnReqs[s][tid]).coord, participants |-> <<s>>, committing |-> FALSE]]
+    /\ ShardMDBTxnStart(s, tid, Head(shardTxnReqs[s][tid]).readTs, Head(shardTxnReqs[s][tid]).rc)
+    /\ UNCHANGED << shardTxnReqs,  aborted,  log, commitIndex, epoch, rtxn, ops, rParticipants, msgsPrepare, msgsVoteCommit, coordCommitVotes, catalog, msgsAbort, msgsCommit, rTxnReadTs, shardPreparedTxns, rInCommit, shardOps >>   
 
 \* Shard processes a transaction read operation.
 ShardTxnRead(s, tid, k) == 
     \* Transaction has new statements in the router log.
-    /\ rlog[s][tid] # <<>>
+    /\ shardTxnReqs[s][tid] # <<>>
     \* Transaction has started running on this shard.
     /\ tid \in shardTxns[s]
     \* Transaction is not prepared.
     /\ tid \notin shardPreparedTxns[s]
-    /\ Head(rlog[s][tid]).op = "read"
-    /\ Head(rlog[s][tid]).k = k
+    /\ Head(shardTxnReqs[s][tid]).op = "read"
+    /\ Head(shardTxnReqs[s][tid]).k = k
     \* Read the value of the key from the snapshot store, record the op, and 
     \* advance to the next transaction statement.
     /\ shardOps' = [shardOps EXCEPT ![s][tid] = Append( shardOps[s][tid], rOp(k, ShardMDB(s)!TxnRead(tid, k)) )]
     \* Consume the transaction op.
-    /\ rlog' = [rlog EXCEPT ![s][tid] = Tail(rlog[s][tid])]
+    /\ shardTxnReqs' = [shardTxnReqs EXCEPT ![s][tid] = Tail(shardTxnReqs[s][tid])]
     /\ ShardMDBTxnRead(s, tid, k)
     /\ UNCHANGED << shardTxns, aborted, rtxn, rParticipants, coordInfo, msgsPrepare, msgsVoteCommit, coordCommitVotes, catalog, msgsAbort, msgsCommit, rTxnReadTs, shardPreparedTxns, rInCommit, ops, nextTs >>    
 
@@ -438,12 +438,12 @@ ShardTxnWrite(s, tid, k) ==
     /\ tid \in shardTxns[s]
     \* Transaction is not prepared.
     /\ tid \notin shardPreparedTxns[s]
-    /\ rlog[s][tid] # <<>>
-    /\ Head(rlog[s][tid]).op = "write"
-    /\ Head(rlog[s][tid]).k = k
+    /\ shardTxnReqs[s][tid] # <<>>
+    /\ Head(shardTxnReqs[s][tid]).op = "write"
+    /\ Head(shardTxnReqs[s][tid]).k = k
     /\ shardOps' = [shardOps EXCEPT ![s][tid] = Append( shardOps[s][tid], wOp(k, tid) )]
     \* Consume the transaction op.
-    /\ rlog' = [rlog EXCEPT ![s][tid] = Tail(rlog[s][tid])]
+    /\ shardTxnReqs' = [shardTxnReqs EXCEPT ![s][tid] = Tail(shardTxnReqs[s][tid])]
     /\ ShardMDBTxnWrite(s, tid, k)
     /\ UNCHANGED << shardTxns, log,  commitIndex, aborted, epoch,  rtxn, rParticipants, coordInfo, msgsPrepare, msgsVoteCommit, coordCommitVotes, catalog, msgsAbort, msgsCommit, rTxnReadTs, shardPreparedTxns, rInCommit, ops, nextTs >>
 
@@ -451,9 +451,9 @@ ShardTxnWrite(s, tid, k) ==
 ShardTxnWriteConflict(s, tid, k) == 
     \* Transaction started on this shard and has new statements in the router log.
     /\ tid \in shardTxns[s]
-    /\ rlog[s][tid] # <<>>
-    /\ Head(rlog[s][tid]).op = "write"
-    /\ Head(rlog[s][tid]).k = k
+    /\ shardTxnReqs[s][tid] # <<>>
+    /\ Head(shardTxnReqs[s][tid]).op = "write"
+    /\ Head(shardTxnReqs[s][tid]).k = k
     \* Transaction is not prepared.
     /\ tid \notin shardPreparedTxns[s]
     \* The write to this key conflicts with another concurrent transaction on this shard.
@@ -463,7 +463,7 @@ ShardTxnWriteConflict(s, tid, k) ==
     /\ aborted' = [aborted EXCEPT ![s][tid] = TRUE]
     /\ shardTxns' = [shardTxns EXCEPT ![s] = shardTxns[s] \ {tid}]
     \* Consume the transaction op.
-    /\ rlog' = [rlog EXCEPT ![s][tid] = Tail(rlog[s][tid])]
+    /\ shardTxnReqs' = [shardTxnReqs EXCEPT ![s][tid] = Tail(shardTxnReqs[s][tid])]
     \* Since it was aborted on this shard, update the transaction's op history.
     /\ shardOps' = [shardOps EXCEPT ![s][tid] = SelectSeq(ops[tid], LAMBDA op : catalog[op.key] # s)]
     /\ UNCHANGED << log, commitIndex, epoch,  rtxn,  rParticipants, coordInfo, msgsPrepare, msgsVoteCommit, coordCommitVotes, catalog, msgsAbort, msgsCommit, rTxnReadTs, shardPreparedTxns, rInCommit, ops, nextTs >>
@@ -476,17 +476,17 @@ ShardTxnWriteConflict(s, tid, k) ==
 \* In this message, it will also receive the set of shards that are rParticipants in this transaction.
 ShardTxnCoordinateCommit(s, tid) == 
     /\ tid \in shardTxns[s]
-    /\ rlog[s][tid] # <<>>
-    /\ Head(rlog[s][tid]).op = "coordCommit"
+    /\ shardTxnReqs[s][tid] # <<>>
+    /\ Head(shardTxnReqs[s][tid]).op = "coordCommit"
     \* I am the coordinator shard of this transaction.
     /\ coordInfo[s][tid].self  
     \* Record the set of all transaction rParticipants and get ready to receive votes (i.e. prepare responses) from them.
-    /\ coordInfo' = [coordInfo EXCEPT ![s][tid] = [self |-> TRUE, participants |-> (Head(rlog[s][tid]).participants), committing |-> TRUE]] 
+    /\ coordInfo' = [coordInfo EXCEPT ![s][tid] = [self |-> TRUE, participants |-> (Head(shardTxnReqs[s][tid]).participants), committing |-> TRUE]] 
     /\ coordCommitVotes' = [coordCommitVotes EXCEPT ![s][tid] = {}]
     \* Send prepare messages to all participant shards.
     /\ msgsPrepare' = msgsPrepare \cup {[shard |-> p, tid |-> tid, coordinator |-> s] : p \in Range(coordInfo'[s][tid].participants)}
     \* Consume the transaction op.
-    /\ rlog' = [rlog EXCEPT ![s][tid] = Tail(rlog[s][tid])]
+    /\ shardTxnReqs' = [shardTxnReqs EXCEPT ![s][tid] = Tail(shardTxnReqs[s][tid])]
     /\ UNCHANGED << shardTxns, log, commitIndex, epoch,  rtxn,  aborted, txnSnapshots, rParticipants, msgsVoteCommit, ops, catalog, msgsAbort, msgsCommit, rTxnReadTs, shardPreparedTxns, rInCommit, shardOps, nextTs >>
 
 \* Transaction coordinator shard receives a vote from a participant shard to commit a transaction.
@@ -500,7 +500,7 @@ ShardTxnCoordinatorRecvCommitVote(s, tid, from) ==
         /\ m.tid = tid
         /\ msgsVoteCommit' = msgsVoteCommit \ {m}
         /\ coordCommitVotes' = [coordCommitVotes EXCEPT ![s][tid] = coordCommitVotes[s][tid] \union {<<from,m.prepareTs>>}]
-    /\ UNCHANGED << shardTxns, log, commitIndex, epoch,  rlog, rtxn,  aborted, txnSnapshots, rParticipants, coordInfo, msgsPrepare, ops, catalog, msgsAbort, msgsCommit, rTxnReadTs, shardPreparedTxns, rInCommit, shardOps, nextTs >>
+    /\ UNCHANGED << shardTxns, log, commitIndex, epoch,  shardTxnReqs, rtxn,  aborted, txnSnapshots, rParticipants, coordInfo, msgsPrepare, ops, catalog, msgsAbort, msgsCommit, rTxnReadTs, shardPreparedTxns, rInCommit, shardOps, nextTs >>
 
 \* Coordinator shard decides to commit a transaction, if it has gathered all the necessary commit votes.
 ShardTxnCoordinatorDecideCommit(s, tid) == 
@@ -511,7 +511,7 @@ ShardTxnCoordinatorDecideCommit(s, tid) ==
     /\ {v[1] : v \in coordCommitVotes[s][tid]} = Range(coordInfo[s][tid].participants)
     /\ LET commitTs == max({v[2] : v \in coordCommitVotes[s][tid]}) IN
             msgsCommit' = msgsCommit \cup { [shard |-> p, tid |-> tid, commitTs |-> commitTs] : p \in Range(coordInfo[s][tid].participants) }
-    /\ UNCHANGED << shardTxns, log, commitIndex, epoch,  rlog, rtxn,  aborted, txnSnapshots, rParticipants, coordInfo, msgsPrepare, msgsVoteCommit, ops, coordCommitVotes, catalog, msgsAbort, rTxnReadTs, shardPreparedTxns, rInCommit, shardOps, nextTs >>
+    /\ UNCHANGED << shardTxns, log, commitIndex, epoch,  shardTxnReqs, rtxn,  aborted, txnSnapshots, rParticipants, coordInfo, msgsPrepare, msgsVoteCommit, ops, coordCommitVotes, catalog, msgsAbort, rTxnReadTs, shardPreparedTxns, rInCommit, shardOps, nextTs >>
 
 \* Shard processes a transaction prepare message.
 \* Note that it will receive prepare messages from the router, but sends it vote decision to the coordinator shard.
@@ -532,7 +532,7 @@ ShardTxnPrepare(s, tid) ==
             /\ msgsVoteCommit' = msgsVoteCommit \cup { [shard |-> s, tid |-> tid, to |-> m.coordinator, prepareTs |-> prepareTs] }
         \* Prepare the transaction in the underyling snapshot store.
             /\ ShardMDBTxnPrepare(s, tid, prepareTs)
-        /\ UNCHANGED << shardTxns,  rlog, rtxn,  aborted, rParticipants, coordInfo, msgsPrepare, ops, coordCommitVotes, catalog, msgsAbort, msgsCommit, rTxnReadTs, rInCommit, shardOps >>
+        /\ UNCHANGED << shardTxns,  shardTxnReqs, rtxn,  aborted, rParticipants, coordInfo, msgsPrepare, ops, coordCommitVotes, catalog, msgsAbort, msgsCommit, rTxnReadTs, rInCommit, shardOps >>
 
 \* Shard receives a commit message for transaction, and commits.
 ShardTxnCommit(s, tid) == 
@@ -544,7 +544,7 @@ ShardTxnCommit(s, tid) ==
         /\ shardTxns' = [shardTxns EXCEPT ![s] = shardTxns[s] \ {tid}]
         /\ shardPreparedTxns' = [shardPreparedTxns EXCEPT ![s] = shardPreparedTxns[s] \ {tid}]
         \* If we commit, we by default clear out any incoming RPC requests.
-        /\ rlog' = [rlog EXCEPT ![s][tid] = <<>>]
+        /\ shardTxnReqs' = [shardTxnReqs EXCEPT ![s][tid] = <<>>]
         /\ ops' = [ops EXCEPT ![tid] = ops[tid] \o shardOps[s][tid]]
         /\ \* If no commit timestamp was provided, then we use the next local timestamp.
             LET commitTs == IF m.commitTs = NoValue THEN nextTs[s] ELSE m.commitTs IN
@@ -566,7 +566,7 @@ ShardTxnAbort(s, tid) ==
     \* (b) are owned by this shard.
     /\ shardOps' = [shardOps EXCEPT ![s][tid] = <<>>]
     \* If we abort, we by default clear out any incoming RPC requests.
-    /\ rlog' = [rlog EXCEPT ![s][tid] = <<>>]
+    /\ shardTxnReqs' = [shardTxnReqs EXCEPT ![s][tid] = <<>>]
     /\ ShardMDBTxnAbort(s, tid)
     /\ UNCHANGED << log, commitIndex, epoch,  rtxn,  rParticipants, coordInfo, msgsPrepare, msgsVoteCommit, coordCommitVotes, catalog, msgsCommit, rTxnReadTs, shardPreparedTxns, rInCommit, ops, nextTs>>
 
@@ -576,7 +576,7 @@ ShardTxnAbort(s, tid) ==
 MoveKey(k, sfrom, sto) == 
     /\ sfrom # sto
     /\ catalog' = [catalog EXCEPT ![k] = sto]
-    /\ UNCHANGED << shardTxns,   rlog, rtxn, epoch, txnSnapshots, ops, rParticipants, coordInfo, msgsPrepare, msgsVoteCommit, coordCommitVotes, msgsAbort, msgsCommit, rTxnReadTs, shardPreparedTxns, rInCommit, aborted, log, commitIndex, nextTs >>
+    /\ UNCHANGED << shardTxns,   shardTxnReqs, rtxn, epoch, txnSnapshots, ops, rParticipants, coordInfo, msgsPrepare, msgsVoteCommit, coordCommitVotes, msgsAbort, msgsCommit, rTxnReadTs, shardPreparedTxns, rInCommit, aborted, log, commitIndex, nextTs >>
 
 Next == 
     \* Router actions.
@@ -660,7 +660,7 @@ BaitLog ==
     /\ \A s \in Shard, tid \in TxId : Cardinality(coordCommitVotes[s][tid]) < 1
     \* /\ \A tid \in TxId : Len(ops[tid]) < 2
     \* /\ coord
-    \* /\ \A s \in Shard, t \in TxId : Len(rlog[s][t]) = 0
+    \* /\ \A s \in Shard, t \in TxId : Len(shardTxnReqs[s][t]) = 0
     \* /\ commitIndex < 5
     \* /\ Len(log) < 6
 
