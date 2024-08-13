@@ -204,6 +204,7 @@ TxnRead(tid, k) ==
             /\ "prepare" \in DOMAIN mlog[pmind]
             /\ mlog[pmind].tid = tOther
             /\ "data" \in DOMAIN mlog[cmind]
+            /\ mlog[cmind].tid = tOther
             /\ mlog[cmind].ts <= mtxnSnapshots[tid].ts
             /\ k \in DOMAIN mlog[cmind].data
         \* Snapshot read directly from the log.
