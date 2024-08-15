@@ -94,6 +94,7 @@ VARIABLE nextTs
 
 vars == << shardTxns, rInCommit, shardTxnReqs, aborted, log, commitIndex, epoch, rtxn, txnSnapshots, ops, shardOps, rParticipants, coordInfo, msgsPrepare, msgsVoteCommit, msgsAbort, coordCommitVotes, catalog, msgsCommit, rTxnReadTs, shardPreparedTxns >>
 varsRouter == << rtxn, rInCommit, rTxnReadTs, rParticipants>>
+varsNetwork == << msgsPrepare, msgsVoteCommit, msgsAbort, msgsCommit >>
 
 \* Instance of a MongoDB replica set log for a given shard, that 
 \* supports abstracted snapshot KV store.
@@ -285,7 +286,7 @@ RouterTxnStart(r, tid, readTs) ==
     \* router based on previous responses from commands.
     /\ rTxnReadTs[r][tid] = NoValue
     /\ rTxnReadTs' = [rTxnReadTs EXCEPT ![r][tid] = readTs]
-    /\ UNCHANGED << shardTxns, rParticipants, shardTxnReqs, rtxn,  aborted, log, commitIndex, epoch, txnSnapshots, ops,coordInfo, msgsPrepare, msgsVoteCommit, msgsAbort, coordCommitVotes, catalog, msgsCommit, shardPreparedTxns, rInCommit, shardOps, nextTs >>
+    /\ UNCHANGED << shardTxns, rParticipants, shardTxnReqs, rtxn,  aborted, log, commitIndex, epoch, txnSnapshots, ops,coordInfo, coordCommitVotes, catalog, shardPreparedTxns, rInCommit, shardOps, nextTs, varsNetwork >>
 
 \* Router handles a new transaction operation that is routed to the appropriate shard.
 RouterTxnOp(r, s, tid, k, op) == 
@@ -307,7 +308,7 @@ RouterTxnOp(r, s, tid, k, op) ==
     /\ LET firstShardOp == ~\E el \in Range(rParticipants[r][tid]) : el[1] = s IN
            shardTxnReqs' = [shardTxnReqs EXCEPT ![s][tid] = Append(shardTxnReqs[s][tid], CreateEntry(k, op, s, rtxn[r][tid] = 0, firstShardOp, rTxnReadTs[r][tid]))]
     /\ rtxn' = [rtxn EXCEPT ![r][tid] = rtxn[r][tid]+1]
-    /\ UNCHANGED << shardTxns, rTxnReadTs,  aborted, log, commitIndex, epoch, txnSnapshots, ops,coordInfo, msgsPrepare, msgsVoteCommit, msgsAbort, coordCommitVotes, catalog, msgsCommit, shardPreparedTxns, rInCommit, shardOps, nextTs >>
+    /\ UNCHANGED << shardTxns, rTxnReadTs,  aborted, log, commitIndex, epoch, txnSnapshots, ops,coordInfo, coordCommitVotes, catalog, shardPreparedTxns, rInCommit, shardOps, nextTs, varsNetwork >>
 
 \* Router handles a transaction commit operation, which it forwards to the appropriate shard to initiate 2PC to
 \* commit the transaction. It also sends out prepare messages to all participant shards.
@@ -325,7 +326,7 @@ RouterTxnCoordinateCommit(r, s, tid, op) ==
     /\ shardTxnReqs' = [shardTxnReqs EXCEPT ![s][tid] = Append(shardTxnReqs[s][tid], CreateCoordCommitEntry(op, s, [i \in DOMAIN rParticipants[r][tid] |-> rParticipants[r][tid][i][1]]))]
     /\ rtxn' = [rtxn EXCEPT ![r][tid] = rtxn[r][tid]+1]
     /\ rInCommit' = [rInCommit EXCEPT ![r][tid] = TRUE]
-    /\ UNCHANGED << shardTxns,   aborted, log, commitIndex, epoch, txnSnapshots, ops, rParticipants, coordInfo, msgsVoteCommit, coordCommitVotes, catalog, msgsAbort, msgsCommit, msgsPrepare, rTxnReadTs, shardPreparedTxns, shardOps, nextTs >>
+    /\ UNCHANGED << shardTxns,   aborted, log, commitIndex, epoch, txnSnapshots, ops, rParticipants, coordInfo, coordCommitVotes, catalog, rTxnReadTs, shardPreparedTxns, shardOps, nextTs, varsNetwork >>
 
 \* If a transaction only executed reads, even against multiple shards, then the
 \* router can bypass 2PC and send commits directly to shards.
