@@ -275,7 +275,7 @@ UpdateParticipants(r, tid, snew, op) ==
         ELSE Append(rParticipants[r][tid], <<snew, {op}>>))
 
 AllLogTimestamps == UNION {0..Len(log[sh]) : sh \in Shard}
-CandidateReadTimestamps == AllLogTimestamps \cup {max(AllLogTimestamps) + 1}
+GlobalTimestamps == AllLogTimestamps \cup {max(AllLogTimestamps) + 1}
 
 \* Represents the "start" of a transaction at the router as a separate operation, 
 \* which simply consists of picking a read timestamp. 
@@ -582,7 +582,7 @@ MoveKey(k, sfrom, sto) ==
 
 Next == 
     \* Router actions.
-    \/ \E r \in Router, t \in TxId, ts \in CandidateReadTimestamps : RouterTxnStart(r, t, ts)
+    \/ \E r \in Router, t \in TxId, ts \in GlobalTimestamps : RouterTxnStart(r, t, ts)
     \/ \E r \in Router, s \in Shard, t \in TxId, k \in Keys, op \in Ops : RouterTxnOp(r, s, t, k, op)
     \/ \E r \in Router, s \in Shard, t \in TxId, op \in Ops: RouterTxnCoordinateCommit(r, s, t, op)
     \/ \E r \in Router, s \in Shard, t \in TxId: RouterTxnCommitReadOnly(r, s, t)
