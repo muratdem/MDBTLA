@@ -26,6 +26,15 @@ Ops1 ==
 ASSUME CC!SnapshotIsolation([k \in {"k1", "k2"} |-> NoValue], Range(Ops1)) = FALSE
 
 
+OpsReadYourWrite == 
+     ( 
+        "t1" :>
+            << [op |-> "write", value |-> "t1", key |-> "k1"],
+               [op |-> "read", value |-> "t1", key |-> "k1"] >> )
+
+ASSUME CC!SnapshotIsolation([k \in {"k1", "k2"} |-> NoValue], Range(Ops2a)) = TRUE
+
+
 Ops2 == 
      ( 
         "t1" :>
