@@ -17,11 +17,11 @@ Ops1 ==
         "t1" :>
             << [op |-> "read", value |-> NoValue, key |-> "k1"],
                [op |-> "read", value |-> NoValue, key |-> "k2"],
-               [op |-> "write", value |-> "t1", key |-> "k2"] >> @@
+               [op |-> "write", value |-> "t1", key |-> "k1"] >> @@
         "t2" :>
             << [op |-> "read", value |-> NoValue, key |-> "k1"],
                [op |-> "read", value |-> NoValue, key |-> "k2"],
-               [op |-> "write", value |-> "t2", key |-> "k2"] >> )
+               [op |-> "write", value |-> "t2", key |-> "k1"] >> )
 
 ASSUME CC!SnapshotIsolation([k \in {"k1", "k2"} |-> NoValue], Range(Ops1)) = FALSE
 
