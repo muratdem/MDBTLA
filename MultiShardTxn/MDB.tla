@@ -74,34 +74,6 @@ WriteInit(key, value) ==
             value |-> value
        ])
 
-\* 
-\* Perform a snapshot read of a given key at timestamp=index.
-\* 
-\* That is, return the latest value associated with the key 
-\* that was written at ts <= index. If no value was yet written
-\* to the key, then return NotFoundReadResult.
-SnapshotRead(key, index) == 
-    LET snapshotKeyWrites == 
-        { i \in DOMAIN mlog :
-            /\ "data" \in DOMAIN mlog[i] \* exclude 'prepare' entries.
-            /\ \E k \in DOMAIN mlog[i].data : k = key
-            \* Determine read visibility based on commit timestamp.
-            /\ mlog[i].ts <= index } IN
-        IF snapshotKeyWrites = {}
-            THEN NotFoundReadResult
-            ELSE [mlogIndex |-> Max(snapshotKeyWrites), value |-> mlog[Max(snapshotKeyWrites)].data[key]]
-
-\* Snapshot of the full KV store at a given index/timestamp.
-SnapshotKV(index, rc) == 
-    \* Local reads just read at the latest timestamp in the log.
-    LET readIndex == IF rc = "snapshot" THEN index ELSE Len(mlog) IN
-    [
-        ts |-> index,
-        data |-> [k \in Keys |-> SnapshotRead(k, readIndex).value],
-        prepared |-> FALSE,
-        readSet |-> {}
-    ]
-    
 
 \* For a given key, a read can be entirely defined by a value and a flag:
 \* - point is a point in the mlog to which the read should be applied.
@@ -150,19 +122,39 @@ ReadAtTime(token, key) ==
              IN  GeneralRead(key, sessionIndex, TRUE)
         ELSE {}
 
----------------------------------------------------------------------
-\* actions and main spec
 
-\* Expand the prefix of the mlog that can no longer be lost.
-IncreaseCommitIndex ==
-    /\ mcommitIndex' \in mcommitIndex..Len(mlog)
-    /\ UNCHANGED <<mlog, mepoch>>
+--------------------------------------------------------
 
-\* Any data that is not part of the checkpointed mlog prefix may be lost at any time. 
-TruncatedLog == \E i \in (mcommitIndex+1)..Len(mlog) :
-    /\ mlog' = SubSeq(mlog, 1, i - 1)
-    /\ mepoch' = mepoch + 1
-    /\ UNCHANGED <<mcommitIndex>>
+\* 
+\* Perform a snapshot read of a given key at timestamp.
+\* 
+\* That is, return the latest value associated with the key 
+\* that was written at ts <= index. If no value was yet written
+\* to the key, then return NotFoundReadResult.
+\* 
+SnapshotRead(key, ts) == 
+    LET snapshotKeyWrites == 
+        { i \in DOMAIN mlog :
+            /\ "data" \in DOMAIN mlog[i] \* exclude 'prepare' entries.
+            /\ \E k \in DOMAIN mlog[i].data : k = key
+            \* Determine read visibility based on commit timestamp.
+            /\ mlog[i].ts <= ts } IN
+        IF snapshotKeyWrites = {}
+            THEN NotFoundReadResult
+            ELSE [mlogIndex |-> Max(snapshotKeyWrites), value |-> mlog[Max(snapshotKeyWrites)].data[key]]
+
+\* Snapshot of the full KV store at a given index/timestamp.
+SnapshotKV(ts, rc) == 
+    \* Local reads just read at the latest timestamp in the log.
+    LET readTs == IF rc = "snapshot" THEN ts ELSE Len(mlog) IN
+    [
+        ts |-> ts,
+        data |-> [k \in Keys |-> SnapshotRead(k, readTs).value],
+        prepared |-> FALSE,
+        readSet |-> {}
+    ]
+    
+
 
 WriteReadConflictExists(tid, k) ==
     \* Exists another running transaction on the same snapshot
@@ -243,12 +235,25 @@ PrepareConflict(tid, k) ==
         /\ \E pind \in DOMAIN mlog : 
             /\ "prepare" \in DOMAIN mlog[pind] 
             /\ mlog[pind].tid = tother 
-            /\ mlog[pind].ts <= mtxnSnapshots[tid].ts   
+            /\ mlog[pind].ts <= mtxnSnapshots[tid].ts 
 
+---------------------------------------------------------------------
 
-StartTxn(tid, readTs) ==
-    /\ mtxnSnapshots' = [mtxnSnapshots EXCEPT ![tid] = SnapshotKV(readTs, "snapshot")]
-    /\ UNCHANGED <<mlog, mcommitIndex, mepoch>>
+\* Expand the prefix of the mlog that can no longer be lost.
+IncreaseCommitIndex ==
+    /\ mcommitIndex' \in mcommitIndex..Len(mlog)
+    /\ UNCHANGED <<mlog, mepoch>>
+
+\* Any data that is not part of the checkpointed mlog prefix may be lost at any time. 
+TruncatedLog == \E i \in (mcommitIndex+1)..Len(mlog) :
+    /\ mlog' = SubSeq(mlog, 1, i - 1)
+    /\ mepoch' = mepoch + 1
+    /\ UNCHANGED <<mcommitIndex>>
+  
+
+\* StartTxn(tid, readTs) ==
+\*     /\ mtxnSnapshots' = [mtxnSnapshots EXCEPT ![tid] = SnapshotKV(readTs, "snapshot")]
+\*     /\ UNCHANGED <<mlog, mcommitIndex, mepoch>>
 
 \* Explicit initialization for each state variable.
 Init_mlog == <<>>
