@@ -448,7 +448,7 @@ ShardTxnWrite(s, tid, k) ==
     /\ ShardMDBTxnWrite(s, tid, k)
     /\ UNCHANGED << shardTxns, log, commitIndex, aborted, epoch, coordInfo, msgsPrepare, msgsVoteCommit, coordCommitVotes, catalog, msgsAbort, msgsCommit, shardPreparedTxns, ops, nextTs, varsRouter >>
 
-\* Shard processes a transaction write operation which encoutners a write conflict, triggering an abort.
+\* Shard processes a transaction write operation which encounters a write conflict, triggering an abort.
 ShardTxnWriteConflict(s, tid, k) == 
     \* Transaction started on this shard and has new statements in the router log.
     /\ tid \in shardTxns[s]
@@ -466,7 +466,8 @@ ShardTxnWriteConflict(s, tid, k) ==
     \* Consume the transaction op.
     /\ shardTxnReqs' = [shardTxnReqs EXCEPT ![s][tid] = Tail(shardTxnReqs[s][tid])]
     \* Since it was aborted on this shard, update the transaction's op history.
-    /\ shardOps' = [shardOps EXCEPT ![s][tid] = SelectSeq(ops[tid], LAMBDA op : catalog[op.key] # s)]
+    \* /\ shardOps' = [shardOps EXCEPT ![s][tid] = SelectSeq(ops[tid], LAMBDA op : catalog[op.key] # s)]
+    /\ shardOps' = [shardOps EXCEPT ![s][tid] = <<>>]
     /\ UNCHANGED << log, commitIndex, epoch, coordInfo, msgsPrepare, msgsVoteCommit, coordCommitVotes, catalog, msgsAbort, msgsCommit, shardPreparedTxns, ops, varsRouter >>
 
 \*******************
