@@ -640,25 +640,20 @@ SnapshotIsolation == CC!SnapshotIsolation(InitialState, Range(ops))
 \* Serializability would not be satisfied due to write-skew
 SerializableIsolation == CC!Serializability(InitialState, Range(ops))
 
-\* For all shards, if they scurrently have a running transaction at any point,
-\* then eventually all transactions get committed or aborted on that shard.
-AllRunningTransactionsTerminate == \A s \in Shard : (shardTxns[s] # {}) ~> (shardTxns[s] = {})
 
-\* \* LogIndicesImpl == 1..4
+\* Predicate that should hold true for a non-serializable execution that 
+\* satisfies snapshot isolation (e.g. write skew anomaly).
+SnapshotAnomaly == SnapshotIsolation /\ ~SerializableIsolation 
 
-\* \* CheckpointsImpl == LogIndicesImpl \cup {0}
-
-\* \* EpochsImpl == 1..3
-
-\* \* SpecificStateSpace ==
-\* \*     /\ epoch < EpochMax
+SnapshotAnomalyBait == ~SnapshotAnomaly
 
 BaitLog == 
     /\ TRUE
     \* /\ \A s \in Shard, t \in TxId : aborted[s][t] = FALSE
     \* /\ Cardinality(msgsPrepare) # 2
     \* /\ \A s \in Shard, tid \in TxId : Cardinality(coordCommitVotes[s][tid]) # 1
-    /\ \A s \in Shard, tid \in TxId : Cardinality(coordCommitVotes[s][tid]) < 1
+    \* /\ \A s \in Shard, tid \in TxId : Cardinality(coordCommitVotes[s][tid]) < 1
+    /\ \A s \in Shard, tid \in TxId : Len(shardOps[s][tid]) < 3
     \* /\ \A tid \in TxId : Len(ops[tid]) < 2
     \* /\ coord
     \* /\ \A s \in Shard, t \in TxId : Len(shardTxnReqs[s][t]) = 0
@@ -693,4 +688,14 @@ Symmetry == Permutations(TxId) \cup Permutations(Keys) \cup Permutations(Shard) 
 \*     readIndex |-> readIndex,
 \*     epoch |-> epoch
 \* ]
+
+
+----------------------
+
+\* Some unfinished liveness experiments.
+
+\* For all shards, if they scurrently have a running transaction at any point,
+\* then eventually all transactions get committed or aborted on that shard.
+AllRunningTransactionsTerminate == \A s \in Shard : (shardTxns[s] # {}) ~> (shardTxns[s] = {})
+
 ===========================================================================
