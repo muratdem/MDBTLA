@@ -626,9 +626,10 @@ Fairness == TRUE
 
 Spec == Init /\ [][Next]_vars /\ Fairness
 
-        \* /\ WF_vars(Router)
-        \* /\ \A self \in Shard : WF_vars(s(self))
 
+-----------------------------------------
+
+\* Isolation properties.
 
 ReadUncommittedIsolation == CC!ReadUncommitted(InitialState, Range(ops))
 
@@ -690,7 +691,7 @@ Symmetry == Permutations(TxId) \cup Permutations(Keys) \cup Permutations(Shard) 
 \* ]
 
 
-----------------------
+-----------------------------------------
 
 \* Some unfinished liveness experiments.
 
