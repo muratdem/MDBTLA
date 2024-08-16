@@ -49,6 +49,19 @@ Ops3 ==
 
 ASSUME CC!SnapshotIsolation([k \in {"k1", "k2"} |-> NoValue], Range(Ops3)) = TRUE
 
+Ops4 == 
+     ( 
+        "t1" :>
+            << [op |-> "read", value |-> NoValue, key |-> "k1"],
+               [op |-> "write", value |-> "t1", key |-> "k2"] >> @@
+        "t2" :>
+            << [op |-> "read", value |-> NoValue, key |-> "k1"],
+               [op |-> "write", value |-> "t2", key |-> "k2"] >> )
+
+\* This actually does satisfy SI, since even though both txns write to the same key. 
+\* There is an ordering that gives a complete read state to both in a
+\* way that doesn't create conflict.
+ASSUME CC!SnapshotIsolation([k \in {"k1", "k2"} |-> NoValue], Range(Ops4)) = TRUE
 
 OpsWriteSkew == 
      ( 
