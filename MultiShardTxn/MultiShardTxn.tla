@@ -466,7 +466,6 @@ ShardTxnWriteConflict(s, tid, k) ==
     \* Consume the transaction op.
     /\ shardTxnReqs' = [shardTxnReqs EXCEPT ![s][tid] = Tail(shardTxnReqs[s][tid])]
     \* Since it was aborted on this shard, update the transaction's op history.
-    \* /\ shardOps' = [shardOps EXCEPT ![s][tid] = SelectSeq(ops[tid], LAMBDA op : catalog[op.key] # s)]
     /\ shardOps' = [shardOps EXCEPT ![s][tid] = <<>>]
     /\ UNCHANGED << log, commitIndex, epoch, coordInfo, msgsPrepare, msgsVoteCommit, coordCommitVotes, catalog, msgsAbort, msgsCommit, shardPreparedTxns, ops, varsRouter >>
 
@@ -519,7 +518,6 @@ ShardTxnCoordinatorDecideCommit(s, tid) ==
 \* Note that it will receive prepare messages from the router, but sends it vote decision to the coordinator shard.
 ShardTxnPrepare(s, tid) == 
     \E m \in msgsPrepare : 
-        \* TODO: Choose prepareTimestamp for this transaction and track prepared state (?).
         \* Transaction is started on this shard.
         /\ m.shard = s /\ m.tid = tid
         /\ tid \in shardTxns[s]
@@ -530,9 +528,8 @@ ShardTxnPrepare(s, tid) ==
         \* Prepare and then send your vote to the coordinator.
         \* Prepare timestamp will be the same timestamp as the logged prepare entry.
         /\ LET prepareTs == nextTs[s] IN
-        \* IF log[s] = <<>> THEN 1 ELSE log[s][Len(log[s])].ts + 1 IN 
             /\ msgsVoteCommit' = msgsVoteCommit \cup { [shard |-> s, tid |-> tid, to |-> m.coordinator, prepareTs |-> prepareTs] }
-        \* Prepare the transaction in the underyling snapshot store.
+            \* Prepare the transaction in the underyling snapshot store.
             /\ ShardMDBTxnPrepare(s, tid, prepareTs)
         /\ UNCHANGED << shardTxns,  shardTxnReqs,  aborted, coordInfo, msgsPrepare, ops, coordCommitVotes, catalog, msgsAbort, msgsCommit, shardOps, varsRouter >>
 
@@ -563,9 +560,7 @@ ShardTxnAbort(s, tid) ==
     /\ aborted' = [aborted EXCEPT ![s][tid] = TRUE]
     /\ shardTxns' = [shardTxns EXCEPT ![s] = shardTxns[s] \ {tid}]
     \* Since it was aborted on this shard, update the transaction's op history.
-    \* We remove all transaction ops that occurred for this transaction on this
-    \* shard, by removing ops with keys that (a) were touched by this transaction and
-    \* (b) are owned by this shard.
+    \* We remove all transaction ops that occurred for this transaction on this shard.
     /\ shardOps' = [shardOps EXCEPT ![s][tid] = <<>>]
     \* If we abort, we by default clear out any incoming RPC requests.
     /\ shardTxnReqs' = [shardTxnReqs EXCEPT ![s][tid] = <<>>]
