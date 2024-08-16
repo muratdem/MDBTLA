@@ -196,17 +196,12 @@ ShardMDBTxnWrite(s, tid, k) ==
     \* The write to this key does not overlap with any writes to the same key
     \* from other, concurrent transactions.
     /\ ~ShardMDB(s)!WriteConflictExists(tid, k)
-    \* Did some concurrent transaction read this key?
-    \* /\ ~ShardMDB(s)!WriteReadConflictExists(tid, k)
     \* Update the transaction's snapshot data.
     /\ txnSnapshots' = [txnSnapshots EXCEPT ![s] = ShardMDB(s)!UpdateSnapshot(tid, k, tid)]
     /\ UNCHANGED <<log, commitIndex, epoch, nextTs>>
 
 \* Reads from the local KV store of a shard.
 ShardMDBTxnRead(s, tid, k) == 
-    \* Am I reading from a key that has been written to concurrently?
-    \* /\ ~ShardMDB(s)!WriteConflictExists(tid, k)
-    \* TODO: how to handle prepare conflicts accurately?
     /\ ~ShardMDB(s)!PrepareConflict(tid, k)
     /\ txnSnapshots' = [txnSnapshots EXCEPT ![s][tid]["readSet"] = @ \cup {k}]
     /\ UNCHANGED <<log, commitIndex, epoch, nextTs>>
