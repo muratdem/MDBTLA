@@ -293,17 +293,16 @@ RouterTxnOp(r, s, tid, k, op) ==
     /\ op \in {"read", "write"}
     \* If a shard of this transaction has aborted, don't continue the transaction.
     /\ ~\E as \in Shard : aborted[as][tid]
-    \* Transaction has not already initiated commit at the router.
+    \* Transaction has not already initiated commit at the router, and timestamp was chosen.
     /\ rInCommit[r][tid] = FALSE
+    /\ rTxnReadTs[r][tid] # NoValue
     \* Route to the shard that owns this key.
     /\ catalog[k] = s
     \* Assume that the router interacts with shards over a request-response RPC mechanism i.e.
     \* so we wait for an op to be processed before sending the next op.
     /\ shardTxnReqs[s][tid] = <<>>
-    \* Update rParticipants list if new participant joined the transaction, and also 
+    \* Update rParticipants list if new participant joined the transaction.
     /\ rParticipants' = [rParticipants EXCEPT ![r][tid] = UpdateParticipants(r, tid, s, op)]
-    \* A read timestamp was chosen.
-    /\ rTxnReadTs[r][tid] # NoValue
     \* /\ rTxnReadTs' = [rTxnReadTs EXCEPT ![r][tid] = IF rtxn[r][tid] = 0 THEN readTs ELSE rTxnReadTs[r][tid]]
     /\ LET firstShardOp == ~\E el \in Range(rParticipants[r][tid]) : el[1] = s IN
            shardTxnReqs' = [shardTxnReqs EXCEPT ![s][tid] = Append(shardTxnReqs[s][tid], CreateEntry(k, op, s, rtxn[r][tid] = 0, firstShardOp, rTxnReadTs[r][tid]))]
