@@ -690,4 +690,17 @@ Symmetry == Permutations(TxId) \cup Permutations(Keys) \cup Permutations(Shard) 
 \* then eventually all transactions get committed or aborted on that shard.
 AllRunningTransactionsTerminate == \A s \in Shard : (shardTxns[s] # {}) ~> (shardTxns[s] = {})
 
+\* Set of all sequences over S of max length len.
+BoundedSeq(S, n) == UNION {[1..i -> S] : i \in 0..n}
+Transaction == BoundedSeq(CC!Operation, MaxStmts)
+
+AllTxns == [TxId -> Transaction]
+AllTxnsReadCommitted == {ts \in AllTxns : CC!ReadCommitted(InitialState, Range(ts))}
+AllTxnsSnapshot == {ts \in AllTxns : CC!SnapshotIsolation(InitialState, Range(ts))}
+AllTxnsSerializable == {ts \in AllTxns : CC!Serializability(InitialState, Range(ts))}
+\* ASSUME PrintT(Cardinality(AllTxns))
+\* ASSUME PrintT(Cardinality(AllTxnsReadCommitted))
+\* ASSUME PrintT(Cardinality(AllTxnsSnapshot))
+\* ASSUME PrintT(Cardinality(AllTxnsSerializable))
+
 ===========================================================================
