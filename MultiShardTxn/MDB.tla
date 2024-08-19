@@ -177,8 +177,10 @@ WriteConflictExists(tid, k) ==
            /\ mtxnSnapshots[tOther] # Nil
            \* The other transaction wrote to this value.
            /\ mtxnSnapshots[tOther].data[k] = tOther
-        \* If there exists another transaction that has written to this key and committed at a 
-        \* timestamp newer than your snapshot, this also should manifest as a conflict. 
+        \* If there exists another transaction that has written to this key and
+        \* committed at a timestamp newer than your snapshot, this also should
+        \* manifest as a conflict, since it implies this transaction may have
+        \* overlapped with you (in timestamp order).
         \/ \E ind \in DOMAIN mlog :
             /\ "data" \in DOMAIN mlog[ind]
             /\ mlog[ind].ts >= mtxnSnapshots[tid].ts
