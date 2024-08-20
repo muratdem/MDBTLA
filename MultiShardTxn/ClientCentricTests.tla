@@ -163,5 +163,11 @@ RRReadYourWrite ==
 \* Internal reads should be allowed to read effect of previous writes in the transaction.
 ASSUME CC!RepeatableRead([k \in {"k1", "k2"} |-> NoValue], Range(RRReadYourWrite)) = TRUE
 
+\* 
+\* Read committed example tests.
+\* 
+
+\* Violates RR but satisfies read committed.
+ASSUME CC!ReadCommitted([k \in {"k1", "k2"} |-> NoValue], Range(RR2)) = TRUE
 
 =============================================================================
