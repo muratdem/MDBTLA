@@ -195,10 +195,11 @@ CT_RR(transaction, execution) ==
         (/\ op1.op = "read" 
          /\ op2.op = "read" 
          /\ op1.key = op2.key
-         \*  No write to this key occurred before op1 or op2.
+         \*  op1 and op2 both occurred before any write to this key occurred.
          /\ ~\E wop \in SeqToSet(transaction) : 
              /\ wop.op = "write"
              /\ wop.key = op1.key
+             /\ wop.key = op2.key
              /\ \/ earlierInTransaction(transaction, wop, op1) 
                 \/ earlierInTransaction(transaction, wop, op2)) => 
                     ReadStates(execution, op1, transaction) = ReadStates(execution, op2, transaction)

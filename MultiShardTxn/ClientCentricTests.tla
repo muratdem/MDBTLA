@@ -146,5 +146,22 @@ RR2 ==
 
 ASSUME CC!RepeatableRead([k \in {"k1", "k2"} |-> NoValue], Range(RR2)) = FALSE
 
+RRReadYourWrite == 
+     ( 
+        "t1" :>
+            << [op |-> "write", value |-> "t1", key |-> "k1"],
+               [op |-> "write", value |-> "t1", key |-> "k2"] >> @@
+        "t2" :>
+            << [op |-> "write", value |-> "t2", key |-> "k1"],
+               [op |-> "write", value |-> "t2", key |-> "k2"] >> @@
+        "t3" :>
+            << [op |-> "read", value |-> "t1", key |-> "k1"],
+               [op |-> "write", value |-> "t3", key |-> "k1"],
+               [op |-> "read", value |-> "t3", key |-> "k1"]
+               >>)
+
+\* Internal reads should be allowed to read effect of previous writes in the transaction.
+ASSUME CC!RepeatableRead([k \in {"k1", "k2"} |-> NoValue], Range(RRReadYourWrite)) = TRUE
+
 
 =============================================================================
