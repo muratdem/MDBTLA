@@ -185,6 +185,25 @@ StrictSerializability(initialState, transactions, timestamps) ==
 CT_RC(transaction, execution) == Preread(execution, transaction)
 ReadCommitted(initialState, transactions) == satisfyIsolationLevel(initialState, transactions, CT_RC)
 
+\* Repeatable Read
+CT_RR(transaction, execution) ==
+    \* All transactions read from some committed state.
+    /\ Preread(execution, transaction) 
+    \* For all read operations on the same key that come before the first write to that key, 
+    \* the read states must be the same, since they must both read the same value.
+    /\ \A op1, op2 \in SeqToSet(transaction): 
+        (/\ op1.op = "read" 
+         /\ op2.op = "read" 
+         /\ op1.key = op2.key
+         \*  No write to this key occurred before op1 or op2.
+         /\ ~\E wop \in SeqToSet(transaction) : 
+             /\ wop.op = "write"
+             /\ wop.key = op1.key
+             /\ \/ earlierInTransaction(transaction, wop, op1) 
+                \/ earlierInTransaction(transaction, wop, op2)) => 
+                    ReadStates(execution, op1, transaction) = ReadStates(execution, op2, transaction)
+RepeatableRead(initialState, transactions) == satisfyIsolationLevel(initialState, transactions, CT_RR)
+
 \* Read Uncommitted
 CT_RU(transaction, execution) == TRUE
 ReadUncommitted(initialState, transactions) == satisfyIsolationLevel(initialState, transactions, CT_RU)

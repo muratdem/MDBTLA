@@ -626,6 +626,8 @@ ReadUncommittedIsolation == CC!ReadUncommitted(InitialState, Range(ops))
 
 ReadCommittedIsolation == CC!ReadCommitted(InitialState, Range(ops))
 
+RepeatableReadIsolation == CC!RepeatableRead(InitialState, Range(ops))
+
 \* Snapshot isolation invariant
 SnapshotIsolation == CC!SnapshotIsolation(InitialState, Range(ops))
 
