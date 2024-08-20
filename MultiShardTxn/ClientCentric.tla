@@ -55,6 +55,14 @@ parentState(execution, transaction) ==
 \* check reads and writes, implicit because of "write" check in ReadStates
 earlierInTransaction(transaction, op1, op2) == Index(transaction, op1) < Index(transaction, op2)
 
+\* Is this an "external" read i.e. a read of a key before any writes to that key occurred in the transaction.
+externalRead(transaction, op) ==
+    /\ op.op = "read"
+    /\ ~\E wop \in SeqToSet(transaction) : 
+         /\ wop.op = "write"
+         /\ wop.key = op.key
+         /\ earlierInTransaction(transaction, wop, op)     
+
 \* state1 -*-> state2
 beforeOrEqualInExecution(execution, state1, state2) == 
   LET states == executionStates(execution)
@@ -189,20 +197,14 @@ ReadCommitted(initialState, transactions) == satisfyIsolationLevel(initialState,
 CT_RR(transaction, execution) ==
     \* All transactions read from some committed state.
     /\ Preread(execution, transaction) 
-    \* For all read operations on the same key that come before the first write to that key, 
-    \* the read states must be the same, since they must both read the same value.
+    \* For all read operations on the same key that come before the first write
+    \* to that key (i.e. external reads), the read states must be the same,
+    \* since they must both read the same value.
     /\ \A op1, op2 \in SeqToSet(transaction): 
-        (/\ op1.op = "read" 
-         /\ op2.op = "read" 
-         /\ op1.key = op2.key
-         \*  op1 and op2 both occurred before any write to this key occurred.
-         /\ ~\E wop \in SeqToSet(transaction) : 
-             /\ wop.op = "write"
-             /\ wop.key = op1.key
-             /\ wop.key = op2.key
-             /\ \/ earlierInTransaction(transaction, wop, op1) 
-                \/ earlierInTransaction(transaction, wop, op2)) => 
-                    ReadStates(execution, op1, transaction) = ReadStates(execution, op2, transaction)
+        (/\ externalRead(transaction, op1) 
+         /\ externalRead(transaction, op2) 
+         /\ op1.key = op2.key) => 
+                ReadStates(execution, op1, transaction) = ReadStates(execution, op2, transaction)
 RepeatableRead(initialState, transactions) == satisfyIsolationLevel(initialState, transactions, CT_RR)
 
 \* Read Uncommitted
