@@ -1,19 +1,69 @@
-# Formal Modeling of MongoDB Distributed Transactions
+# Formal Specification of Distributed Transactions in MongoDB
 
 This directory contains formal specifications that model the high level behavior of the [distributed, cross-shard transactions protocol in MongoDB](https://github.com/mongodb/mongo/blob/master/src/mongo/db/s/README_sessions_and_transactions.md#transactions). You can interact with some current models on the web here: 
 
 - [MultiShardTxn (2 keys, 2 transactions, 2 shards)](https://will62794.github.io/tla-web/#!/home?specpath=https%3A%2F%2Fraw.githubusercontent.com%2Fmuratdem%2FMDBTLA%2Fmain%2FMultiShardTxn%2FMultiShardTxn.tla&constants%5BKeys%5D=%7Bk1%2Ck2%7D&constants%5BTxId%5D=%7Bt1%2Ct2%7D&constants%5BShard%5D=%7Bs1%2Cs2%7D&constants%5BNoValue%5D=%22NoVal%22&constants%5BWC%5D=%22majority%22&constants%5BRC%5D=%22snapshot%22&constants%5BMaxStmts%5D=2&constants%5BRouter%5D=%7Br1%7D&hiddenVars=epoch%2CcommitIndex%2Clsn%2Coverlap%2Caborted&explodedConstantExpr=Shard) 
 - [MultiShardTxn (3 keys, 3 transactions, 2 shards)](https://will62794.github.io/tla-web/#!/home?specpath=https%3A%2F%2Fraw.githubusercontent.com%2Fmuratdem%2FMDBTLA%2Fmain%2FMultiShardTxn%2FMultiShardTxn.tla&constants%5BKeys%5D=%7Bk1%2Ck2%2Ck3%7D&constants%5BTxId%5D=%7Bt1%2Ct2%2Ct3%7D&constants%5BShard%5D=%7Bs1%2Cs2%7D&constants%5BNoValue%5D=%22NoVal%22&constants%5BWC%5D=%22majority%22&constants%5BRC%5D=%22snapshot%22&constants%5BMaxStmts%5D=2&constants%5BRouter%5D=%7Br1%7D&hiddenVars=epoch%2CcommitIndex%2Clsn%2Coverlap%2Caborted&explodedConstantExpr=Shard) 
 
-The main specification resides in [`MultiShardTxn.tla`](MultiShardTxn.tla), which models MongoDB's distributed transaction commit protocol. 
+The main specification resides in [`MultiShardTxn.tla`](MultiShardTxn.tla), which models MongoDB's distributed, multi-document transaction protocol. 
 
-At a high level, the protocol modeled here can be viewed as a distributed transaction protocol implementing snapshot isolation. This is acheived this by running a two-phase commit style protocol against shards that individually implement snapshot isolated key-value stores. In practice, each shard is operated as a MongoDB replica set, providing fault tolerance for each shard.
+At a high level, the protocol modeled here can be viewed as a distributed transaction protocol implementing snapshot isolation. This is acheived this by running a two-phase commit style protocol against shards that individually implement snapshot isolated key-value stores, while also maintaining causally consistent timestamps across the clister which are used to manage ordering and visibility between transactions. In practice, each shard is operated as a MongoDB replica set, providing fault tolerance for each shard.
 
-The participants of the protocol consist of *clients*, *routers*, and *shards*. Routers handle incoming transaction operations issued to them by clients, and there may be many of them. Routers forward these transaction operations to shards in an interactive fashion, based on routing logic determined by the "catalog". Essentially, the catalog is a mapping from keys to shards i.e., it determines the placement of keys in a collection across a sharded cluster. Individual shards are responsible for executing transaction operations as they receive them, and reporting their responses back to a router. If errors or conflicts occur at local shards, this is reported back to the router, which can initiate a global abort process. 
+The participants of the protocol consist of *client*, *router*, and *shard* roles.
 
-After issuing the last operation of a transaction, and if all operations have completed successfully, a client may then issue a transaction commit operation, prompting the router to initiate a two-phase commit procedure. The router does this by handing off this responsbility to a *coordinator* shard, which coordinates the two-phase ommit process across all shards. That is, the coordinator sends *prepare* messages to all participant shards that were involved in the transaction, waits for affirmative responses from all shards, and then makes a decision to commit the transaction, sending out a message indicating this to all shards, which can then individually commit the transaction on that shard.
+### Routers
+
+Routers, of which there may be several, handle incoming transaction operations issued to them by clients. In the current model, clients are not represented explicitly, but we represent a client operation occurring at the router in the [router specific actions for starting or continuing](https://github.com/muratdem/MDBTLA/blob/a973471f74ebaf8b20150bbf97583a51bc82162d/MultiShardTxn/MultiShardTxn.tla#L575-L576) a transaction with a specified operation type and key.
+
+ Routers forward these transaction operations to shards in an interactive fashion, and individual shards are responsible for executing transaction operations as they receive them, reporting their responses back to a router. If errors or conflicts occur at local shards, this is also reported back to the router, which can initiate a global abort process. In the current specification, we represent this messaging as an RPC based mechanism. Routers push new operations onto a [queue](https://github.com/muratdem/MDBTLA/blob/a973471f74ebaf8b20150bbf97583a51bc82162d/MultiShardTxn/MultiShardTxn.tla#L43-L45) that is maintained at each shard, for each transaction id, and shards process new operations from this queue one at a time. That is, routers [wait until a shard](https://github.com/muratdem/MDBTLA/blob/a973471f74ebaf8b20150bbf97583a51bc82162d/MultiShardTxn/MultiShardTxn.tla#L296-L298) has processed a transaction operation before sending the next one, in an effort to simulate a synchronous RPC semantics. We may consider generalizing this messaging semantics in future (e.g. to a more asynchronous, out of order model), but this seems to currently be a relatively faithful model of the protocol semantics.   
+
+After issuing the last operation of a transaction, if all operations have completed successfully, a client may then issue a transaction commit operation, prompting the router to initiate a two-phase commit procedure across all participant shards. The router may do this by handing off this responsbility to a *coordinator* shard, which coordinates the two-phase commit process across all participant shards. Our specification also currently models a few special cases where full 2PC can be bypassed, allowing thee router to go ahead and send commit operations directly to each shard e.g. for [read-only or single shard transactions](https://github.com/muratdem/MDBTLA/blob/a973471f74ebaf8b20150bbf97583a51bc82162d/MultiShardTxn/MultiShardTxn.tla#L578-L579).
+
+
+### Shards
+
+Each shard essentially passively waits for transaction operations to be sent from the router, and processes these incrementally by pulling the ops off of its incoming request queue for each transaction at that shard. After [starting a transaction](https://github.com/muratdem/MDBTLA/blob/a973471f74ebaf8b20150bbf97583a51bc82162d/MultiShardTxn/MultiShardTxn.tla#L584) on the shard in response to the first statement of a transaction, it [processes different types of operations accordingly](https://github.com/muratdem/MDBTLA/blob/a973471f74ebaf8b20150bbf97583a51bc82162d/MultiShardTxn/MultiShardTxn.tla#L585-L587) as the transaction executes. This includes, for example, the behavior to abort if a transaction write conflict occurs on that shard.
+
+
+When a router initiates two-phase commit for a transaction, as described above, it hands off this responsibility to a coordinator shard, which is responsible for coordinating the commit process across all participant shards. The coordinator shard then sends *prepare* messages to all participant shards that were involved in the transaction, waits for affirmative responses from all shards, and then makes a decision to commit the transaction, sending out a message indicating this to all shards, which can then individually commit the transaction on that shard. Two-phase commit messages are then [exhanged between coordinator and participant](https://github.com/muratdem/MDBTLA/blob/a973471f74ebaf8b20150bbf97583a51bc82162d/MultiShardTxn/MultiShardTxn.tla#L588-L594) shards to drive the transaction to commit.
+
+## Modeling the Storage/Replication Layer at Shards
+
+
+## Model Checking Isolation Properties
+
+Currently, we check some high level isolation safety properties of the transaction protocol specification. In MongoDB, consistency/isolation of a multi-document transaction is [determined by its read/write concern parameters](https://www.mongodb.com/docs/manual/core/transactions/), so we try to reflect those settings in our model and check them against standard isolation levels. 
+
+Essentially, MongoDB provides associated guarantees for a transaction only if it commits at `w:majority`, so in practice it is the selection of `readConcern` that determines the consisency semantics. Furthermore, due to the speculative majority approach, "local" and "majority" read concern behave in the same way during establishment of the transaction on each shard (i.e. they don't read from a consisyent timestamp across shards). So, we focus on two distinct classes of guarantees:
+
+
+1. `{readConcern: "snapshot", writeConcern: "majority"}`
+2. `{readConcern: "local"/"majority", writeConcern: "majority"}`
+
+where we expect (1) to satisfy [snapshot isolation](https://jepsen.io/consistency/models/snapshot-isolation) and (2) to satisfy [repeatable reads](https://jepsen.io/consistency/models/repeatable-read).
+
+We verify snapshot isolation using the [client-centric isolation model of Crooks](https://www.cs.cornell.edu/lorenzo/papers/Crooks17Seeing.pdf), and utilizing the [formalization of this in TLA+](https://github.com/muratdem/MDBTLA/blob/3989af405310e74dee45a702be9831e0c6dad7ab/MultiShardTxn/ClientCentric.tla) by [Soethout](https://link.springer.com/chapter/10.1007/978-3-030-67220-1_4). To check isolation, we use a global history of transaction operations maintained in the [`ops`](https://github.com/muratdem/MDBTLA/blob/21d23fc50d391629e0a4d7a31c2cfc851c024a62/MultiShardTxn/MultiShardTxn.tla#L85-L86) map. 
+
+So far we have checked small models for correctness e.g. for `"snapshot"` read concern:
+
+<!-- markdown table with 3 columns and 2 rows -->
+
+| Keys | TxId | Shard | Router | MaxStmts  | RC | Symmetry | Invariant | Time | States | Depth | Error |
+|------|------|-------|--------|----------| -----------| ------|------|------|------|------|------|
+| `{k1, k2}` | `{t1, t2}` | `{s1, s2}` | `{r1}` | `3` | `"snapshot"` | `Symmetry` | `SnapshotIsolation` | 10 min | 10 min | 10 min |  None |
+| `{k1, k2}` | `{t1, t2, t3}` | `{s1, s2}` | `{r1}` | `3` | `"snapshot"` | `Symmetry` | `SnapshotIsolation` | 1h 4 mins | 10 min | 10 min | None |
+
+ and for `"local"` read concern:
+
+
+| Keys | TxId | Shard | Router | MaxStmts  | RC | Symmetry | Invariant | Time | States | Depth | Error |
+|------|------|-------|--------|----------| -----------| ------|------|------|------|------|------|
+| `{k1, k2}` | `{t1, t2}` | `{s1, s2}` | `{r1}` | `3` | `"local"` | `Symmetry` | `RepeatableReadIsolation` | 10 min | 10 min | 10 min | None |
+| `{k1, k2}` | `{t1, t2, t3}` | `{s1, s2}` | `{r1}` | `3` | `"local"` | `Symmetry` | `RepeatableReadIsolation` | 10 min | 10 min | 10 min | None |
 
 ## Interaction with the Catalog and Migrations
+
+<!-- based on routing logic determined by the "catalog". Essentially, the catalog is a mapping from keys to shards i.e., it determines the placement of keys in a collection across a sharded cluster.  -->
 
 Within a sharded cluster, the placement of keys in a collection on shards is determined by the "catalog", which stores information about which keys are "owned" by which shards. 
 
@@ -21,24 +71,10 @@ The current specification [models a static catalog](https://github.com/muratdem/
 
 TODO.
 
-## Model Checking
+## Other specifications in this directory
 
-Currently, we check a core, high level safety property, which is that the overall transaction protocol implements [snapshot isolation](https://github.com/muratdem/MDBTLA/blob/3989af405310e74dee45a702be9831e0c6dad7ab/MultiShardTxn/MultiShardTxn.tla#L553-L554) correctly. This is done using a global history of transaction operations maintained in the [`ops`](https://github.com/muratdem/MDBTLA/blob/21d23fc50d391629e0a4d7a31c2cfc851c024a62/MultiShardTxn/MultiShardTxn.tla#L85-L86) map. We have so far checked small models for correctness e.g. 2 keys, 2 shards, a single router, and ~2-3 operations max per transaction:
+- `MDB.tla`: This spec models the replica set as a single log at a high level
 
-```
-Keys = {k1, k2}
-TxId = {t1, t2}
-Shard = {s1, s2}
-Router = {r1}
-MaxStmts = 3
-```
-We verify snapshot isolation using the [client-centric isolation model of Crooks](https://www.cs.cornell.edu/lorenzo/papers/Crooks17Seeing.pdf), and utilizing the [formalization of this in TLA+](https://github.com/muratdem/MDBTLA/blob/3989af405310e74dee45a702be9831e0c6dad7ab/MultiShardTxn/ClientCentric.tla) by [Soethout](https://link.springer.com/chapter/10.1007/978-3-030-67220-1_4).
-
-
-## Other specs in this directory
-
-`MDB.tla`: This spec models the replica set as a single log at a high level
-
-`ClientCentric.tla`: (from Tim Soethout's work) We use this to be able to properly check transactions for snapshot isolation semantics.
+- `ClientCentric.tla`: (from Tim Soethout's [work](https://github.com/cwi-swat/tla-ci)) We use this to be able to properly check transactions for snapshot isolation semantics.
 
 
