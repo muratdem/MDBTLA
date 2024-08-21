@@ -53,10 +53,11 @@ with open(config_file) as f:
     config = json.load(f)
 
 # Override constants in config file with command line args if given.
-for constant in args.constants:
-    cname = constant.split("=")[0]
-    cval = constant.split("=")[1]
-    config["constants"][cname] = cval
+if args.constants:
+    for constant in args.constants:
+        cname = constant.split("=")[0]
+        cval = constant.split("=")[1]
+        config["constants"][cname] = cval
 
 # Override invariants in config file with command line args if given.
 if args.invariants:
