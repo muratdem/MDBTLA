@@ -2,3 +2,4 @@
 states/
 logout
 *DS_Store
+*_gen.cfg

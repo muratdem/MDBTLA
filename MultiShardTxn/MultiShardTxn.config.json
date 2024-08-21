@@ -1,0 +1,20 @@
+{
+    "init": "InitCatalogConstraintKeysOnDifferentShards",
+    "next": "Next",
+    "constants": {
+      "RC": "\"local\"",
+      "WC": "\"majority\"",
+      "Keys": "{k1, k2}",
+      "TxId": "{t1, t2}",
+      "NoValue": "NoValue",
+      "Shard": "{s1, s2}",
+      "Router": "{r1}",
+      "MaxStmts": "3"
+    },
+    "invariants": [
+      "SnapshotIsolation"
+    ],
+    "symmetry": "Symmetry",
+    "constraint": "StateConstraint"
+  }
+  
