@@ -2,7 +2,7 @@
     "init": "InitCatalogConstraintKeysOnDifferentShards",
     "next": "Next",
     "constants": {
-      "RC": "\"local\"",
+      "RC": "\"snapshot\"",
       "WC": "\"majority\"",
       "Keys": "{k1, k2}",
       "TxId": "{t1, t2}",
