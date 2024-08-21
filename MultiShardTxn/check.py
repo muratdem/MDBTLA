@@ -40,6 +40,7 @@ parser = argparse.ArgumentParser()
 # allow overriding of constants as multiple --constant key-val pairs
 parser.add_argument("--constants", nargs="+", help="constants to override")
 parser.add_argument("--invariants", nargs="+", help="invariants to override")
+parser.add_argument("--tlc_args", nargs="+", help="invariants to override", type=str, default="")
 parser.add_argument("--tlc_jar", nargs="+", help="invariants to override", default="/usr/local/bin/tla2tools.jar")
 
 # extract constants args if they exist.
@@ -69,6 +70,8 @@ fout.close()
 
 # Run TLC model checker via command line with subprocess.
 tlc_jar=args.tlc_jar
-args = ["java", "-cp", tlc_jar, "tlc2.TLC", "-config",  "MultiShardTxn_gen.cfg", "MultiShardTxn"]
+tlc_args = (["-" + a for a in args.tlc_args])
+args = ["java", "-cp", tlc_jar, "tlc2.TLC"] + tlc_args + ["-config", "MultiShardTxn_gen.cfg", "MultiShardTxn"]
+print(args)
 print(" ".join(args))
 ret = subprocess.run(args, shell=False)
