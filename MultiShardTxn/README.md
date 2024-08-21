@@ -29,6 +29,8 @@ When a router initiates two-phase commit for a transaction, as described above, 
 
 ## Modeling the Storage/Replication Layer at Shards
 
+TODO.
+
 
 ## Model Checking Isolation Properties
 
