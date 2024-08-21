@@ -34,7 +34,7 @@ When a router initiates two-phase commit for a transaction, as described above, 
 
 Currently, we check some high level isolation safety properties of the transaction protocol specification. In MongoDB, consistency/isolation of a multi-document transaction is [determined by its read/write concern parameters](https://www.mongodb.com/docs/manual/core/transactions/), so we try to reflect those settings in our model and check them against standard isolation levels. 
 
-Essentially, MongoDB provides associated guarantees for a transaction only if it commits at `w:majority`, so in practice it is the selection of `readConcern` that determines the consisency semantics. Furthermore, due to the speculative majority approach, "local" and "majority" read concern behave in the same way during establishment of the transaction on each shard (i.e. they don't read from a consisyent timestamp across shards). So, we focus on two distinct classes of guarantees:
+Essentially, MongoDB provides associated guarantees for a transaction only if it commits at `w:majority`, so in practice it is the selection of `readConcern` that determines the transaction's consistency semantics. Furthermore, due to the implementation of [*speculative majority*](https://github.com/mongodb/mongo/blob/2aaaa4c0ca6281088d766def53e86b01c99a8dba/src/mongo/db/repl/README.md#read-concern-behavior-within-transactions), "local" and "majority" read concern behave in the same way during establishment of the transaction on each shard (i.e. they don't read from a consisyent timestamp across shards). So, we focus on two distinct classes of guarantees:
 
 
 1. `{readConcern: "snapshot", writeConcern: "majority"}`
@@ -58,7 +58,7 @@ So far we have checked small models for correctness e.g. for `"snapshot"` read c
 
 | Keys | TxId | Shard | Router | MaxStmts  | RC | Symmetry | Invariant | Time | States | Depth | Error |
 |------|------|-------|--------|----------| -----------| ------|------|------|------|------|------|
-| `{k1, k2}` | `{t1, t2}` | `{s1, s2}` | `{r1}` | `3` | `"local"` | `Symmetry` | `RepeatableReadIsolation` | 10 min | 10 min | 10 min | None |
+| `{k1, k2}` | `{t1, t2}` | `{s1, s2}` | `{r1}` | `3` | `"local"` | `Symmetry` | `RepeatableReadIsolation` | ~10 min | 35,002,143 | 37 | None |
 | `{k1, k2}` | `{t1, t2, t3}` | `{s1, s2}` | `{r1}` | `3` | `"local"` | `Symmetry` | `RepeatableReadIsolation` | 10 min | 10 min | 10 min | None |
 
 ## Interaction with the Catalog and Migrations
