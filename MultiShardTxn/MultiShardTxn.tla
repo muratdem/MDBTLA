@@ -280,7 +280,8 @@ RouterTxnStart(r, tid, readTs) ==
     \* best effort guess at read timestamp to select will be maintained on a
     \* router based on previous responses from commands.
     /\ rTxnReadTs[r][tid] = NoValue
-    /\ rTxnReadTs' = [rTxnReadTs EXCEPT ![r][tid] = readTs]
+    \* Non snapshot reads don't use a read timestamp.
+    /\ rTxnReadTs' = [rTxnReadTs EXCEPT ![r][tid] = IF RC = "snapshot" THEN readTs ELSE 0]
     /\ UNCHANGED << shardTxns, rParticipants, shardTxnReqs, rtxn,  aborted, log, commitIndex, epoch, txnSnapshots, ops,coordInfo, coordCommitVotes, catalog, shardPreparedTxns, rInCommit, shardOps, nextTs, varsNetwork >>
 
 \* Router handles a new transaction operation that is routed to the appropriate shard.
