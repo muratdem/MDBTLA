@@ -41,7 +41,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--constants", nargs="+", help="constants to override")
 parser.add_argument("--invariants", nargs="+", help="invariants to override")
 parser.add_argument("--tlc_args", help="invariants to override", type=str, default="")
-parser.add_argument("--tlc_jar", nargs="+", help="invariants to override", default="/usr/local/bin/tla2tools.jar")
+parser.add_argument("--tlc_jar", help="invariants to override", type=str, default="/usr/local/bin/tla2tools.jar")
 
 # extract constants args if they exist.
 args = parser.parse_args()
