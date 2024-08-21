@@ -70,8 +70,8 @@ fout.close()
 
 # Run TLC model checker via command line with subprocess.
 tlc_jar=args.tlc_jar
-tlc_args = (["-" + a for a in args.tlc_args])
+tlc_args = args.tlc_args
 args = ["java", "-cp", tlc_jar, "tlc2.TLC"] + tlc_args + ["-config", "MultiShardTxn_gen.cfg", "MultiShardTxn"]
 print(args)
 print(" ".join(args))
-ret = subprocess.run(args, shell=False)
+ret = subprocess.run(" ".join(args), shell=True)
