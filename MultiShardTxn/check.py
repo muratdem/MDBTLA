@@ -31,6 +31,12 @@ def make_config_file(config_obj):
         for invariant in config_obj["invariants"]:
             cfg_file_text += f"  {invariant}\n"
 
+    if "symmetry" in config_obj:
+        cfg_file_text += f"SYMMETRY {config_obj['symmetry']}\n"
+
+    if "constraint" in config_obj:
+        cfg_file_text += f"CONSTRAINT {config_obj['constraint']}\n"
+
     return(cfg_file_text)
 
 
