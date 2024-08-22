@@ -29,7 +29,11 @@ When a router initiates two-phase commit for a transaction, as described above, 
 
 ## Modeling the Storage/Replication Layer at Shards
 
-TODO.
+The current model aimns to model the storage/replicatiop layer at each shard in a modular way. This is done by viewing `MDB` as encapsulatibg jost of the storage/replication specific logic, and [instantiating one of these modules per shard](https://github.com/muratdem/MDBTLA/blob/2fd5ddc7f4767aace7cfc4bd7ff19b44027de530/MultiShardTxn/MultiShardTxn.tla#L99-L109).
+
+The composition as currently defined breaks these boundaries a bit, but essentially the interface to the MDB instance at each shard is captured in [these wrapper definitions](https://github.com/muratdem/MDBTLA/blob/2fd5ddc7f4767aace7cfc4bd7ff19b44027de530/MultiShardTxn/MultiShardTxn.tla#L178-L238).
+
+
 
 
 ## Model Checking Isolation Properties
