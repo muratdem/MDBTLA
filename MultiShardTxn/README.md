@@ -7,11 +7,9 @@ This directory contains formal specifications that model the high level behavior
 
 The main specification resides in [`MultiShardTxn.tla`](MultiShardTxn.tla), which models MongoDB's distributed, multi-document transaction protocol. 
 
-### Protocol Specification
+## Protocol Specification
 
-At a high level, the protocol modeled here can be viewed as a distributed transaction protocol implementing snapshot isolation. This is acheived this by running a two-phase commit style protocol against shards that individually implement snapshot isolated key-value stores, while also maintaining causally consistent timestamps across the clister which are used to manage ordering and visibility between transactions. In practice, each shard is operated as a MongoDB replica set, providing fault tolerance for each shard.
-
-The participants of the protocol consist of *client*, *router*, and *shard* roles.
+At a high level, the protocol modeled here can be viewed as a distributed transaction protocol implementing snapshot isolation. This is acheived this by running a two-phase commit style protocol against shards that individually implement snapshot isolated key-value stores, while also maintaining causally consistent timestamps across the clister which are used to manage ordering and visibility between transactions. In practice, each shard is operated as a MongoDB replica set, providing fault tolerance for each shard. The participants of the protocol consist of *client*, *router*, and *shard* roles.
 
 ### Routers
 
