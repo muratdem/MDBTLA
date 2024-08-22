@@ -42,13 +42,11 @@ The composition as currently defined breaks these boundaries a bit, but essentia
 
 ### Interaction with the Catalog and Migrations
 
-<!-- based on routing logic determined by the "catalog". Essentially, the catalog is a mapping from keys to shards i.e., it determines the placement of keys in a collection across a sharded cluster.  -->
-
 Within a sharded cluster, the placement of keys in a collection on shards is determined by the "catalog", which stores information about which keys are "owned" by which shards. 
 
-The current specification [models a static catalog](https://github.com/muratdem/MDBTLA/blob/dc5fc9acdfc2f143c183b52558e4646402e0d80c/MultiShardTxn/MultiShardTxn.tla#L121), as a mapping from keys to shards that is fixed once at initialization and never changes. Eventually our goal is to model a dynamic catalog, which will require considerations around how the protocol interacts with chunk migration, shard versioning, etc.
+The current specification [models a static catalog](https://github.com/muratdem/MDBTLA/blob/dc5fc9acdfc2f143c183b52558e4646402e0d80c/MultiShardTxn/MultiShardTxn.tla#L121), as a mapping from keys to shards that is fixed once at initialization and never changes. Eventually our goal is to model a dynamic catalog, which will require considerations around how the protocol interacts with chunk migration, shard versioning, etc. To extend the current specification to handle modifications of the catalog (i.e. placement changes) we expect we will need to expand the model to give each router and shard its own cached view of the catalog, and work towards a specification of the shard versioning protocol which handles proper handling of invalidation of this cache information across the cluster. 
 
-TODO.
+So far we have also added [router specific catalog cache state](https://github.com/muratdem/MDBTLA/blob/3c144133c857f56fefe32b76ba2b5ae3f2d0d272/MultiShardTxn/MultiShardTxn.tla#L40-L41), but this is currently [initialized once](https://github.com/muratdem/MDBTLA/blob/3c144133c857f56fefe32b76ba2b5ae3f2d0d272/MultiShardTxn/MultiShardTxn.tla#L136-L137) and never modified.
 
 ## Model Checking Isolation
 

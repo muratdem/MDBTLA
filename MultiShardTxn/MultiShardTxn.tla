@@ -574,7 +574,7 @@ ShardTxnAbort(s, tid) ==
 MoveKey(k, sfrom, sto) == 
     /\ sfrom # sto
     /\ catalog' = [catalog EXCEPT ![k] = sto]
-    /\ UNCHANGED << rCatalog, shardTxns,   shardTxnReqs, rtxn, epoch, txnSnapshots, ops, rParticipants, coordInfo, msgsPrepare, msgsVoteCommit, coordCommitVotes, msgsAbort, msgsCommit, rTxnReadTs, shardPreparedTxns, rInCommit, aborted, log, commitIndex, nextTs >>
+    /\ UNCHANGED << rCatalog, shardTxns, shardTxnReqs, rtxn, epoch, txnSnapshots, ops, rParticipants, coordInfo, msgsPrepare, msgsVoteCommit, coordCommitVotes, msgsAbort, msgsCommit, rTxnReadTs, shardPreparedTxns, rInCommit, aborted, log, commitIndex, nextTs, shardOps >>
 
 Next == 
     \* Router actions.
@@ -599,7 +599,7 @@ Next ==
     \/ \E s \in Shard, tid \in TxId, k \in Keys: ShardTxnCommit(s, tid)
     \/ \E s \in Shard, tid \in TxId, k \in Keys: ShardTxnAbort(s, tid)
     \* Environment/background actions (crashes, chunk migration, etc.)
-    \* \/ \E k \in Keys, sfrom \in Shard, sto \in Shard : MoveKey(k, sfrom, sto)
+    \/ \E k \in Keys, sfrom \in Shard, sto \in Shard : MoveKey(k, sfrom, sto)
     \* \/ \E s \in Shard: Restart(s)
     \* \/ \E s \in Shard : ShardMDBRollback(s)
     \* \/ \E s \in Shard : ShardMDBAdvanceCommitIndex(s)
