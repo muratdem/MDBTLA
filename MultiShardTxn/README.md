@@ -27,9 +27,9 @@ Each shard essentially passively waits for transaction operations to be sent fro
 
 When a router initiates two-phase commit for a transaction, as described above, it hands off this responsibility to a coordinator shard, which is responsible for coordinating the commit process across all participant shards. The coordinator shard then sends *prepare* messages to all participant shards that were involved in the transaction, waits for affirmative responses from all shards, and then makes a decision to commit the transaction, sending out a message indicating this to all shards, which can then individually commit the transaction on that shard. Two-phase commit messages are then [exhanged between coordinator and participant](https://github.com/muratdem/MDBTLA/blob/a973471f74ebaf8b20150bbf97583a51bc82162d/MultiShardTxn/MultiShardTxn.tla#L588-L594) shards to drive the transaction to commit.
 
-### Modeling the Storage/Replication Layer at Shards
+### Modeling the Storage/Replication Layer
 
-The current model aimns to model the storage/replicatiop layer at each shard in a modular way. This is done by viewing `MDB` as encapsulatibg jost of the storage/replication specific logic, and [instantiating one of these modules per shard](https://github.com/muratdem/MDBTLA/blob/2fd5ddc7f4767aace7cfc4bd7ff19b44027de530/MultiShardTxn/MultiShardTxn.tla#L99-L109).
+The current model aimns to model the storage/replication layer at each shard in a modular way. This is done by viewing `MDB` as encapsulatibg jost of the storage/replication specific logic, and [instantiating one of these modules per shard](https://github.com/muratdem/MDBTLA/blob/2fd5ddc7f4767aace7cfc4bd7ff19b44027de530/MultiShardTxn/MultiShardTxn.tla#L99-L109).
 
 The composition as currently defined breaks these boundaries a bit, but essentially the interface to the MDB instance at each shard is captured in [these wrapper definitions](https://github.com/muratdem/MDBTLA/blob/2fd5ddc7f4767aace7cfc4bd7ff19b44027de530/MultiShardTxn/MultiShardTxn.tla#L178-L238).
 
@@ -39,7 +39,7 @@ The composition as currently defined breaks these boundaries a bit, but essentia
 
 Within a sharded cluster, the placement of keys in a collection on shards is determined by the "catalog", which stores information about which keys are "owned" by which shards. 
 
-The current specification [models a static catalog](https://github.com/muratdem/MDBTLA/blob/dc5fc9acdfc2f143c183b52558e4646402e0d80c/MultiShardTxn/MultiShardTxn.tla#L121), as a mapping from keys to shards that is fixed once at initialization and never changes. Eventually our goal is to model a dynamic catalog, which will require considerations around how the protocol interacts with chunk migation, shard versioning, etc.
+The current specification [models a static catalog](https://github.com/muratdem/MDBTLA/blob/dc5fc9acdfc2f143c183b52558e4646402e0d80c/MultiShardTxn/MultiShardTxn.tla#L121), as a mapping from keys to shards that is fixed once at initialization and never changes. Eventually our goal is to model a dynamic catalog, which will require considerations around how the protocol interacts with chunk migration, shard versioning, etc.
 
 TODO.
 
