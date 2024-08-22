@@ -36,7 +36,7 @@ When a router initiates two-phase commit for a transaction, as described above, 
 
 ### Modeling the Storage/Replication Layer
 
-The current model aimns to model the storage/replication layer (e.g. including abstract WiredTiger semantics) at each shard in a modular way. This is done by having `MDB` encapsulate most of the storage/replication specific logic, and [instantiating one of these modules per shard](https://github.com/muratdem/MDBTLA/blob/2fd5ddc7f4767aace7cfc4bd7ff19b44027de530/MultiShardTxn/MultiShardTxn.tla#L99-L109).
+The current model aims to model the storage/replication layer (e.g. including abstract WiredTiger semantics) at each shard in a modular way. This is done by having `MDB` encapsulate most of the storage/replication specific logic, and [instantiating one of these modules per shard](https://github.com/muratdem/MDBTLA/blob/2fd5ddc7f4767aace7cfc4bd7ff19b44027de530/MultiShardTxn/MultiShardTxn.tla#L99-L109).
 
 The composition as currently defined breaks these boundaries a bit, but essentially the interface to the MDB instance at each shard is captured in [these wrapper definitions](https://github.com/muratdem/MDBTLA/blob/2fd5ddc7f4767aace7cfc4bd7ff19b44027de530/MultiShardTxn/MultiShardTxn.tla#L178-L238). Ideally we would like to define MDB as a completely independent state machine that is composed synchronously with `MultiShardTxn` via joint actions, but in practice there are [some difficulties](https://groups.google.com/g/tlaplus/c/77DR8ngQllo) with defining this cleanly.
 
@@ -44,9 +44,9 @@ The composition as currently defined breaks these boundaries a bit, but essentia
 
 Within a sharded cluster, the placement of keys in a collection on shards is determined by the "catalog", which stores information about which keys are "owned" by which shards. 
 
-The current specification [models a static catalog](https://github.com/muratdem/MDBTLA/blob/dc5fc9acdfc2f143c183b52558e4646402e0d80c/MultiShardTxn/MultiShardTxn.tla#L121), as a mapping from keys to shards that is fixed once at initialization and never changes. Eventually our goal is to model a dynamic catalog, which will require considerations around how the protocol interacts with chunk migration, shard versioning, etc. To extend the current specification to handle modifications of the catalog (i.e. placement changes) we expect we will need to expand the model to give each router and shard its own cached view of the catalog, and work towards a specification of the shard versioning protocol which handles proper handling of invalidation of this cache information across the cluster. 
+The current specification [models a static catalog](https://github.com/muratdem/MDBTLA/blob/dc5fc9acdfc2f143c183b52558e4646402e0d80c/MultiShardTxn/MultiShardTxn.tla#L121), as a mapping from keys to shards that is fixed once at initialization and never changes. Eventually our goal is to model a dynamic catalog, which will require considerations around how the protocol interacts with chunk migration, shard versioning, etc. To extend the current specification to handle modifications of the catalog (i.e. placement changes) we expect we will need to expand the model to give each router and shard its own cached view of the catalog, and work towards a specification of the shard versioning protocol which handles proper handling of invalidation of this cached information across the cluster. 
 
-So far we have also added [router specific catalog cache state](https://github.com/muratdem/MDBTLA/blob/3c144133c857f56fefe32b76ba2b5ae3f2d0d272/MultiShardTxn/MultiShardTxn.tla#L40-L41), but this is currently [initialized once](https://github.com/muratdem/MDBTLA/blob/3c144133c857f56fefe32b76ba2b5ae3f2d0d272/MultiShardTxn/MultiShardTxn.tla#L136-L137) and never modified.
+Currently we have also added [router specific catalog cache state](https://github.com/muratdem/MDBTLA/blob/3c144133c857f56fefe32b76ba2b5ae3f2d0d272/MultiShardTxn/MultiShardTxn.tla#L40-L41), but this is [initialized once](https://github.com/muratdem/MDBTLA/blob/3c144133c857f56fefe32b76ba2b5ae3f2d0d272/MultiShardTxn/MultiShardTxn.tla#L136-L137) and never modified.
 
 ## Model Checking Isolation
 
@@ -60,24 +60,23 @@ Essentially, MongoDB provides associated guarantees for a transaction only if it
 
 where we expect (1) to satisfy [snapshot isolation](https://jepsen.io/consistency/models/snapshot-isolation) and (2) to satisfy [repeatable reads](https://jepsen.io/consistency/models/repeatable-read).
 
-We verify snapshot isolation using the [client-centric isolation model of Crooks](https://www.cs.cornell.edu/lorenzo/papers/Crooks17Seeing.pdf), and utilizing the [formalization of this in TLA+](https://github.com/muratdem/MDBTLA/blob/3989af405310e74dee45a702be9831e0c6dad7ab/MultiShardTxn/ClientCentric.tla) by [Soethout](https://link.springer.com/chapter/10.1007/978-3-030-67220-1_4). To check isolation, we use a global history of transaction operations maintained in the [`ops`](https://github.com/muratdem/MDBTLA/blob/21d23fc50d391629e0a4d7a31c2cfc851c024a62/MultiShardTxn/MultiShardTxn.tla#L85-L86) map. The formal definitions of [snapshot isolation](https://github.com/muratdem/MDBTLA/blob/736182575d96acdf9961504b5daf28900671def6/MultiShardTxn/ClientCentric.tla#L177-L178) and [repeatable reads](https://github.com/muratdem/MDBTLA/blob/736182575d96acdf9961504b5daf28900671def6/MultiShardTxn/ClientCentric.tla#L208) in this model are given in the `ClientCentric.tla` file.
+We verify snapshot isolation using the [client-centric isolation model of Crooks](https://www.cs.cornell.edu/lorenzo/papers/Crooks17Seeing.pdf), and utilizing the [formalization of this in TLA+](https://github.com/muratdem/MDBTLA/blob/3989af405310e74dee45a702be9831e0c6dad7ab/MultiShardTxn/ClientCentric.tla) by [Soethout](https://link.springer.com/chapter/10.1007/978-3-030-67220-1_4). To check isolation, we use a global history of transaction operations maintained in the [`ops`](https://github.com/muratdem/MDBTLA/blob/21d23fc50d391629e0a4d7a31c2cfc851c024a62/MultiShardTxn/MultiShardTxn.tla#L85-L86) map. The formal definitions of [snapshot isolation](https://github.com/muratdem/MDBTLA/blob/736182575d96acdf9961504b5daf28900671def6/MultiShardTxn/ClientCentric.tla#L177-L178) and [repeatable reads](https://github.com/muratdem/MDBTLA/blob/736182575d96acdf9961504b5daf28900671def6/MultiShardTxn/ClientCentric.tla#L208) in this model are given in the [`ClientCentric.tla`](ClientCentric.tla) file. You can also see some concrete isolation tests defined in [`ClientCentricTests.tla`](ClientCentricTests.tla).
 
 So far we have checked small models for correctness e.g. for `"snapshot"` read concern:
 
 <!-- markdown table with 3 columns and 2 rows -->
 
-| Keys | TxId | Shard | Router | MaxStmts  | RC | Symmetry | Invariant | Time | States | Depth | Error |
-|------|------|-------|--------|----------| -----------| ------|------|------|------|------|------|
-| `{k1, k2}` | `{t1, t2}` | `{s1, s2}` | `{r1}` | `3` | `"snapshot"` | `Symmetry` | `SnapshotIsolation` | ~10 min | 35,002,143 | 37 |  None |
-| `{k1, k2, 3}` | `{t1, t2}` | `{s1, s2}` | `{r1}` | `3` | `"snapshot"` | `Symmetry` | `SnapshotIsolation` | ~1h | 139,659,282 | 37 | None |
+| Constants | Symmetry | Invariant | Time | States | Depth | Error |
+|------| ------|------|------|------|------|------|
+| <ul><li>`Keys={k1, k2}`</li><li>`TxId={t1, t2}`</li><li> `Router={r1}`</li> <li> `MaxStmts=3`</li> <li> `RC="snapshot"`</li>  </ul>| `Symmetry` | `SnapshotIsolation` | ~10 min | 35,002,143 | 37 |  None |
+| <ul><li>`Keys={k1, k2, k3}`</li><li>`TxId={t1, t2}`</li><li> `Router={r1}`</li> <li> `MaxStmts=3`</li> <li> `RC="snapshot"`</li>  </ul> | `Symmetry` | `SnapshotIsolation` | ~1h | 139,659,282 | 37 | None |
 
  and for `"local"` read concern:
 
-
-| Keys | TxId | Shard | Router | MaxStmts  | RC | Symmetry | Invariant | Time | States | Depth | Error |
-|------|------|-------|--------|----------| -----------| ------|------|------|------|------|------|
-| `{k1, k2}` | `{t1, t2}` | `{s1, s2}` | `{r1}` | `3` | `"local"` | `Symmetry` | `RepeatableReadIsolation` | ~2 min | 4,264,040 | 37 | None |
-| `{k1, k2, k3}` | `{t1, t2}` | `{s1, s2}` | `{r1}` | `3` | `"local"` | `Symmetry` | `RepeatableReadIsolation` | ~16 mins | 18,114,908 | 37 | None |
+| Constants | Symmetry | Invariant | Time | States | Depth | Error |
+|------| ------|------|------|------|------|------|
+| <ul><li>`Keys={k1, k2}`</li><li>`TxId={t1, t2}`</li><li> `Router={r1}`</li> <li> `MaxStmts=3`</li> <li> `RC="snapshot"`</li>  </ul>| `Symmetry` | `RepeatableReadIsolation` | ~2 min |4,264,040 | 37 |  None |
+| <ul><li>`Keys={k1, k2, k3}`</li><li>`TxId={t1, t2}`</li><li> `Router={r1}`</li> <li> `MaxStmts=3`</li> <li> `RC="snapshot"`</li>  </ul> | `Symmetry` | `RepeatableReadIsolation` | ~16 mins | 18,114,908 | 37 | None |
 
 You can also use the `check.py` script to run model checking more easily for a specified set of model parameters. The default model used for this script is defined in `MultiShardTxn.config.json`, and you can override its settings from the command line. 
 
