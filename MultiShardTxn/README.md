@@ -52,16 +52,16 @@ So far we have checked small models for correctness e.g. for `"snapshot"` read c
 
 | Keys | TxId | Shard | Router | MaxStmts  | RC | Symmetry | Invariant | Time | States | Depth | Error |
 |------|------|-------|--------|----------| -----------| ------|------|------|------|------|------|
-| `{k1, k2}` | `{t1, t2}` | `{s1, s2}` | `{r1}` | `3` | `"snapshot"` | `Symmetry` | `SnapshotIsolation` | 10 min | 10 min | 10 min |  None |
-| `{k1, k2}` | `{t1, t2, t3}` | `{s1, s2}` | `{r1}` | `3` | `"snapshot"` | `Symmetry` | `SnapshotIsolation` | 1h 4 mins | 10 min | 10 min | None |
+| `{k1, k2}` | `{t1, t2}` | `{s1, s2}` | `{r1}` | `3` | `"snapshot"` | `Symmetry` | `SnapshotIsolation` | ~10 min | 35,002,143 | 37 |  None |
+| `{k1, k2, 3}` | `{t1, t2}` | `{s1, s2}` | `{r1}` | `3` | `"snapshot"` | `Symmetry` | `SnapshotIsolation` | 1h 4 mins | 10 min | 10 min | None |
 
  and for `"local"` read concern:
 
 
 | Keys | TxId | Shard | Router | MaxStmts  | RC | Symmetry | Invariant | Time | States | Depth | Error |
 |------|------|-------|--------|----------| -----------| ------|------|------|------|------|------|
-| `{k1, k2}` | `{t1, t2}` | `{s1, s2}` | `{r1}` | `3` | `"local"` | `Symmetry` | `RepeatableReadIsolation` | ~10 min | 35,002,143 | 37 | None |
-| `{k1, k2}` | `{t1, t2, t3}` | `{s1, s2}` | `{r1}` | `3` | `"local"` | `Symmetry` | `RepeatableReadIsolation` | 10 min | 10 min | 10 min | None |
+| `{k1, k2}` | `{t1, t2}` | `{s1, s2}` | `{r1}` | `3` | `"local"` | `Symmetry` | `RepeatableReadIsolation` | ~2 min | 4,264,040 | 37 | None |
+| `{k1, k2, k3}` | `{t1, t2}` | `{s1, s2}` | `{r1}` | `3` | `"local"` | `Symmetry` | `RepeatableReadIsolation` | ~16 mins | 18,114,908 | 37 | None |
 
 ## Interaction with the Catalog and Migrations
 
