@@ -81,7 +81,9 @@ So far we have checked small models for correctness e.g. for `"snapshot"` read c
 | `{k1, k2}` | `{t1, t2}` | `{s1, s2}` | `{r1}` | `3` | `"local"` | `Symmetry` | `RepeatableReadIsolation` | ~2 min | 4,264,040 | 37 | None |
 | `{k1, k2, k3}` | `{t1, t2}` | `{s1, s2}` | `{r1}` | `3` | `"local"` | `Symmetry` | `RepeatableReadIsolation` | ~16 mins | 18,114,908 | 37 | None |
 
-You can also use the `check.py` script to run checking more easil for a given set of model parameters. The default model used for this script is defined in `MultiShardTxn.config.json`, and you can override its settings from the command line. For exampl, to check `RepeatableReadIsolation` at `"local"` read concern:
+You can also use the `check.py` script to run model checking more easily for a specified set of model parameters. The default model used for this script is defined in `MultiShardTxn.config.json`, and you can override its settings from the command line. 
+
+For example, to check `RepeatableReadIsolation` at `"local"` read concern, you can run something like the following command:
 
 ```bash
 python3 check.py --tlc_jar /usr/local/bin/tla2tools.jar --constants "Keys={k1,k2,k3}" "Shard={s1,s2}" "MaxStmts=3"  "RC=\"local\"" --invariants RepeatableReadIsolation --tlc_args "-workers 8 -cleanup -deadlock" 
