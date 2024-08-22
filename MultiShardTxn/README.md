@@ -57,7 +57,7 @@ So far we have checked small models for correctness e.g. for `"snapshot"` read c
 | Keys | TxId | Shard | Router | MaxStmts  | RC | Symmetry | Invariant | Time | States | Depth | Error |
 |------|------|-------|--------|----------| -----------| ------|------|------|------|------|------|
 | `{k1, k2}` | `{t1, t2}` | `{s1, s2}` | `{r1}` | `3` | `"snapshot"` | `Symmetry` | `SnapshotIsolation` | ~10 min | 35,002,143 | 37 |  None |
-| `{k1, k2, 3}` | `{t1, t2}` | `{s1, s2}` | `{r1}` | `3` | `"snapshot"` | `Symmetry` | `SnapshotIsolation` | 1h 4 mins | 10 min | 10 min | None |
+| `{k1, k2, 3}` | `{t1, t2}` | `{s1, s2}` | `{r1}` | `3` | `"snapshot"` | `Symmetry` | `SnapshotIsolation` | ~1h | 139,659,282 | 37 | None |
 
  and for `"local"` read concern:
 
