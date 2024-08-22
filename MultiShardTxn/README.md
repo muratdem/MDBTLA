@@ -9,9 +9,14 @@ The main specification resides in [`MultiShardTxn.tla`](MultiShardTxn.tla), whic
 
 ## Protocol Specification
 
-At a high level, the protocol modeled here can be viewed as a distributed transaction protocol implementing snapshot isolation. This is acheived this by running a two-phase commit style protocol against shards that individually implement snapshot isolated key-value stores, while also maintaining causally consistent timestamps across the cluster which are used to manage ordering and visibility between transactions. In practice, each shard is operated as a MongoDB replica set, providing fault tolerance for each shard. The main participants of the protocol consist of *client*, *router*, and *shard* roles.
+At a high level, the protocol modeled here can be viewed as a distributed transaction protocol implementing snapshot isolation. This is acheived this by running a two-phase commit style protocol against shards that individually implement snapshot isolated key-value stores, while also maintaining causally consistent timestamps across the cluster which are used to manage ordering and visibility between transactions. In practice, each shard is operated as a MongoDB replica set, providing fault tolerance for each shard. 
 
-The specification currently assumes there is a fixed set of shards, `Shard`, a set of routers, `Router`, a set of unique transaction ids, `TxId`, and a set of collection keys, `Key`. There is also a global read concern parameter, `RC`, which sets the reac concern setting for all transactions (at either `"local"` or `"snapshot"`).
+The main logical participants of the protocol consist of *client*, *router*, and *shard* roles, and currently utilizes the following constant parameters:
+-  `Shard`: a fixed set of shards. 
+-  `Router`: a set of routers. 
+-  `TxId`: a set of unique transaction ids. 
+-  `Key`: a set of collection keys. 
+-  `RC`: a global read concern parameter, which sets the read concern setting for all transactions (at either `"local"` or `"snapshot"`).
 
 ### Routers
 
