@@ -7,6 +7,8 @@ This directory contains formal specifications that model the high level behavior
 
 The main specification resides in [`MultiShardTxn.tla`](MultiShardTxn.tla), which models MongoDB's distributed, multi-document transaction protocol. 
 
+### Protocol Specification
+
 At a high level, the protocol modeled here can be viewed as a distributed transaction protocol implementing snapshot isolation. This is acheived this by running a two-phase commit style protocol against shards that individually implement snapshot isolated key-value stores, while also maintaining causally consistent timestamps across the clister which are used to manage ordering and visibility between transactions. In practice, each shard is operated as a MongoDB replica set, providing fault tolerance for each shard.
 
 The participants of the protocol consist of *client*, *router*, and *shard* roles.
@@ -27,16 +29,23 @@ Each shard essentially passively waits for transaction operations to be sent fro
 
 When a router initiates two-phase commit for a transaction, as described above, it hands off this responsibility to a coordinator shard, which is responsible for coordinating the commit process across all participant shards. The coordinator shard then sends *prepare* messages to all participant shards that were involved in the transaction, waits for affirmative responses from all shards, and then makes a decision to commit the transaction, sending out a message indicating this to all shards, which can then individually commit the transaction on that shard. Two-phase commit messages are then [exhanged between coordinator and participant](https://github.com/muratdem/MDBTLA/blob/a973471f74ebaf8b20150bbf97583a51bc82162d/MultiShardTxn/MultiShardTxn.tla#L588-L594) shards to drive the transaction to commit.
 
-## Modeling the Storage/Replication Layer at Shards
+### Modeling the Storage/Replication Layer at Shards
 
 The current model aimns to model the storage/replicatiop layer at each shard in a modular way. This is done by viewing `MDB` as encapsulatibg jost of the storage/replication specific logic, and [instantiating one of these modules per shard](https://github.com/muratdem/MDBTLA/blob/2fd5ddc7f4767aace7cfc4bd7ff19b44027de530/MultiShardTxn/MultiShardTxn.tla#L99-L109).
 
 The composition as currently defined breaks these boundaries a bit, but essentially the interface to the MDB instance at each shard is captured in [these wrapper definitions](https://github.com/muratdem/MDBTLA/blob/2fd5ddc7f4767aace7cfc4bd7ff19b44027de530/MultiShardTxn/MultiShardTxn.tla#L178-L238).
 
+### Interaction with the Catalog and Migrations
 
+<!-- based on routing logic determined by the "catalog". Essentially, the catalog is a mapping from keys to shards i.e., it determines the placement of keys in a collection across a sharded cluster.  -->
 
+Within a sharded cluster, the placement of keys in a collection on shards is determined by the "catalog", which stores information about which keys are "owned" by which shards. 
 
-## Model Checking Isolation Properties
+The current specification [models a static catalog](https://github.com/muratdem/MDBTLA/blob/dc5fc9acdfc2f143c183b52558e4646402e0d80c/MultiShardTxn/MultiShardTxn.tla#L121), as a mapping from keys to shards that is fixed once at initialization and never changes. Eventually our goal is to model a dynamic catalog, which will require considerations around how the protocol interacts with chunk migation, shard versioning, etc.
+
+TODO.
+
+## Model Checking Isolation
 
 Currently, we check some high level isolation safety properties of the transaction protocol specification. In MongoDB, consistency/isolation of a multi-document transaction is [determined by its read/write concern parameters](https://www.mongodb.com/docs/manual/core/transactions/), so we try to reflect those settings in our model and check them against standard isolation levels. 
 
@@ -67,15 +76,6 @@ So far we have checked small models for correctness e.g. for `"snapshot"` read c
 | `{k1, k2}` | `{t1, t2}` | `{s1, s2}` | `{r1}` | `3` | `"local"` | `Symmetry` | `RepeatableReadIsolation` | ~2 min | 4,264,040 | 37 | None |
 | `{k1, k2, k3}` | `{t1, t2}` | `{s1, s2}` | `{r1}` | `3` | `"local"` | `Symmetry` | `RepeatableReadIsolation` | ~16 mins | 18,114,908 | 37 | None |
 
-## Interaction with the Catalog and Migrations
-
-<!-- based on routing logic determined by the "catalog". Essentially, the catalog is a mapping from keys to shards i.e., it determines the placement of keys in a collection across a sharded cluster.  -->
-
-Within a sharded cluster, the placement of keys in a collection on shards is determined by the "catalog", which stores information about which keys are "owned" by which shards. 
-
-The current specification [models a static catalog](https://github.com/muratdem/MDBTLA/blob/dc5fc9acdfc2f143c183b52558e4646402e0d80c/MultiShardTxn/MultiShardTxn.tla#L121), as a mapping from keys to shards that is fixed once at initialization and never changes. Eventually our goal is to model a dynamic catalog, which will require considerations around how the protocol interacts with chunk migation, shard versioning, etc.
-
-TODO.
 
 ## Other specifications in this directory
 
