@@ -582,7 +582,7 @@ Next ==
     \/ \E r \in Router, s \in Shard, t \in TxId: RouterTxnCommitSingleShard(r, s, t)
     \* TODO: Enable this single write shard optimization once modeled fully.
     \* \/ \E r \in Router, t \in TxId: RouterTxnCommitSingleWriteShard(r, t)
-    \* \/ \E r \in Router, t \in TxId : RouterTxnAbort(r, t)
+    \/ \E r \in Router, t \in TxId : RouterTxnAbort(r, t)
     \* Shard transaction actions.
     \/ \E s \in Shard, tid \in TxId: ShardTxnStart(s, tid)
     \/ \E s \in Shard, tid \in TxId, k \in Keys: ShardTxnRead(s, tid, k)
