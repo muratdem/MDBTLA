@@ -2,8 +2,8 @@
 
 This directory contains formal specifications that model the high level behavior of the [distributed, cross-shard transactions protocol in MongoDB](https://github.com/mongodb/mongo/blob/master/src/mongo/db/s/README_sessions_and_transactions.md#transactions). You can interact with some models of the current specification on the web here: 
 
-- [MultiShardTxn (2 keys, 2 transactions, 2 shards)](https://will62794.github.io/tla-web/#!/home?specpath=https%3A%2F%2Fraw.githubusercontent.com%2Fmuratdem%2FMDBTLA%2Fmain%2FMultiShardTxn%2FMultiShardTxn.tla&constants%5BKeys%5D=%7Bk1%2Ck2%7D&constants%5BTxId%5D=%7Bt1%2Ct2%7D&constants%5BShard%5D=%7Bs1%2Cs2%7D&constants%5BNoValue%5D=%22NoVal%22&constants%5BWC%5D=%22majority%22&constants%5BRC%5D=%22snapshot%22&constants%5BMaxStmts%5D=2&constants%5BRouter%5D=%7Br1%7D&hiddenVars=epoch%2CcommitIndex%2Clsn%2Coverlap%2Caborted&explodedConstantExpr=Shard) 
-- [MultiShardTxn (3 keys, 3 transactions, 2 shards)](https://will62794.github.io/tla-web/#!/home?specpath=https%3A%2F%2Fraw.githubusercontent.com%2Fmuratdem%2FMDBTLA%2Fmain%2FMultiShardTxn%2FMultiShardTxn.tla&constants%5BKeys%5D=%7Bk1%2Ck2%2Ck3%7D&constants%5BTxId%5D=%7Bt1%2Ct2%2Ct3%7D&constants%5BShard%5D=%7Bs1%2Cs2%7D&constants%5BNoValue%5D=%22NoVal%22&constants%5BWC%5D=%22majority%22&constants%5BRC%5D=%22snapshot%22&constants%5BMaxStmts%5D=2&constants%5BRouter%5D=%7Br1%7D&hiddenVars=epoch%2CcommitIndex%2Clsn%2Coverlap%2Caborted&explodedConstantExpr=Shard) 
+- [MultiShardTxn (2 keys, 2 transactions, 2 shards)](https://will62794.github.io/tla-web/#!/home?specpath=https%3A%2F%2Fraw.githubusercontent.com%2Fmuratdem%2FMDBTLA%2Fmain%2FMultiShardTxn%2FMultiShardTxn.tla&constants%5BKeys%5D=%7Bk1%2Ck2%7D&constants%5BTxId%5D=%7Bt1%2Ct2%7D&constants%5BShard%5D=%7Bs1%2Cs2%7D&constants%5BNoValue%5D=%22NoVal%22&constants%5BWC%5D=%22majority%22&constants%5BRC%5D=%22snapshot%22&constants%5BMaxOpsPerTxn%5D=2&constants%5BRouter%5D=%7Br1%7D&hiddenVars=epoch%2CcommitIndex%2Clsn%2Coverlap%2Caborted&explodedConstantExpr=Shard) 
+- [MultiShardTxn (3 keys, 3 transactions, 2 shards)](https://will62794.github.io/tla-web/#!/home?specpath=https%3A%2F%2Fraw.githubusercontent.com%2Fmuratdem%2FMDBTLA%2Fmain%2FMultiShardTxn%2FMultiShardTxn.tla&constants%5BKeys%5D=%7Bk1%2Ck2%2Ck3%7D&constants%5BTxId%5D=%7Bt1%2Ct2%2Ct3%7D&constants%5BShard%5D=%7Bs1%2Cs2%7D&constants%5BNoValue%5D=%22NoVal%22&constants%5BWC%5D=%22majority%22&constants%5BRC%5D=%22snapshot%22&constants%5BMaxOpsPerTxn%5D=2&constants%5BRouter%5D=%7Br1%7D&hiddenVars=epoch%2CcommitIndex%2Clsn%2Coverlap%2Caborted&explodedConstantExpr=Shard) 
 
 The main specification resides in [`MultiShardTxn.tla`](MultiShardTxn.tla), which models MongoDB's distributed, multi-document transaction protocol. 
 
@@ -71,28 +71,26 @@ where we expect (1) to satisfy [snapshot isolation](https://jepsen.io/consistenc
 
 We verify snapshot isolation using the [client-centric isolation model of Crooks](https://www.cs.cornell.edu/lorenzo/papers/Crooks17Seeing.pdf), and utilizing the [formalization of this in TLA+](https://github.com/muratdem/MDBTLA/blob/3989af405310e74dee45a702be9831e0c6dad7ab/MultiShardTxn/ClientCentric.tla) by [Soethout](https://link.springer.com/chapter/10.1007/978-3-030-67220-1_4). To check isolation, we use a global history of transaction operations maintained in the [`ops`](https://github.com/muratdem/MDBTLA/blob/21d23fc50d391629e0a4d7a31c2cfc851c024a62/MultiShardTxn/MultiShardTxn.tla#L85-L86) map. The formal definitions of [snapshot isolation](https://github.com/muratdem/MDBTLA/blob/736182575d96acdf9961504b5daf28900671def6/MultiShardTxn/ClientCentric.tla#L177-L178) and [repeatable reads](https://github.com/muratdem/MDBTLA/blob/736182575d96acdf9961504b5daf28900671def6/MultiShardTxn/ClientCentric.tla#L208) in this model are given in the [`ClientCentric.tla`](ClientCentric.tla) file. You can also see some concrete isolation tests defined in [`ClientCentricTests.tla`](ClientCentricTests.tla).
 
-So far we have checked small models for correctness e.g. for `"snapshot"` read concern:
-
-<!-- markdown table with 3 columns and 2 rows -->
+So far we have checked small models for correctness, using the `MaxOpsPerTxn` parameter and `StateConstraint` constraint to bound the maximum bumber of operations run by each transaction. For example, we have checked models for `"snapshot"` read concern:
 
 | Constants | Symmetry | Invariant | Time | States | Depth | Error |
 |------| ------|------|------|------|------|------|
-| <ul><li>`Keys={k1, k2}`</li><li>`TxId={t1, t2}`</li><li> `Router={r1}`</li> <li> `MaxStmts=3`</li> <li> `RC="snapshot"`</li>  </ul>| `Symmetry` | `SnapshotIsolation` | ~10 min | 35,002,143 | 37 |  None |
-| <ul><li>`Keys={k1, k2, k3}`</li><li>`TxId={t1, t2}`</li><li> `Router={r1}`</li> <li> `MaxStmts=3`</li> <li> `RC="snapshot"`</li>  </ul> | `Symmetry` | `SnapshotIsolation` | ~1h | 139,659,282 | 37 | None |
+| <ul><li>`Keys={k1, k2}`</li><li>`TxId={t1, t2}`</li><li> `Router={r1}`</li> <li> `MaxOpsPerTxn=3`</li> <li> `RC="snapshot"`</li>  </ul>| `Symmetry` | `SnapshotIsolation` | ~10 min | 35,002,143 | 37 |  None |
+| <ul><li>`Keys={k1, k2, k3}`</li><li>`TxId={t1, t2}`</li><li> `Router={r1}`</li> <li> `MaxOpsPerTxn=3`</li> <li> `RC="snapshot"`</li>  </ul> | `Symmetry` | `SnapshotIsolation` | ~1h | 139,659,282 | 37 | None |
 
  and for `"local"` read concern:
 
 | Constants | Symmetry | Invariant | Time | States | Depth | Error |
 |------| ------|------|------|------|------|------|
-| <ul><li>`Keys={k1, k2}`</li><li>`TxId={t1, t2}`</li><li> `Router={r1}`</li> <li> `MaxStmts=3`</li> <li> `RC="local"`</li>  </ul>| `Symmetry` | `RepeatableReadIsolation` | ~2 min |4,264,040 | 37 |  None |
-| <ul><li>`Keys={k1, k2, k3}`</li><li>`TxId={t1, t2}`</li><li> `Router={r1}`</li> <li> `MaxStmts=3`</li> <li> `RC="local"`</li>  </ul> | `Symmetry` | `RepeatableReadIsolation` | ~16 mins | 18,114,908 | 37 | None |
+| <ul><li>`Keys={k1, k2}`</li><li>`TxId={t1, t2}`</li><li> `Router={r1}`</li> <li> `MaxOpsPerTxn=3`</li> <li> `RC="local"`</li>  </ul>| `Symmetry` | `RepeatableReadIsolation` | ~2 min |4,264,040 | 37 |  None |
+| <ul><li>`Keys={k1, k2, k3}`</li><li>`TxId={t1, t2}`</li><li> `Router={r1}`</li> <li> `MaxOpsPerTxn=3`</li> <li> `RC="local"`</li>  </ul> | `Symmetry` | `RepeatableReadIsolation` | ~16 mins | 18,114,908 | 37 | None |
 
 You can also use the `check.py` script to run model checking more easily for a specified set of model parameters. The default model used for this script is defined in `MultiShardTxn.config.json`, and you can override its settings from the command line. 
 
 For example, to check `RepeatableReadIsolation` at `"local"` read concern, you can run something like the following command:
 
 ```bash
-python3 check.py --tlc_jar /usr/local/bin/tla2tools.jar --constants "Keys={k1,k2,k3}" "Shard={s1,s2}" "MaxStmts=3"  "RC=\"local\"" --invariants RepeatableReadIsolation --tlc_args "-workers 8 -cleanup -deadlock" 
+python3 check.py --tlc_jar /usr/local/bin/tla2tools.jar --constants "Keys={k1,k2,k3}" "Shard={s1,s2}" "MaxOpsPerTxn=3"  "RC=\"local\"" --invariants RepeatableReadIsolation --tlc_args "-workers 8 -cleanup -deadlock" 
 ```
 
 ## Other specifications in this directory

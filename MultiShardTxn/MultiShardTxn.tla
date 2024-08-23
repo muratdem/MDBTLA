@@ -662,7 +662,7 @@ BaitLog ==
 
 -----------------------------------------
 
-CONSTANT MaxStmts
+CONSTANT MaxOpsPerTxn
 
 KeysOwnedByShard(s) == { k \in Keys : catalog[k] = s }
 
@@ -677,7 +677,7 @@ InitCatalogConstraintKeysOnDifferentShards ==
 
 \* Don't execute more than a max number of statements per transaction.
 StateConstraint == 
-    /\ \A t \in TxId, r \in Router : rtxn[r][t] <= MaxStmts
+    /\ \A t \in TxId, r \in Router : rtxn[r][t] <= MaxOpsPerTxn
     
 Symmetry == Permutations(TxId) \cup Permutations(Keys) \cup Permutations(Shard) \cup Permutations(Router)
 
@@ -700,7 +700,7 @@ AllRunningTransactionsTerminate == \A s \in Shard : (shardTxns[s] # {}) ~> (shar
 
 \* Set of all sequences over S of max length len.
 BoundedSeq(S, n) == UNION {[1..i -> S] : i \in 0..n}
-Transaction == BoundedSeq(CC!Operation, MaxStmts)
+Transaction == BoundedSeq(CC!Operation, MaxOpsPerTxn)
 
 AllTxns == [TxId -> Transaction]
 AllTxnsReadCommitted == {ts \in AllTxns : CC!ReadCommitted(InitialState, Range(ts))}
