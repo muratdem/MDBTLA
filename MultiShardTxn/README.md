@@ -44,7 +44,7 @@ The composition as currently defined breaks these boundaries a bit, but essentia
 
 Timestamps are used in the sharded transaction protocol to manage ordering and visibility of transactions across the cluster. Timestamps are used in global transaction *read timestamps*, and also for *prepare* and *commit* timestamps in the two-phase commit protocol. We currently try to model things in as general a way as possible, so we allow routers, for example, to select any read timestamp within the range of current timestamp history, even though the implementation selects timestamp more strictly e.g. based on the latest cluster timestamp it knows about. 
 
-Timestamp selection at shards occurs on prepare and commit (by the coordinator), and it should the case that timestamps only need to satisfy a few conditions for correctness. First, commit tinestamps on a local shard should increase monotonically, to give a total order of committed transactions on that shard. This can be enforced by advancing the "next timestamp" to be used whenece a transaction prepares or commits. The key property for snapshot isolation correctness seems to be that if a transaction reads at a timestamp T, then it must be true that no transaxtion ever commits at a timestamp < T in future i.e. so that the read knows about the "consistent" history of transactions visuble up to that timestamp. 
+Timestamp selection at shards occurs on prepare and commit (by the coordinator), and it should be the case that timestamps only need to satisfy a few conditions for correctness. First, commit tinestamps on a local shard should increase monotonically, to give a total order of committed transactions on that shard. This can be enforced by advancing the "next timestamp" to be used whenece a transaction prepares or commits. A key property for snapshot isolation correctness seems to be that if a transaction reads at a timestamp T, then it must be true that no transaxtion ever commits at a timestamp < T in future i.e. so that the read knows about the "consistent" history of transactions visuble up to that timestamp. 
 
 Technically, this ordering criterion should only be true for sets of causally related transactions, since, for example, non-conflicting transactios may run concurrently on different sets of shards and commit, for example, at the same timestamp, or one commits behind the other, which should be acceptable if their read/write sets are disjoint.
 
@@ -57,7 +57,7 @@ The current specification [models a static catalog](https://github.com/muratdem/
 
 Currently we have also added [router specific catalog cache state](https://github.com/muratdem/MDBTLA/blob/3c144133c857f56fefe32b76ba2b5ae3f2d0d272/MultiShardTxn/MultiShardTxn.tla#L40-L41), but this is [initialized once](https://github.com/muratdem/MDBTLA/blob/3c144133c857f56fefe32b76ba2b5ae3f2d0d272/MultiShardTxn/MultiShardTxn.tla#L136-L137) and never modified.
 
-## Model Checking Isolation
+## Model Checking Isolation Guarantees
 
 Currently, we check some high level isolation safety properties of the transaction protocol specification. In MongoDB, consistency/isolation of a multi-document transaction is [determined by its read/write concern parameters](https://www.mongodb.com/docs/manual/core/transactions/), so we try to reflect those settings in our model and check them against standard isolation levels. 
 
