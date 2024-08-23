@@ -57,9 +57,6 @@ VARIABLE mepoch
 \* Stores snapshots for running transactions on the underlying MongoDB instance.
 VARIABLE mtxnSnapshots
 
-\* Represents the next timestamp to use in this oplog i.e. the local "cluster" time.
-VARIABLE mnextTs
-
 mvars == <<mlog, mcommitIndex, mepoch, mtxnSnapshots>>
 
 TypesOK ==
@@ -267,7 +264,6 @@ Init_mlog == <<>>
 Init_mcommitIndex == 0
 Init_mepoch == 1
 Init_mtxnSnapshots == [t \in MTxId |-> Nil]
-Init_mnextTs == 1
 
 \* Init ==
 \*     /\ mlog = <<>>
