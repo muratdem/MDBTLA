@@ -97,8 +97,8 @@ python3 check.py --tlc_jar /usr/local/bin/tla2tools.jar --constants "Keys={k1,k2
 
 ## Other specifications in this directory
 
-- `MDB.tla`: This spec models the replica set as a single log at a high level
+- `MDB.tla`: This spec models the replication/storage level at an abstract level.
 
-- `ClientCentric.tla`: (from Tim Soethout's [work](https://github.com/cwi-swat/tla-ci)) We use this to be able to properly check transactions for snapshot isolation semantics.
+- `ClientCentric.tla`: (from Tim Soethout's [work](https://github.com/cwi-swat/tla-ci)) We use this to be able to check transactions for snapshot isolation semantics.
 
 
