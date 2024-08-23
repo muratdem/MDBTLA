@@ -125,6 +125,13 @@ ReadAtTime(token, key) ==
 
 --------------------------------------------------------
 
+PrepareOrCommitTimestamps == {IF "ts" \in DOMAIN e THEN e.ts ELSE  0 : e \in Range(mlog)}
+
+ActiveReadTimestamps == { IF mtxnSnapshots[tx] = Nil THEN 0 ELSE mtxnSnapshots[tx].ts : tx \in DOMAIN mtxnSnapshots}
+
+\* Next timestamp to use for a transaction operation.
+NextTs == Max(PrepareOrCommitTimestamps \cup ActiveReadTimestamps) + 1
+
 \* 
 \* Perform a snapshot read of a given key at timestamp.
 \* 
@@ -212,12 +219,11 @@ UpdateSnapshot(tid, k, v) == [mtxnSnapshots EXCEPT ![tid].data[k] = v]
 SnapshotUpdatedKeys(tid) == {k \in Keys : mtxnSnapshots[tid] # Nil /\ mtxnSnapshots[tid].data[k] = tid}
 
 CommitTxnToLog(tid, commitTs) == 
-    \* It a transaction has no updates, then no log write is needed.
-    IF SnapshotUpdatedKeys(tid) = {} 
-        THEN mlog 
-        ELSE Append(mlog, [data |-> [key \in SnapshotUpdatedKeys(tid) |-> tid], ts |-> commitTs, tid |-> tid])
+    \* Even for read only transactions, we write a no-op to the log.
+    Append(mlog, [data |-> [key \in SnapshotUpdatedKeys(tid) |-> tid], ts |-> commitTs, tid |-> tid])
 
-\*  SetToSeq({[key |-> key, value |-> tid] : key \in SnapshotUpdatedKeys(tid)})
+PrepareTxnToLog(tid, prepareTs) ==
+    Append(mlog, [prepare |-> TRUE, ts |-> prepareTs, tid |-> tid])
 
 TxnCanStart(tid, readTs) ==
     \* Cannot start a transaction at a timestamp T if there is another 

@@ -198,7 +198,7 @@ ShardMDBTxnStart(s, tid, readTs, rc) ==
     \* Save a snapshot of the current MongoDB instance at this shard for this transaction to use.
     /\ txnSnapshots' = [txnSnapshots EXCEPT ![s][tid] = ShardMDB(s)!SnapshotKV(readTs, rc)]
     \* If we start at a read timestamp newer than our next timestamp, advance nextTs to it.
-    /\ nextTs' = [nextTs EXCEPT ![s] = IF readTs >= nextTs[s] THEN readTs + 1 ELSE nextTs[s]]
+    /\ nextTs' = nextTs \* [nextTs EXCEPT ![s] = IF readTs >= nextTs[s] THEN readTs + 1 ELSE nextTs[s]]
     /\ UNCHANGED <<log, commitIndex, epoch>>
    
 \* Writes to the local KV store of a shard.
@@ -221,14 +221,13 @@ ShardMDBTxnCommit(s, tid, commitTs) ==
     \* Write all updated keys back to the shard oplog.
     /\ log' = [log EXCEPT ![s] = ShardMDB(s)!CommitTxnToLog(tid, commitTs)]
     /\ txnSnapshots' = [txnSnapshots EXCEPT ![s][tid] = NoValue]
-    /\ nextTs' = [nextTs EXCEPT ![s] = nextTs[s] + 1]
+    /\ nextTs' = nextTs \* [nextTs EXCEPT ![s] = nextTs[s] + 1]
     /\ UNCHANGED <<epoch, commitIndex>>
 
 ShardMDBTxnPrepare(s, tid, prepareTs) == 
     /\ txnSnapshots' = [txnSnapshots EXCEPT ![s][tid]["prepared"] = TRUE]
-    \* Assign prepare timestamp to be the same as log entry index.
-    /\ log' = [log EXCEPT ![s] = Append(log[s], [prepare |-> TRUE, ts |-> prepareTs, tid |-> tid])]
-    /\ nextTs' = [nextTs EXCEPT ![s] = nextTs[s] + 1]
+    /\ log' = [log EXCEPT ![s] = ShardMDB(s)!PrepareTxnToLog(tid, prepareTs)]
+    /\ nextTs' = nextTs \* [nextTs EXCEPT ![s] = nextTs[s] + 1]
     /\ UNCHANGED <<commitIndex, epoch>>
 
 ShardMDBTxnAbort(s, tid) == 
@@ -346,7 +345,7 @@ RouterTxnCommitReadOnly(r, s, tid) ==
     \* Shard hasn't aborted.
     /\ ~aborted[s][tid]
     \* Send commit message directly to shard (bypass 2PC).
-    /\ msgsCommit' = msgsCommit \cup { [shard |-> sp[1], tid |-> tid, commitTs |-> 0] : sp \in Range(rParticipants[r][tid])}
+    /\ msgsCommit' = msgsCommit \cup { [shard |-> sp[1], tid |-> tid, commitTs |-> NoValue] : sp \in Range(rParticipants[r][tid])}
     /\ rInCommit' = [rInCommit EXCEPT ![r][tid] = TRUE]
     /\ UNCHANGED << rCatalog, shardTxns,   aborted, shardTxnReqs, rtxn, log, commitIndex, epoch, txnSnapshots, ops, rParticipants, coordInfo, msgsVoteCommit, coordCommitVotes, catalog, msgsAbort, msgsPrepare, rTxnReadTs, shardPreparedTxns, shardOps, nextTs >>
 
@@ -533,7 +532,8 @@ ShardTxnPrepare(s, tid) ==
         /\ shardPreparedTxns' = [shardPreparedTxns EXCEPT ![s] = shardPreparedTxns[s] \union {tid}]
         \* Prepare and then send your vote to the coordinator.
         \* Prepare timestamp will be the same timestamp as the logged prepare entry.
-        /\ LET prepareTs == nextTs[s] IN
+        /\ LET prepareTsjj == nextTs[s] 
+               prepareTs == ShardMDB(s)!NextTs IN
             /\ msgsVoteCommit' = msgsVoteCommit \cup { [shard |-> s, tid |-> tid, to |-> m.coordinator, prepareTs |-> prepareTs] }
             \* Prepare the transaction in the underyling snapshot store.
             /\ ShardMDBTxnPrepare(s, tid, prepareTs)
@@ -552,7 +552,7 @@ ShardTxnCommit(s, tid) ==
         /\ shardTxnReqs' = [shardTxnReqs EXCEPT ![s][tid] = <<>>]
         /\ ops' = [ops EXCEPT ![tid] = ops[tid] \o shardOps[s][tid]]
         /\ \* If no commit timestamp was provided, then we use the next local timestamp.
-            LET commitTs == IF m.commitTs = NoValue THEN nextTs[s] ELSE m.commitTs IN
+            LET commitTs == IF m.commitTs = NoValue THEN ShardMDB(s)!NextTs ELSE m.commitTs IN
                 ShardMDBTxnCommit(s, tid, commitTs)
     /\ UNCHANGED <<rCatalog, epoch, coordInfo, msgsPrepare, msgsVoteCommit, coordCommitVotes, catalog, msgsAbort, aborted, shardOps, varsRouter >>
 
