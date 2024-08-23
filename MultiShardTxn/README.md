@@ -40,6 +40,15 @@ The current model aims to model the storage/replication layer (e.g. including ab
 
 The composition as currently defined breaks these boundaries a bit, but essentially the interface to the MDB instance at each shard is captured in [these wrapper definitions](https://github.com/muratdem/MDBTLA/blob/2fd5ddc7f4767aace7cfc4bd7ff19b44027de530/MultiShardTxn/MultiShardTxn.tla#L178-L238). Ideally we would like to define MDB as a completely independent state machine that is composed synchronously with `MultiShardTxn` via joint actions, but in practice there are [some difficulties](https://groups.google.com/g/tlaplus/c/77DR8ngQllo) with defining this cleanly.
 
+### Cluster Timestamp Semantics
+
+Timestamps are used in the sharded transaction protocol to manage ordering and visibility of transactions across the cluster. Timestamps are used in global transaction *read timestamps*, and also for *prepare* and *commit* timestamps in the two-phase commit protocol. We currently try to model things in as general a way as possible, so we allow routers, for example, to select any read timestamp within the range of current timestamp history, even though the implementation selects timestamp more strictly e.g. based on the latest cluster timestamp it knows about. 
+
+Timestamp selection at shards occurs on prepare and commit (by the coordinator), and it should the case that timestamps only need to satisfy a few conditions for correctness. First, commit tinestamps on a local shard should increase monotonically, to give a total order of committed transactions on that shard. This can be enforced by advancing the "next timestamp" to be used whenece a transaction prepares or commits. The key property for snapshot isolation correctness seems to be that if a transaction reads at a timestamp T, then it must be true that no transaxtion ever commits at a timestamp < T in future i.e. so that the read knows about the "consistent" history of transactions visuble up to that timestamp. 
+
+Technically, this ordering criterion should only be true for sets of causally related transactions, since, for example, non-conflicting transactios may run concurrently on different sets of shards and commit, for example, at the same timestamp, or one commits behind the other, which should be acceptable if their read/write sets are disjoint.
+
+
 ### Interaction with the Catalog and Migrations
 
 Within a sharded cluster, the placement of keys in a collection on shards is determined by the "catalog", which stores information about which keys are "owned" by which shards. 
