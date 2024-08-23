@@ -57,17 +57,19 @@ The current specification [models a static catalog](https://github.com/muratdem/
 
 Currently we have also added [router specific catalog cache state](https://github.com/muratdem/MDBTLA/blob/3c144133c857f56fefe32b76ba2b5ae3f2d0d272/MultiShardTxn/MultiShardTxn.tla#L40-L41), but this is [initialized once](https://github.com/muratdem/MDBTLA/blob/3c144133c857f56fefe32b76ba2b5ae3f2d0d272/MultiShardTxn/MultiShardTxn.tla#L136-L137) and never modified.
 
-## Model Checking Isolation Guarantees
+## Checking Isolation Guarantees
 
 Currently, we check some high level isolation safety properties of the transaction protocol specification. In MongoDB, consistency/isolation of a multi-document transaction is [determined by its read/write concern parameters](https://www.mongodb.com/docs/manual/core/transactions/), so we try to reflect those settings in our model and check them against standard isolation levels. 
 
 Essentially, MongoDB provides associated guarantees for a transaction only if it commits at `w:majority`, so in practice it is the selection of `readConcern` that determines the transaction's consistency semantics. Furthermore, due to the implementation of [*speculative majority*](https://github.com/mongodb/mongo/blob/2aaaa4c0ca6281088d766def53e86b01c99a8dba/src/mongo/db/repl/README.md#read-concern-behavior-within-transactions), "local" and "majority" read concern behave in the same way during establishment of the transaction on each shard (i.e. they don't read from a consistent timestamp across shards). So, we focus on two distinct classes of guarantees:
 
-
 1. `{readConcern: "snapshot", writeConcern: "majority"}`
 2. `{readConcern: "local"/"majority", writeConcern: "majority"}`
 
-where we expect (1) to satisfy [snapshot isolation](https://jepsen.io/consistency/models/snapshot-isolation) and (2) to satisfy [repeatable reads](https://jepsen.io/consistency/models/repeatable-read).
+where we expect (1) to satisfy [snapshot isolation](https://jepsen.io/consistency/models/snapshot-isolation) and (2) to satisfy [repeatable reads](https://jepsen.io/consistency/models/repeatable-read). 
+
+Note that we expect (2) to satisfy repeatable reads but not snapshot isolation, since transactions will essentially execute on each shard (locally) at snapshot isolation, but they may not read from a consistent snapshot across shards. For example, you can see a snapshot violation when running at read concern "local" [here](https://github.com/muratdem/MDBTLA/blob/70c370f87066740e485a4d8b2cd5bccd84e9fd2f/MultiShardTxn/cexs/snapshot_violation_at_local.txt). Clearly, we expect repeatable reads to be satisfied, though, since having snapshot isolation locally at each shard should imply read-committed semantics and repeatable reads (since SI provides repeatable reads). That is, repeatable reads should permit reads of different keys in a transaction to [read from different snapshots](https://github.com/muratdem/MDBTLA/blob/70c370f87066740e485a4d8b2cd5bccd84e9fd2f/MultiShardTxn/ClientCentricTests.tla#L115-L131), as long as each read of the same key reads from a consistent snapshot. 
+
 
 We verify snapshot isolation using the [client-centric isolation model of Crooks](https://www.cs.cornell.edu/lorenzo/papers/Crooks17Seeing.pdf), and utilizing the [formalization of this in TLA+](https://github.com/muratdem/MDBTLA/blob/3989af405310e74dee45a702be9831e0c6dad7ab/MultiShardTxn/ClientCentric.tla) by [Soethout](https://link.springer.com/chapter/10.1007/978-3-030-67220-1_4). To check isolation, we use a global history of transaction operations maintained in the [`ops`](https://github.com/muratdem/MDBTLA/blob/21d23fc50d391629e0a4d7a31c2cfc851c024a62/MultiShardTxn/MultiShardTxn.tla#L85-L86) map. The formal definitions of [snapshot isolation](https://github.com/muratdem/MDBTLA/blob/736182575d96acdf9961504b5daf28900671def6/MultiShardTxn/ClientCentric.tla#L177-L178) and [repeatable reads](https://github.com/muratdem/MDBTLA/blob/736182575d96acdf9961504b5daf28900671def6/MultiShardTxn/ClientCentric.tla#L208) in this model are given in the [`ClientCentric.tla`](ClientCentric.tla) file. You can also see some concrete isolation tests defined in [`ClientCentricTests.tla`](ClientCentricTests.tla).
 
@@ -92,6 +94,10 @@ For example, to check `RepeatableReadIsolation` at `"local"` read concern, you c
 ```bash
 python3 check.py --tlc_jar /usr/local/bin/tla2tools.jar --constants "Keys={k1,k2,k3}" "Shard={s1,s2}" "MaxOpsPerTxn=3"  "RC=\"local\"" --invariants RepeatableReadIsolation --tlc_args "-workers 8 -cleanup -deadlock" 
 ```
+
+### Note on Write Concern and Rollback
+
+Note that we don't really model replication rollback and the semantics of different write concerns in the current model. The thought is that transactions that commit at `w:1` may abort, and so provide no semantic sguarantees to clients. Also, if a transaction reads at a "local" snapshot when it starts, transaction commit at `w:majority` will require some write to commit on that shard after its timestamp ,so successful commit impies all data it read must have been majority committed (i.e. the speculative majority notion). So, we don't represent the case where a transaction reads some data that is then later rolled back.
 
 ## Other specifications in this directory
 
