@@ -148,7 +148,7 @@ SnapshotKV(ts, rc) ==
     \* Local reads just read at the latest timestamp in the log.
     LET readTs == IF rc = "snapshot" THEN ts ELSE Len(mlog) IN
     [
-        ts |-> ts,
+        ts |-> readTs,
         data |-> [k \in Keys |-> SnapshotRead(k, readTs).value],
         prepared |-> FALSE,
         readSet |-> {}

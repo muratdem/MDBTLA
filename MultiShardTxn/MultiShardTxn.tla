@@ -10,7 +10,12 @@ CONSTANT Router
 CONSTANT Shard
 
 CONSTANT NoValue
-CONSTANTS WC, RC
+
+\* Global read concern setting for all transactions.
+CONSTANTS RC
+
+\* Write concern setting currently has no impact on protocol behavior.
+CONSTANTS WC
 
 \* Instantiating ClientCentric enables us to check transaction isolation guarantees
 \* https://muratbuffalo.blogspot.com/2022/07/automated-validation-of-state-based.html         
