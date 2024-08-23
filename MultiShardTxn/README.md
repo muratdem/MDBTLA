@@ -44,9 +44,9 @@ The composition as currently defined breaks these boundaries a bit, but essentia
 
 Timestamps are used in the sharded transaction protocol to manage ordering and visibility of transactions across the cluster. Timestamps are used in global transaction *read timestamps*, and also for *prepare* and *commit* timestamps in the two-phase commit protocol. We currently try to model things in as general a way as possible, so we allow routers, for example, to [select any read timestamp](https://github.com/muratdem/MDBTLA/blob/11f864d9724f4dd01e204b55f48ebd40e8997eb5/MultiShardTxn/MultiShardTxn.tla#L586) within the range of current timestamp history, even though the implementation may select timestamps more strictly e.g. based on the latest cluster timestamp it knows about. 
 
-Timestamp selection at shards occurs on prepare and commit (by the coordinator), and it should be the case that timestamps only need to satisfy a few conditions for correctness. First, commit timestamps on a local shard should increase monotonically, to give a total order of committed transactions on that shard. This can be enforced by [choosing the "next timestamp" ](https://github.com/muratdem/MDBTLA/blob/776b545ac33df8e2bef5bab49d7ce4247e29a35d/MultiShardTxn/MDB.tla#L129-L130) appropriately. A key property for snapshot isolation correctness seems to be that if a transaction reads at a timestamp T, then it must be true that no transaction ever commits at a timestamp < T in future i.e. so that the read knows about the "consistent" history of transactions visuble up to that timestamp. 
+Timestamp selection at shards occurs on prepare and commit (by the coordinator), and it should be the case that timestamps only need to satisfy a few conditions for correctness. First, commit timestamps on a local shard should increase monotonically, to give a total order of committed transactions on that shard. This can be enforced by [choosing the "next timestamp" ](https://github.com/muratdem/MDBTLA/blob/776b545ac33df8e2bef5bab49d7ce4247e29a35d/MultiShardTxn/MDB.tla#L129-L130) appropriately. A key property for snapshot isolation correctness seems to be that if a transaction reads at a timestamp T, then it must be true that no transaction ever commits at a timestamp < T in future i.e. so that the read knows about the "consistent" history of transactions visible up to that timestamp. 
 
-Technically, this ordering criterion should only be true for sets of causally related transactions, since, for example, non-conflicting transactios may run concurrently on different sets of shards and commit, for example, at the same timestamp, or one commits behind the other, which should be acceptable if their read/write sets are disjoint.
+Technically, this ordering criterion should only be true for sets of causally related transactions, since, for example, non-conflicting transactions may run concurrently on different sets of shards and commit, for example, at the same timestamp, or one commits behind the other, which should be acceptable if their read/write sets are disjoint.
 
 
 ### Interaction with the Catalog and Migrations
@@ -88,8 +88,8 @@ So far we have checked small models for correctness, using the `MaxOpsPerTxn` pa
 
 | Constants | Symmetry | Invariant | Time | States | Depth | Error |
 |------| ------|------|------|------|------|------|
-| <ul><li>`Keys={k1, k2}`</li><li>`TxId={t1, t2}`</li><li> `Router={r1}`</li> <li> `MaxOpsPerTxn=3`</li> <li> `RC="local"`</li>  </ul>| `Symmetry` | `RepeatableReadIsolation` | ~2 min |4,264,040 | 37 |  None |
-| <ul><li>`Keys={k1, k2, k3}`</li><li>`TxId={t1, t2}`</li><li> `Router={r1}`</li> <li> `MaxOpsPerTxn=3`</li> <li> `RC="local"`</li>  </ul> | `Symmetry` | `RepeatableReadIsolation` | ~16 mins | 18,114,908 | 37 | None |
+| <ul><li>`Keys={k1, k2}`</li><li>`TxId={t1, t2}`</li><li> `Router={r1}`</li> <li> `MaxOpsPerTxn=3`</li> <li> `RC="local"`</li>  </ul>| `Symmetry` | `RepeatableReadIsolation` | ~1 min | 1,866,913 | 37 |  None |
+| <ul><li>`Keys={k1, k2, k3}`</li><li>`TxId={t1, t2}`</li><li> `Router={r1}`</li> <li> `MaxOpsPerTxn=3`</li> <li> `RC="local"`</li>  </ul> | `Symmetry` | `RepeatableReadIsolation` | ~20 mins | 19,396,674 | 38 | None |
 
 You can also use the `check.py` script to run model checking more easily for a specified set of model parameters. The default model used for this script is defined in `MultiShardTxn.config.json`, and you can override its settings from the command line. 
 
