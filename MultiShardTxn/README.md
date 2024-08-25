@@ -81,7 +81,7 @@ So far we have checked small models for correctness, using the `MaxOpsPerTxn` pa
 
 | Constants | Symmetry | Invariant | Time | States | Depth | Error |
 |------| ------|------|------|------|------|------|
-| <ul><li>`Keys={k1, k2}`</li><li>`TxId={t1, t2}`</li><li> `Router={r1}`</li> <li> `MaxOpsPerTxn=3`</li> <li> `RC="snapshot"`</li>  </ul>| `Symmetry` | `SnapshotIsolation` | ~10 min | 35,002,143 | 37 |  None |
+| <ul><li>`Keys={k1, k2}`</li><li>`TxId={t1, t2}`</li><li> `Router={r1}`</li> <li> `MaxOpsPerTxn=3`</li> <li> `RC="snapshot"`</li>  </ul>| `Symmetry` | `SnapshotIsolation` | ~3 h | 149,223,068 | 39 |  None |
 | <ul><li>`Keys={k1, k2, k3}`</li><li>`TxId={t1, t2}`</li><li> `Router={r1}`</li> <li> `MaxOpsPerTxn=3`</li> <li> `RC="snapshot"`</li>  </ul> | `Symmetry` | `SnapshotIsolation` | ~1h | 139,659,282 | 37 | None |
 
  and for `"local"` read concern:
