@@ -82,14 +82,14 @@ So far we have checked small models for correctness, using the `MaxOpsPerTxn` pa
 | Constants | Symmetry | Invariant | Time | States | Depth | Error |
 |------| ------|------|------|------|------|------|
 | <ul><li>`Keys={k1, k2}`</li><li>`TxId={t1, t2}`</li><li> `Router={r1}`</li> <li> `MaxOpsPerTxn=3`</li> <li> `RC="snapshot"`</li>  </ul>| `Symmetry` | `SnapshotIsolation` | ~3 h | 149,223,068 | 39 |  None |
-| <ul><li>`Keys={k1, k2, k3}`</li><li>`TxId={t1, t2}`</li><li> `Router={r1}`</li> <li> `MaxOpsPerTxn=3`</li> <li> `RC="snapshot"`</li>  </ul> | `Symmetry` | `SnapshotIsolation` | ~1h | 139,659,282 | 37 | None |
+| <ul><li>`Keys={k1, k2, k3}`</li><li>`TxId={t1, t2}`</li><li> `Router={r1}`</li> <li> `MaxOpsPerTxn=3`</li> <li> `RC="snapshot"`</li>  </ul> | `Symmetry` | `SnapshotIsolation` | - | - | - | None |
 
  and for `"local"` read concern:
 
 | Constants | Symmetry | Invariant | Time | States | Depth | Error |
 |------| ------|------|------|------|------|------|
 | <ul><li>`Keys={k1, k2}`</li><li>`TxId={t1, t2}`</li><li> `Router={r1}`</li> <li> `MaxOpsPerTxn=3`</li> <li> `RC="local"`</li>  </ul>| `Symmetry` | `RepeatableReadIsolation` | ~45 min | 34,020,934 | 37 |  None |
-| <ul><li>`Keys={k1, k2, k3}`</li><li>`TxId={t1, t2}`</li><li> `Router={r1}`</li> <li> `MaxOpsPerTxn=3`</li> <li> `RC="local"`</li>  </ul> | `Symmetry` | `RepeatableReadIsolation` | ~20 mins | 19,396,674 | 38 | None |
+| <ul><li>`Keys={k1, k2, k3}`</li><li>`TxId={t1, t2}`</li><li> `Router={r1}`</li> <li> `MaxOpsPerTxn=3`</li> <li> `RC="local"`</li>  </ul> | `Symmetry` | `RepeatableReadIsolation` | - | - | - | None |
 
 You can also use the `check.py` script to run model checking more easily for a specified set of model parameters. The default model used for this script is defined in `MultiShardTxn.config.json`, and you can override its settings from the command line. 
 
