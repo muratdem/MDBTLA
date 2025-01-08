@@ -643,6 +643,12 @@ SnapshotAnomaly == SnapshotIsolation /\ ~SerializableIsolation
 
 SnapshotAnomalyBait == ~SnapshotAnomaly
 
+\* Checks if two different transactions can commit at the same timestamp.
+\* (We expect this to be possible, so we expect this invariant would not hold)
+NoMatchingCommitTimestamps == 
+    \A m1,m2 \in msgsCommit : 
+        (m1.commitTs = m2.commitTs /\ m1.commitTs # NoValue) => m1.tid = m2.tid
+
 BaitLog == 
     /\ TRUE
     \* /\ \A s \in Shard, t \in TxId : aborted[s][t] = FALSE
