@@ -321,9 +321,8 @@ RouterTxnCoordinateCommit(r, s, tid, op) ==
     /\ s = rParticipants[r][tid][1][1] \* Coordinator shard is the first participant in the list.
     \* Send coordinate commit message to the coordinator shard.
     /\ shardTxnReqs' = [shardTxnReqs EXCEPT ![s][tid] = Append(shardTxnReqs[s][tid], CreateCoordCommitEntry(op, s, [i \in DOMAIN rParticipants[r][tid] |-> rParticipants[r][tid][i][1]]))]
-    /\ rtxn' = [rtxn EXCEPT ![r][tid] = rtxn[r][tid]+1]
     /\ rInCommit' = [rInCommit EXCEPT ![r][tid] = TRUE]
-    /\ UNCHANGED << rCatalog, shardTxns,   aborted, log, commitIndex, epoch, txnSnapshots, ops, rParticipants, coordInfo, coordCommitVotes, catalog, rTxnReadTs, shardPreparedTxns, shardOps, varsNetwork >>
+    /\ UNCHANGED << rCatalog, shardTxns,  rtxn, aborted, log, commitIndex, epoch, txnSnapshots, ops, rParticipants, coordInfo, coordCommitVotes, catalog, rTxnReadTs, shardPreparedTxns, shardOps, varsNetwork >>
 
 \* If a transaction only executed reads, even against multiple shards, then the
 \* router can bypass 2PC and send commits directly to shards.
