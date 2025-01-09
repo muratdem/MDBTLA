@@ -177,10 +177,10 @@ ASSUME CC!ReadCommitted([k \in {"k1", "k2"} |-> NoValue], Range(RR2)) = TRUE
 \* Further experiments with isolation level properties and comparisions.
 \* 
 
-BoundedSeq(S, nmin, nmax) == UNION {[1..i -> S] : i \in nmin..nmax}
+CONSTANT KeysGen \* == {"k1", "k2"}
+CONSTANT TxId \* ==  {"t1", "t2"}
 
-KeysGen == {"k1", "k2"}
-TxId == {"t1", "t2"}
+BoundedSeq(S, nmin, nmax) == UNION {[1..i -> S] : i \in nmin..nmax}
 
 CCGen == INSTANCE ClientCentric WITH 
                     Keys <- KeysGen, 
@@ -189,7 +189,26 @@ CCGen == INSTANCE ClientCentric WITH
 MaxNumTxnOps == 2
 InitialState == [k \in KeysGen |-> NoValue]
 
-TxnSetsAll == [TxId -> BoundedSeq(CCGen!Operation, 1, MaxNumTxnOps)]
+TxnOperation == {
+    o \in CCGen!Operation : 
+        \* Only reads can have a value of NoValue.
+        /\ o.op = "write" => o.value # NoValue
+}
+
+OpSeqs(nmin, nmax) == 
+    {ops \in BoundedSeq(TxnOperation, nmin, nmax) : 
+        \A i,j \in 1..Len(ops) : 
+           \* At most one write to the same key.
+           \* /\ ops[i].op = "write" /\ ops[j].op = "write" /\ ops[i].key = ops[j].key => i = j
+           \* A transaction always writes with a value equal to its "transaction id".
+           /\ ops[i].op = "write" /\ ops[j].op = "write" => ops[j].value = ops[i].value
+    }
+
+TxnSetsAll == {
+    tset \in [TxId -> OpSeqs(1, MaxNumTxnOps)] : 
+        \* Enforce that all writes in a transaction have a value equal to their transaction id.
+        /\ \A t \in TxId : \A op \in Range(tset[t]) : op.op = "write" => op.value = t
+}
 TxnSetsReadUncommitted == {t \in TxnSetsAll : CCGen!ReadUncommitted(InitialState, Range(t))}
 TxnSetsReadCommitted == {t \in TxnSetsAll : CCGen!ReadCommitted(InitialState, Range(t))}
 TxnSetsRepeatableRead == {t \in TxnSetsAll : CCGen!RepeatableRead(InitialState, Range(t))}
@@ -203,7 +222,21 @@ ASSUME PrintT("RepeatableRead") /\ PrintT(Cardinality(TxnSetsRepeatableRead))
 ASSUME PrintT("SnapshotIsolation") /\ PrintT(Cardinality(TxnSetsSnapshotIsolation))
 ASSUME PrintT("Serializable") /\ PrintT(Cardinality(TxnSetsSerializable))
 
-ASSUME PrintT(TxnSetsSnapshotIsolation \subseteq TxnSetsReadCommitted)
+ASSUME PrintT("--------")
+
+ASSUME PrintT(TxnSetsRepeatableRead \subseteq TxnSetsReadCommitted)
+ASSUME PrintT(TxnSetsSnapshotIsolation \subseteq TxnSetsRepeatableRead)
 ASSUME PrintT(TxnSetsSerializable \subseteq TxnSetsSnapshotIsolation)
+
+
+VARIABLE txnSet
+
+Init == 
+    /\ txnSet \in TxnSetsAll
+    /\ CCGen!SnapshotIsolation(InitialState, Range(txnSet))
+
+Next == UNCHANGED <<txnSet>>
+
+Symmetry == Permutations(TxId) \cup Permutations(KeysGen)
 
 =============================================================================
