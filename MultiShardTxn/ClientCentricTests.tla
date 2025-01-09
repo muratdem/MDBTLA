@@ -170,4 +170,40 @@ ASSUME CC!RepeatableRead([k \in {"k1", "k2"} |-> NoValue], Range(RRReadYourWrite
 \* Violates RR but satisfies read committed.
 ASSUME CC!ReadCommitted([k \in {"k1", "k2"} |-> NoValue], Range(RR2)) = TRUE
 
+
+--------------------------------------------------------------------------
+
+\* 
+\* Further experiments with isolation level properties and comparisions.
+\* 
+
+BoundedSeq(S, nmin, nmax) == UNION {[1..i -> S] : i \in nmin..nmax}
+
+KeysGen == {"k1", "k2"}
+TxId == {"t1", "t2"}
+
+CCGen == INSTANCE ClientCentric WITH 
+                    Keys <- KeysGen, 
+                    Values <- TxId \union {NoValue} 
+
+MaxNumTxnOps == 2
+InitialState == [k \in KeysGen |-> NoValue]
+
+TxnSetsAll == [TxId -> BoundedSeq(CCGen!Operation, 1, MaxNumTxnOps)]
+TxnSetsReadUncommitted == {t \in TxnSetsAll : CCGen!ReadUncommitted(InitialState, Range(t))}
+TxnSetsReadCommitted == {t \in TxnSetsAll : CCGen!ReadCommitted(InitialState, Range(t))}
+TxnSetsRepeatableRead == {t \in TxnSetsAll : CCGen!RepeatableRead(InitialState, Range(t))}
+TxnSetsSnapshotIsolation == {t \in TxnSetsAll : CCGen!SnapshotIsolation(InitialState, Range(t))}
+TxnSetsSerializable == {t \in TxnSetsAll : CCGen!Serializability(InitialState, Range(t))}
+
+ASSUME PrintT("All") /\ PrintT(Cardinality(TxnSetsAll))
+ASSUME PrintT("ReadUncommitted") /\ PrintT(Cardinality(TxnSetsReadUncommitted))
+ASSUME PrintT("ReadCommitted") /\ PrintT(Cardinality(TxnSetsReadCommitted))
+ASSUME PrintT("RepeatableRead") /\ PrintT(Cardinality(TxnSetsRepeatableRead))
+ASSUME PrintT("SnapshotIsolation") /\ PrintT(Cardinality(TxnSetsSnapshotIsolation))
+ASSUME PrintT("Serializable") /\ PrintT(Cardinality(TxnSetsSerializable))
+
+ASSUME PrintT(TxnSetsSnapshotIsolation \subseteq TxnSetsReadCommitted)
+ASSUME PrintT(TxnSetsSerializable \subseteq TxnSetsSnapshotIsolation)
+
 =============================================================================
