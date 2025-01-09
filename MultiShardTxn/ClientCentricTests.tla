@@ -198,17 +198,18 @@ TxnOperation == {
 OpSeqs(nmin, nmax) == 
     {ops \in BoundedSeq(TxnOperation, nmin, nmax) : 
         \A i,j \in 1..Len(ops) : 
+            /\ TRUE
            \* At most one write to the same key.
            \* /\ ops[i].op = "write" /\ ops[j].op = "write" /\ ops[i].key = ops[j].key => i = j
-           \* A transaction always writes with a value equal to its "transaction id".
-           /\ ops[i].op = "write" /\ ops[j].op = "write" => ops[j].value = ops[i].value
     }
 
 TxnSetsAll == {
-    tset \in [TxId -> OpSeqs(1, MaxNumTxnOps)] : 
+    tset \in [TxId -> OpSeqs(0, MaxNumTxnOps)] : 
         \* Enforce that all writes in a transaction have a value equal to their transaction id.
         /\ \A t \in TxId : \A op \in Range(tset[t]) : op.op = "write" => op.value = t
 }
+
+\* Committed transaction sets per isolation level.
 TxnSetsReadUncommitted == {t \in TxnSetsAll : CCGen!ReadUncommitted(InitialState, Range(t))}
 TxnSetsReadCommitted == {t \in TxnSetsAll : CCGen!ReadCommitted(InitialState, Range(t))}
 TxnSetsRepeatableRead == {t \in TxnSetsAll : CCGen!RepeatableRead(InitialState, Range(t))}
