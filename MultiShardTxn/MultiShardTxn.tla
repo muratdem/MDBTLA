@@ -206,8 +206,9 @@ ShardMDBTxnWrite(s, tid, k) ==
     /\ UNCHANGED <<log, commitIndex, epoch>>
 
 \* Reads from the local KV store of a shard.
-ShardMDBTxnRead(s, tid, k) == 
-    /\ ~ShardMDB(s)!PrepareConflict(tid, k)
+ShardMDBTxnRead(s, tid, k) ==
+    \* Non-snapshot read aren't actually required to block on prepare conflicts (see https://jira.mongodb.org/browse/SERVER-36382). 
+    /\ RC = "snapshot" => ~ShardMDB(s)!PrepareConflict(tid, k)
     /\ txnSnapshots' = [txnSnapshots EXCEPT ![s][tid]["readSet"] = @ \cup {k}]
     /\ UNCHANGED <<log, commitIndex, epoch>>
 
