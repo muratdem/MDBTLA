@@ -1,0 +1,1445 @@
+TLC2 Version 2.20 of Day Month 20?? (rev: 3bc8fa1)
+Warning: Please run the Java VM, which executes TLC with a throughput optimized garbage collector, by passing the "-XX:+UseParallelGC" property.
+(Use the -nowarning option to disable this warning.)
+Running breadth-first search Model-Checking with fp 30 and seed -5889566557535522914 with 8 workers on 12 cores with 9216MB heap and 64MB offheap memory [pid: 34046] (Mac OS X 14.7.2 aarch64, Oracle Corporation 23.0.1 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /Users/william.schultz/Documents/projects/MDBTLA/MultiShardTxn/MultiShardTxn.tla
+Parsing file /private/var/folders/sk/lgn4t7hj49n553snly1k5w640000gp/T/tlc-11512995175967365805/Integers.tla (jar:file:/usr/local/bin/tla2tools-v1.8.jar!/tla2sany/StandardModules/Integers.tla)
+Parsing file /private/var/folders/sk/lgn4t7hj49n553snly1k5w640000gp/T/tlc-11512995175967365805/Sequences.tla (jar:file:/usr/local/bin/tla2tools-v1.8.jar!/tla2sany/StandardModules/Sequences.tla)
+Parsing file /private/var/folders/sk/lgn4t7hj49n553snly1k5w640000gp/T/tlc-11512995175967365805/FiniteSets.tla (jar:file:/usr/local/bin/tla2tools-v1.8.jar!/tla2sany/StandardModules/FiniteSets.tla)
+Parsing file /Users/william.schultz/Documents/projects/MDBTLA/MultiShardTxn/Util.tla
+Parsing file /private/var/folders/sk/lgn4t7hj49n553snly1k5w640000gp/T/tlc-11512995175967365805/TLC.tla (jar:file:/usr/local/bin/tla2tools-v1.8.jar!/tla2sany/StandardModules/TLC.tla)
+Parsing file /private/var/folders/sk/lgn4t7hj49n553snly1k5w640000gp/T/tlc-11512995175967365805/Naturals.tla (jar:file:/usr/local/bin/tla2tools-v1.8.jar!/tla2sany/StandardModules/Naturals.tla)
+Parsing file /private/var/folders/sk/lgn4t7hj49n553snly1k5w640000gp/T/tlc-11512995175967365805/Functions.tla (jar:file:/usr/local/bin/CommunityModules-deps.jar!/Functions.tla)
+Parsing file /Users/william.schultz/Documents/projects/MDBTLA/MultiShardTxn/ClientCentric.tla
+Parsing file /Users/william.schultz/Documents/projects/MDBTLA/MultiShardTxn/MDB.tla
+Parsing file /private/var/folders/sk/lgn4t7hj49n553snly1k5w640000gp/T/tlc-11512995175967365805/Folds.tla (jar:file:/usr/local/bin/CommunityModules-deps.jar!/Folds.tla)
+Semantic processing of module Naturals
+Semantic processing of module Integers
+Semantic processing of module Sequences
+Semantic processing of module FiniteSets
+Semantic processing of module Folds
+Semantic processing of module Functions
+Semantic processing of module Util
+Semantic processing of module TLC
+Semantic processing of module ClientCentric
+Semantic processing of module MDB
+Semantic processing of module MultiShardTxn
+Starting... (2025-01-10 11:34:05)
+Warning: The set Router has been defined to be a symmetry set but contains less than two elements.
+Computing initial states...
+Finished computing initial states: 2 states generated, with 1 of them distinct at 2025-01-10 11:34:05.
+Error: Invariant RepeatableReadIsolation is violated.
+Error: The behavior up to this point is:
+State 1: <Initial predicate>
+/\ txnSnapshots = ( s1 :> (t1 :> NoValue @@ t2 :> NoValue) @@
+  s2 :> (t1 :> NoValue @@ t2 :> NoValue) )
+/\ rCatalog = (r1 :> (k1 :> s1 @@ k2 :> s2))
+/\ rtxn = (r1 :> (t1 :> 0 @@ t2 :> 0))
+/\ shardOps = (s1 :> (t1 :> <<>> @@ t2 :> <<>>) @@ s2 :> (t1 :> <<>> @@ t2 :> <<>>))
+/\ rTxnReadTs = (r1 :> (t1 :> NoValue @@ t2 :> NoValue))
+/\ epoch = (s1 :> 1 @@ s2 :> 1)
+/\ shardPreparedTxns = (s1 :> {} @@ s2 :> {})
+/\ msgsPrepare = {}
+/\ msgsVoteCommit = {}
+/\ msgsAbort = {}
+/\ shardTxnReqs = (s1 :> (t1 :> <<>> @@ t2 :> <<>>) @@ s2 :> (t1 :> <<>> @@ t2 :> <<>>))
+/\ coordCommitVotes = (s1 :> (t1 :> {} @@ t2 :> {}) @@ s2 :> (t1 :> {} @@ t2 :> {}))
+/\ msgsCommit = {}
+/\ rParticipants = (r1 :> (t1 :> <<>> @@ t2 :> <<>>))
+/\ catalog = (k1 :> s1 @@ k2 :> s2)
+/\ ops = (t1 :> <<>> @@ t2 :> <<>>)
+/\ shardTxns = (s1 :> {} @@ s2 :> {})
+/\ commitIndex = (s1 :> 0 @@ s2 :> 0)
+/\ rInCommit = (r1 :> (t1 :> FALSE @@ t2 :> FALSE))
+/\ log = (s1 :> <<>> @@ s2 :> <<>>)
+/\ aborted = (s1 :> (t1 :> FALSE @@ t2 :> FALSE) @@ s2 :> (t1 :> FALSE @@ t2 :> FALSE))
+/\ coordInfo = ( s1 :>
+      ( t1 :> [participants |-> <<>>, self |-> FALSE, committing |-> FALSE] @@
+        t2 :> [participants |-> <<>>, self |-> FALSE, committing |-> FALSE] ) @@
+  s2 :>
+      ( t1 :> [participants |-> <<>>, self |-> FALSE, committing |-> FALSE] @@
+        t2 :> [participants |-> <<>>, self |-> FALSE, committing |-> FALSE] ) )
+
+State 2: <Next line 582, col 8 to line 582, col 86 of module MultiShardTxn>
+/\ txnSnapshots = ( s1 :> (t1 :> NoValue @@ t2 :> NoValue) @@
+  s2 :> (t1 :> NoValue @@ t2 :> NoValue) )
+/\ rCatalog = (r1 :> (k1 :> s1 @@ k2 :> s2))
+/\ rtxn = (r1 :> (t1 :> 0 @@ t2 :> 0))
+/\ shardOps = (s1 :> (t1 :> <<>> @@ t2 :> <<>>) @@ s2 :> (t1 :> <<>> @@ t2 :> <<>>))
+/\ rTxnReadTs = (r1 :> (t1 :> 0 @@ t2 :> NoValue))
+/\ epoch = (s1 :> 1 @@ s2 :> 1)
+/\ shardPreparedTxns = (s1 :> {} @@ s2 :> {})
+/\ msgsPrepare = {}
+/\ msgsVoteCommit = {}
+/\ msgsAbort = {}
+/\ shardTxnReqs = (s1 :> (t1 :> <<>> @@ t2 :> <<>>) @@ s2 :> (t1 :> <<>> @@ t2 :> <<>>))
+/\ coordCommitVotes = (s1 :> (t1 :> {} @@ t2 :> {}) @@ s2 :> (t1 :> {} @@ t2 :> {}))
+/\ msgsCommit = {}
+/\ rParticipants = (r1 :> (t1 :> <<>> @@ t2 :> <<>>))
+/\ catalog = (k1 :> s1 @@ k2 :> s2)
+/\ ops = (t1 :> <<>> @@ t2 :> <<>>)
+/\ shardTxns = (s1 :> {} @@ s2 :> {})
+/\ commitIndex = (s1 :> 0 @@ s2 :> 0)
+/\ rInCommit = (r1 :> (t1 :> FALSE @@ t2 :> FALSE))
+/\ log = (s1 :> <<>> @@ s2 :> <<>>)
+/\ aborted = (s1 :> (t1 :> FALSE @@ t2 :> FALSE) @@ s2 :> (t1 :> FALSE @@ t2 :> FALSE))
+/\ coordInfo = ( s1 :>
+      ( t1 :> [participants |-> <<>>, self |-> FALSE, committing |-> FALSE] @@
+        t2 :> [participants |-> <<>>, self |-> FALSE, committing |-> FALSE] ) @@
+  s2 :>
+      ( t1 :> [participants |-> <<>>, self |-> FALSE, committing |-> FALSE] @@
+        t2 :> [participants |-> <<>>, self |-> FALSE, committing |-> FALSE] ) )
+
+State 3: <Next line 582, col 8 to line 582, col 86 of module MultiShardTxn>
+/\ txnSnapshots = ( s1 :> (t1 :> NoValue @@ t2 :> NoValue) @@
+  s2 :> (t1 :> NoValue @@ t2 :> NoValue) )
+/\ rCatalog = (r1 :> (k1 :> s1 @@ k2 :> s2))
+/\ rtxn = (r1 :> (t1 :> 0 @@ t2 :> 0))
+/\ shardOps = (s1 :> (t1 :> <<>> @@ t2 :> <<>>) @@ s2 :> (t1 :> <<>> @@ t2 :> <<>>))
+/\ rTxnReadTs = (r1 :> (t1 :> 0 @@ t2 :> 0))
+/\ epoch = (s1 :> 1 @@ s2 :> 1)
+/\ shardPreparedTxns = (s1 :> {} @@ s2 :> {})
+/\ msgsPrepare = {}
+/\ msgsVoteCommit = {}
+/\ msgsAbort = {}
+/\ shardTxnReqs = (s1 :> (t1 :> <<>> @@ t2 :> <<>>) @@ s2 :> (t1 :> <<>> @@ t2 :> <<>>))
+/\ coordCommitVotes = (s1 :> (t1 :> {} @@ t2 :> {}) @@ s2 :> (t1 :> {} @@ t2 :> {}))
+/\ msgsCommit = {}
+/\ rParticipants = (r1 :> (t1 :> <<>> @@ t2 :> <<>>))
+/\ catalog = (k1 :> s1 @@ k2 :> s2)
+/\ ops = (t1 :> <<>> @@ t2 :> <<>>)
+/\ shardTxns = (s1 :> {} @@ s2 :> {})
+/\ commitIndex = (s1 :> 0 @@ s2 :> 0)
+/\ rInCommit = (r1 :> (t1 :> FALSE @@ t2 :> FALSE))
+/\ log = (s1 :> <<>> @@ s2 :> <<>>)
+/\ aborted = (s1 :> (t1 :> FALSE @@ t2 :> FALSE) @@ s2 :> (t1 :> FALSE @@ t2 :> FALSE))
+/\ coordInfo = ( s1 :>
+      ( t1 :> [participants |-> <<>>, self |-> FALSE, committing |-> FALSE] @@
+        t2 :> [participants |-> <<>>, self |-> FALSE, committing |-> FALSE] ) @@
+  s2 :>
+      ( t1 :> [participants |-> <<>>, self |-> FALSE, committing |-> FALSE] @@
+        t2 :> [participants |-> <<>>, self |-> FALSE, committing |-> FALSE] ) )
+
+State 4: <RouterTxnOp(r1,s1,t1,k1,"write") line 292, col 5 to line 309, col 198 of module MultiShardTxn>
+/\ txnSnapshots = ( s1 :> (t1 :> NoValue @@ t2 :> NoValue) @@
+  s2 :> (t1 :> NoValue @@ t2 :> NoValue) )
+/\ rCatalog = (r1 :> (k1 :> s1 @@ k2 :> s2))
+/\ rtxn = (r1 :> (t1 :> 1 @@ t2 :> 0))
+/\ shardOps = (s1 :> (t1 :> <<>> @@ t2 :> <<>>) @@ s2 :> (t1 :> <<>> @@ t2 :> <<>>))
+/\ rTxnReadTs = (r1 :> (t1 :> 0 @@ t2 :> 0))
+/\ epoch = (s1 :> 1 @@ s2 :> 1)
+/\ shardPreparedTxns = (s1 :> {} @@ s2 :> {})
+/\ msgsPrepare = {}
+/\ msgsVoteCommit = {}
+/\ msgsAbort = {}
+/\ shardTxnReqs = ( s1 :>
+      ( t1 :>
+            << [ k |-> k1,
+                 op |-> "write",
+                 coord |-> TRUE,
+                 start |-> TRUE,
+                 shard |-> s1,
+                 readTs |-> 0,
+                 rc |-> "local" ] >> @@
+        t2 :> <<>> ) @@
+  s2 :> (t1 :> <<>> @@ t2 :> <<>>) )
+/\ coordCommitVotes = (s1 :> (t1 :> {} @@ t2 :> {}) @@ s2 :> (t1 :> {} @@ t2 :> {}))
+/\ msgsCommit = {}
+/\ rParticipants = (r1 :> (t1 :> <<<<s1, {"write"}>>>> @@ t2 :> <<>>))
+/\ catalog = (k1 :> s1 @@ k2 :> s2)
+/\ ops = (t1 :> <<>> @@ t2 :> <<>>)
+/\ shardTxns = (s1 :> {} @@ s2 :> {})
+/\ commitIndex = (s1 :> 0 @@ s2 :> 0)
+/\ rInCommit = (r1 :> (t1 :> FALSE @@ t2 :> FALSE))
+/\ log = (s1 :> <<>> @@ s2 :> <<>>)
+/\ aborted = (s1 :> (t1 :> FALSE @@ t2 :> FALSE) @@ s2 :> (t1 :> FALSE @@ t2 :> FALSE))
+/\ coordInfo = ( s1 :>
+      ( t1 :> [participants |-> <<>>, self |-> FALSE, committing |-> FALSE] @@
+        t2 :> [participants |-> <<>>, self |-> FALSE, committing |-> FALSE] ) @@
+  s2 :>
+      ( t1 :> [participants |-> <<>>, self |-> FALSE, committing |-> FALSE] @@
+        t2 :> [participants |-> <<>>, self |-> FALSE, committing |-> FALSE] ) )
+
+State 5: <RouterTxnOp(r1,s2,t1,k2,"write") line 292, col 5 to line 309, col 198 of module MultiShardTxn>
+/\ txnSnapshots = ( s1 :> (t1 :> NoValue @@ t2 :> NoValue) @@
+  s2 :> (t1 :> NoValue @@ t2 :> NoValue) )
+/\ rCatalog = (r1 :> (k1 :> s1 @@ k2 :> s2))
+/\ rtxn = (r1 :> (t1 :> 2 @@ t2 :> 0))
+/\ shardOps = (s1 :> (t1 :> <<>> @@ t2 :> <<>>) @@ s2 :> (t1 :> <<>> @@ t2 :> <<>>))
+/\ rTxnReadTs = (r1 :> (t1 :> 0 @@ t2 :> 0))
+/\ epoch = (s1 :> 1 @@ s2 :> 1)
+/\ shardPreparedTxns = (s1 :> {} @@ s2 :> {})
+/\ msgsPrepare = {}
+/\ msgsVoteCommit = {}
+/\ msgsAbort = {}
+/\ shardTxnReqs = ( s1 :>
+      ( t1 :>
+            << [ k |-> k1,
+                 op |-> "write",
+                 coord |-> TRUE,
+                 start |-> TRUE,
+                 shard |-> s1,
+                 readTs |-> 0,
+                 rc |-> "local" ] >> @@
+        t2 :> <<>> ) @@
+  s2 :>
+      ( t1 :>
+            << [ k |-> k2,
+                 op |-> "write",
+                 coord |-> FALSE,
+                 start |-> TRUE,
+                 shard |-> s2,
+                 readTs |-> 0,
+                 rc |-> "local" ] >> @@
+        t2 :> <<>> ) )
+/\ coordCommitVotes = (s1 :> (t1 :> {} @@ t2 :> {}) @@ s2 :> (t1 :> {} @@ t2 :> {}))
+/\ msgsCommit = {}
+/\ rParticipants = (r1 :> (t1 :> <<<<s1, {"write"}>>, <<s2, {"write"}>>>> @@ t2 :> <<>>))
+/\ catalog = (k1 :> s1 @@ k2 :> s2)
+/\ ops = (t1 :> <<>> @@ t2 :> <<>>)
+/\ shardTxns = (s1 :> {} @@ s2 :> {})
+/\ commitIndex = (s1 :> 0 @@ s2 :> 0)
+/\ rInCommit = (r1 :> (t1 :> FALSE @@ t2 :> FALSE))
+/\ log = (s1 :> <<>> @@ s2 :> <<>>)
+/\ aborted = (s1 :> (t1 :> FALSE @@ t2 :> FALSE) @@ s2 :> (t1 :> FALSE @@ t2 :> FALSE))
+/\ coordInfo = ( s1 :>
+      ( t1 :> [participants |-> <<>>, self |-> FALSE, committing |-> FALSE] @@
+        t2 :> [participants |-> <<>>, self |-> FALSE, committing |-> FALSE] ) @@
+  s2 :>
+      ( t1 :> [participants |-> <<>>, self |-> FALSE, committing |-> FALSE] @@
+        t2 :> [participants |-> <<>>, self |-> FALSE, committing |-> FALSE] ) )
+
+State 6: <RouterTxnOp(r1,s1,t2,k1,"read") line 292, col 5 to line 309, col 198 of module MultiShardTxn>
+/\ txnSnapshots = ( s1 :> (t1 :> NoValue @@ t2 :> NoValue) @@
+  s2 :> (t1 :> NoValue @@ t2 :> NoValue) )
+/\ rCatalog = (r1 :> (k1 :> s1 @@ k2 :> s2))
+/\ rtxn = (r1 :> (t1 :> 2 @@ t2 :> 1))
+/\ shardOps = (s1 :> (t1 :> <<>> @@ t2 :> <<>>) @@ s2 :> (t1 :> <<>> @@ t2 :> <<>>))
+/\ rTxnReadTs = (r1 :> (t1 :> 0 @@ t2 :> 0))
+/\ epoch = (s1 :> 1 @@ s2 :> 1)
+/\ shardPreparedTxns = (s1 :> {} @@ s2 :> {})
+/\ msgsPrepare = {}
+/\ msgsVoteCommit = {}
+/\ msgsAbort = {}
+/\ shardTxnReqs = ( s1 :>
+      ( t1 :>
+            << [ k |-> k1,
+                 op |-> "write",
+                 coord |-> TRUE,
+                 start |-> TRUE,
+                 shard |-> s1,
+                 readTs |-> 0,
+                 rc |-> "local" ] >> @@
+        t2 :>
+            << [ k |-> k1,
+                 op |-> "read",
+                 coord |-> TRUE,
+                 start |-> TRUE,
+                 shard |-> s1,
+                 readTs |-> 0,
+                 rc |-> "local" ] >> ) @@
+  s2 :>
+      ( t1 :>
+            << [ k |-> k2,
+                 op |-> "write",
+                 coord |-> FALSE,
+                 start |-> TRUE,
+                 shard |-> s2,
+                 readTs |-> 0,
+                 rc |-> "local" ] >> @@
+        t2 :> <<>> ) )
+/\ coordCommitVotes = (s1 :> (t1 :> {} @@ t2 :> {}) @@ s2 :> (t1 :> {} @@ t2 :> {}))
+/\ msgsCommit = {}
+/\ rParticipants = ( r1 :>
+      ( t1 :> <<<<s1, {"write"}>>, <<s2, {"write"}>>>> @@
+        t2 :> <<<<s1, {"read"}>>>> ) )
+/\ catalog = (k1 :> s1 @@ k2 :> s2)
+/\ ops = (t1 :> <<>> @@ t2 :> <<>>)
+/\ shardTxns = (s1 :> {} @@ s2 :> {})
+/\ commitIndex = (s1 :> 0 @@ s2 :> 0)
+/\ rInCommit = (r1 :> (t1 :> FALSE @@ t2 :> FALSE))
+/\ log = (s1 :> <<>> @@ s2 :> <<>>)
+/\ aborted = (s1 :> (t1 :> FALSE @@ t2 :> FALSE) @@ s2 :> (t1 :> FALSE @@ t2 :> FALSE))
+/\ coordInfo = ( s1 :>
+      ( t1 :> [participants |-> <<>>, self |-> FALSE, committing |-> FALSE] @@
+        t2 :> [participants |-> <<>>, self |-> FALSE, committing |-> FALSE] ) @@
+  s2 :>
+      ( t1 :> [participants |-> <<>>, self |-> FALSE, committing |-> FALSE] @@
+        t2 :> [participants |-> <<>>, self |-> FALSE, committing |-> FALSE] ) )
+
+State 7: <ShardTxnStart(s1,t1) line 404, col 5 to line 414, col 206 of module MultiShardTxn>
+/\ txnSnapshots = ( s1 :>
+      ( t1 :>
+            [ ts |-> 0,
+              data |-> (k1 :> NoValue @@ k2 :> NoValue),
+              prepared |-> FALSE,
+              readSet |-> {} ] @@
+        t2 :> NoValue ) @@
+  s2 :> (t1 :> NoValue @@ t2 :> NoValue) )
+/\ rCatalog = (r1 :> (k1 :> s1 @@ k2 :> s2))
+/\ rtxn = (r1 :> (t1 :> 2 @@ t2 :> 1))
+/\ shardOps = (s1 :> (t1 :> <<>> @@ t2 :> <<>>) @@ s2 :> (t1 :> <<>> @@ t2 :> <<>>))
+/\ rTxnReadTs = (r1 :> (t1 :> 0 @@ t2 :> 0))
+/\ epoch = (s1 :> 1 @@ s2 :> 1)
+/\ shardPreparedTxns = (s1 :> {} @@ s2 :> {})
+/\ msgsPrepare = {}
+/\ msgsVoteCommit = {}
+/\ msgsAbort = {}
+/\ shardTxnReqs = ( s1 :>
+      ( t1 :>
+            << [ k |-> k1,
+                 op |-> "write",
+                 coord |-> TRUE,
+                 start |-> TRUE,
+                 shard |-> s1,
+                 readTs |-> 0,
+                 rc |-> "local" ] >> @@
+        t2 :>
+            << [ k |-> k1,
+                 op |-> "read",
+                 coord |-> TRUE,
+                 start |-> TRUE,
+                 shard |-> s1,
+                 readTs |-> 0,
+                 rc |-> "local" ] >> ) @@
+  s2 :>
+      ( t1 :>
+            << [ k |-> k2,
+                 op |-> "write",
+                 coord |-> FALSE,
+                 start |-> TRUE,
+                 shard |-> s2,
+                 readTs |-> 0,
+                 rc |-> "local" ] >> @@
+        t2 :> <<>> ) )
+/\ coordCommitVotes = (s1 :> (t1 :> {} @@ t2 :> {}) @@ s2 :> (t1 :> {} @@ t2 :> {}))
+/\ msgsCommit = {}
+/\ rParticipants = ( r1 :>
+      ( t1 :> <<<<s1, {"write"}>>, <<s2, {"write"}>>>> @@
+        t2 :> <<<<s1, {"read"}>>>> ) )
+/\ catalog = (k1 :> s1 @@ k2 :> s2)
+/\ ops = (t1 :> <<>> @@ t2 :> <<>>)
+/\ shardTxns = (s1 :> {t1} @@ s2 :> {})
+/\ commitIndex = (s1 :> 0 @@ s2 :> 0)
+/\ rInCommit = (r1 :> (t1 :> FALSE @@ t2 :> FALSE))
+/\ log = (s1 :> <<>> @@ s2 :> <<>>)
+/\ aborted = (s1 :> (t1 :> FALSE @@ t2 :> FALSE) @@ s2 :> (t1 :> FALSE @@ t2 :> FALSE))
+/\ coordInfo = ( s1 :>
+      ( t1 :> [participants |-> <<s1>>, self |-> TRUE, committing |-> FALSE] @@
+        t2 :> [participants |-> <<>>, self |-> FALSE, committing |-> FALSE] ) @@
+  s2 :>
+      ( t1 :> [participants |-> <<>>, self |-> FALSE, committing |-> FALSE] @@
+        t2 :> [participants |-> <<>>, self |-> FALSE, committing |-> FALSE] ) )
+
+State 8: <ShardTxnStart(s2,t1) line 404, col 5 to line 414, col 206 of module MultiShardTxn>
+/\ txnSnapshots = ( s1 :>
+      ( t1 :>
+            [ ts |-> 0,
+              data |-> (k1 :> NoValue @@ k2 :> NoValue),
+              prepared |-> FALSE,
+              readSet |-> {} ] @@
+        t2 :> NoValue ) @@
+  s2 :>
+      ( t1 :>
+            [ ts |-> 0,
+              data |-> (k1 :> NoValue @@ k2 :> NoValue),
+              prepared |-> FALSE,
+              readSet |-> {} ] @@
+        t2 :> NoValue ) )
+/\ rCatalog = (r1 :> (k1 :> s1 @@ k2 :> s2))
+/\ rtxn = (r1 :> (t1 :> 2 @@ t2 :> 1))
+/\ shardOps = (s1 :> (t1 :> <<>> @@ t2 :> <<>>) @@ s2 :> (t1 :> <<>> @@ t2 :> <<>>))
+/\ rTxnReadTs = (r1 :> (t1 :> 0 @@ t2 :> 0))
+/\ epoch = (s1 :> 1 @@ s2 :> 1)
+/\ shardPreparedTxns = (s1 :> {} @@ s2 :> {})
+/\ msgsPrepare = {}
+/\ msgsVoteCommit = {}
+/\ msgsAbort = {}
+/\ shardTxnReqs = ( s1 :>
+      ( t1 :>
+            << [ k |-> k1,
+                 op |-> "write",
+                 coord |-> TRUE,
+                 start |-> TRUE,
+                 shard |-> s1,
+                 readTs |-> 0,
+                 rc |-> "local" ] >> @@
+        t2 :>
+            << [ k |-> k1,
+                 op |-> "read",
+                 coord |-> TRUE,
+                 start |-> TRUE,
+                 shard |-> s1,
+                 readTs |-> 0,
+                 rc |-> "local" ] >> ) @@
+  s2 :>
+      ( t1 :>
+            << [ k |-> k2,
+                 op |-> "write",
+                 coord |-> FALSE,
+                 start |-> TRUE,
+                 shard |-> s2,
+                 readTs |-> 0,
+                 rc |-> "local" ] >> @@
+        t2 :> <<>> ) )
+/\ coordCommitVotes = (s1 :> (t1 :> {} @@ t2 :> {}) @@ s2 :> (t1 :> {} @@ t2 :> {}))
+/\ msgsCommit = {}
+/\ rParticipants = ( r1 :>
+      ( t1 :> <<<<s1, {"write"}>>, <<s2, {"write"}>>>> @@
+        t2 :> <<<<s1, {"read"}>>>> ) )
+/\ catalog = (k1 :> s1 @@ k2 :> s2)
+/\ ops = (t1 :> <<>> @@ t2 :> <<>>)
+/\ shardTxns = (s1 :> {t1} @@ s2 :> {t1})
+/\ commitIndex = (s1 :> 0 @@ s2 :> 0)
+/\ rInCommit = (r1 :> (t1 :> FALSE @@ t2 :> FALSE))
+/\ log = (s1 :> <<>> @@ s2 :> <<>>)
+/\ aborted = (s1 :> (t1 :> FALSE @@ t2 :> FALSE) @@ s2 :> (t1 :> FALSE @@ t2 :> FALSE))
+/\ coordInfo = ( s1 :>
+      ( t1 :> [participants |-> <<s1>>, self |-> TRUE, committing |-> FALSE] @@
+        t2 :> [participants |-> <<>>, self |-> FALSE, committing |-> FALSE] ) @@
+  s2 :>
+      ( t1 :> [participants |-> <<s2>>, self |-> FALSE, committing |-> FALSE] @@
+        t2 :> [participants |-> <<>>, self |-> FALSE, committing |-> FALSE] ) )
+
+State 9: <ShardTxnWrite(s1,t1,k1) line 437, col 5 to line 447, col 202 of module MultiShardTxn>
+/\ txnSnapshots = ( s1 :>
+      ( t1 :>
+            [ ts |-> 0,
+              data |-> (k1 :> t1 @@ k2 :> NoValue),
+              prepared |-> FALSE,
+              readSet |-> {} ] @@
+        t2 :> NoValue ) @@
+  s2 :>
+      ( t1 :>
+            [ ts |-> 0,
+              data |-> (k1 :> NoValue @@ k2 :> NoValue),
+              prepared |-> FALSE,
+              readSet |-> {} ] @@
+        t2 :> NoValue ) )
+/\ rCatalog = (r1 :> (k1 :> s1 @@ k2 :> s2))
+/\ rtxn = (r1 :> (t1 :> 2 @@ t2 :> 1))
+/\ shardOps = ( s1 :> (t1 :> <<[op |-> "write", key |-> k1, value |-> t1]>> @@ t2 :> <<>>) @@
+  s2 :> (t1 :> <<>> @@ t2 :> <<>>) )
+/\ rTxnReadTs = (r1 :> (t1 :> 0 @@ t2 :> 0))
+/\ epoch = (s1 :> 1 @@ s2 :> 1)
+/\ shardPreparedTxns = (s1 :> {} @@ s2 :> {})
+/\ msgsPrepare = {}
+/\ msgsVoteCommit = {}
+/\ msgsAbort = {}
+/\ shardTxnReqs = ( s1 :>
+      ( t1 :> <<>> @@
+        t2 :>
+            << [ k |-> k1,
+                 op |-> "read",
+                 coord |-> TRUE,
+                 start |-> TRUE,
+                 shard |-> s1,
+                 readTs |-> 0,
+                 rc |-> "local" ] >> ) @@
+  s2 :>
+      ( t1 :>
+            << [ k |-> k2,
+                 op |-> "write",
+                 coord |-> FALSE,
+                 start |-> TRUE,
+                 shard |-> s2,
+                 readTs |-> 0,
+                 rc |-> "local" ] >> @@
+        t2 :> <<>> ) )
+/\ coordCommitVotes = (s1 :> (t1 :> {} @@ t2 :> {}) @@ s2 :> (t1 :> {} @@ t2 :> {}))
+/\ msgsCommit = {}
+/\ rParticipants = ( r1 :>
+      ( t1 :> <<<<s1, {"write"}>>, <<s2, {"write"}>>>> @@
+        t2 :> <<<<s1, {"read"}>>>> ) )
+/\ catalog = (k1 :> s1 @@ k2 :> s2)
+/\ ops = (t1 :> <<>> @@ t2 :> <<>>)
+/\ shardTxns = (s1 :> {t1} @@ s2 :> {t1})
+/\ commitIndex = (s1 :> 0 @@ s2 :> 0)
+/\ rInCommit = (r1 :> (t1 :> FALSE @@ t2 :> FALSE))
+/\ log = (s1 :> <<>> @@ s2 :> <<>>)
+/\ aborted = (s1 :> (t1 :> FALSE @@ t2 :> FALSE) @@ s2 :> (t1 :> FALSE @@ t2 :> FALSE))
+/\ coordInfo = ( s1 :>
+      ( t1 :> [participants |-> <<s1>>, self |-> TRUE, committing |-> FALSE] @@
+        t2 :> [participants |-> <<>>, self |-> FALSE, committing |-> FALSE] ) @@
+  s2 :>
+      ( t1 :> [participants |-> <<s2>>, self |-> FALSE, committing |-> FALSE] @@
+        t2 :> [participants |-> <<>>, self |-> FALSE, committing |-> FALSE] ) )
+
+State 10: <RouterTxnCoordinateCommit(r1,s1,t1,"coordCommit") line 314, col 5 to line 326, col 209 of module MultiShardTxn>
+/\ txnSnapshots = ( s1 :>
+      ( t1 :>
+            [ ts |-> 0,
+              data |-> (k1 :> t1 @@ k2 :> NoValue),
+              prepared |-> FALSE,
+              readSet |-> {} ] @@
+        t2 :> NoValue ) @@
+  s2 :>
+      ( t1 :>
+            [ ts |-> 0,
+              data |-> (k1 :> NoValue @@ k2 :> NoValue),
+              prepared |-> FALSE,
+              readSet |-> {} ] @@
+        t2 :> NoValue ) )
+/\ rCatalog = (r1 :> (k1 :> s1 @@ k2 :> s2))
+/\ rtxn = (r1 :> (t1 :> 2 @@ t2 :> 1))
+/\ shardOps = ( s1 :> (t1 :> <<[op |-> "write", key |-> k1, value |-> t1]>> @@ t2 :> <<>>) @@
+  s2 :> (t1 :> <<>> @@ t2 :> <<>>) )
+/\ rTxnReadTs = (r1 :> (t1 :> 0 @@ t2 :> 0))
+/\ epoch = (s1 :> 1 @@ s2 :> 1)
+/\ shardPreparedTxns = (s1 :> {} @@ s2 :> {})
+/\ msgsPrepare = {}
+/\ msgsVoteCommit = {}
+/\ msgsAbort = {}
+/\ shardTxnReqs = ( s1 :>
+      ( t1 :>
+            << [ op |-> "coordCommit",
+                 shard |-> s1,
+                 participants |-> <<s1, s2>> ] >> @@
+        t2 :>
+            << [ k |-> k1,
+                 op |-> "read",
+                 coord |-> TRUE,
+                 start |-> TRUE,
+                 shard |-> s1,
+                 readTs |-> 0,
+                 rc |-> "local" ] >> ) @@
+  s2 :>
+      ( t1 :>
+            << [ k |-> k2,
+                 op |-> "write",
+                 coord |-> FALSE,
+                 start |-> TRUE,
+                 shard |-> s2,
+                 readTs |-> 0,
+                 rc |-> "local" ] >> @@
+        t2 :> <<>> ) )
+/\ coordCommitVotes = (s1 :> (t1 :> {} @@ t2 :> {}) @@ s2 :> (t1 :> {} @@ t2 :> {}))
+/\ msgsCommit = {}
+/\ rParticipants = ( r1 :>
+      ( t1 :> <<<<s1, {"write"}>>, <<s2, {"write"}>>>> @@
+        t2 :> <<<<s1, {"read"}>>>> ) )
+/\ catalog = (k1 :> s1 @@ k2 :> s2)
+/\ ops = (t1 :> <<>> @@ t2 :> <<>>)
+/\ shardTxns = (s1 :> {t1} @@ s2 :> {t1})
+/\ commitIndex = (s1 :> 0 @@ s2 :> 0)
+/\ rInCommit = (r1 :> (t1 :> TRUE @@ t2 :> FALSE))
+/\ log = (s1 :> <<>> @@ s2 :> <<>>)
+/\ aborted = (s1 :> (t1 :> FALSE @@ t2 :> FALSE) @@ s2 :> (t1 :> FALSE @@ t2 :> FALSE))
+/\ coordInfo = ( s1 :>
+      ( t1 :> [participants |-> <<s1>>, self |-> TRUE, committing |-> FALSE] @@
+        t2 :> [participants |-> <<>>, self |-> FALSE, committing |-> FALSE] ) @@
+  s2 :>
+      ( t1 :> [participants |-> <<s2>>, self |-> FALSE, committing |-> FALSE] @@
+        t2 :> [participants |-> <<>>, self |-> FALSE, committing |-> FALSE] ) )
+
+State 11: <ShardTxnCoordinateCommit(s1,t1) line 477, col 5 to line 489, col 184 of module MultiShardTxn>
+/\ txnSnapshots = ( s1 :>
+      ( t1 :>
+            [ ts |-> 0,
+              data |-> (k1 :> t1 @@ k2 :> NoValue),
+              prepared |-> FALSE,
+              readSet |-> {} ] @@
+        t2 :> NoValue ) @@
+  s2 :>
+      ( t1 :>
+            [ ts |-> 0,
+              data |-> (k1 :> NoValue @@ k2 :> NoValue),
+              prepared |-> FALSE,
+              readSet |-> {} ] @@
+        t2 :> NoValue ) )
+/\ rCatalog = (r1 :> (k1 :> s1 @@ k2 :> s2))
+/\ rtxn = (r1 :> (t1 :> 2 @@ t2 :> 1))
+/\ shardOps = ( s1 :> (t1 :> <<[op |-> "write", key |-> k1, value |-> t1]>> @@ t2 :> <<>>) @@
+  s2 :> (t1 :> <<>> @@ t2 :> <<>>) )
+/\ rTxnReadTs = (r1 :> (t1 :> 0 @@ t2 :> 0))
+/\ epoch = (s1 :> 1 @@ s2 :> 1)
+/\ shardPreparedTxns = (s1 :> {} @@ s2 :> {})
+/\ msgsPrepare = { [shard |-> s1, tid |-> t1, coordinator |-> s1],
+  [shard |-> s2, tid |-> t1, coordinator |-> s1] }
+/\ msgsVoteCommit = {}
+/\ msgsAbort = {}
+/\ shardTxnReqs = ( s1 :>
+      ( t1 :> <<>> @@
+        t2 :>
+            << [ k |-> k1,
+                 op |-> "read",
+                 coord |-> TRUE,
+                 start |-> TRUE,
+                 shard |-> s1,
+                 readTs |-> 0,
+                 rc |-> "local" ] >> ) @@
+  s2 :>
+      ( t1 :>
+            << [ k |-> k2,
+                 op |-> "write",
+                 coord |-> FALSE,
+                 start |-> TRUE,
+                 shard |-> s2,
+                 readTs |-> 0,
+                 rc |-> "local" ] >> @@
+        t2 :> <<>> ) )
+/\ coordCommitVotes = (s1 :> (t1 :> {} @@ t2 :> {}) @@ s2 :> (t1 :> {} @@ t2 :> {}))
+/\ msgsCommit = {}
+/\ rParticipants = ( r1 :>
+      ( t1 :> <<<<s1, {"write"}>>, <<s2, {"write"}>>>> @@
+        t2 :> <<<<s1, {"read"}>>>> ) )
+/\ catalog = (k1 :> s1 @@ k2 :> s2)
+/\ ops = (t1 :> <<>> @@ t2 :> <<>>)
+/\ shardTxns = (s1 :> {t1} @@ s2 :> {t1})
+/\ commitIndex = (s1 :> 0 @@ s2 :> 0)
+/\ rInCommit = (r1 :> (t1 :> TRUE @@ t2 :> FALSE))
+/\ log = (s1 :> <<>> @@ s2 :> <<>>)
+/\ aborted = (s1 :> (t1 :> FALSE @@ t2 :> FALSE) @@ s2 :> (t1 :> FALSE @@ t2 :> FALSE))
+/\ coordInfo = ( s1 :>
+      ( t1 :>
+            [participants |-> <<s1, s2>>, self |-> TRUE, committing |-> TRUE] @@
+        t2 :> [participants |-> <<>>, self |-> FALSE, committing |-> FALSE] ) @@
+  s2 :>
+      ( t1 :> [participants |-> <<s2>>, self |-> FALSE, committing |-> FALSE] @@
+        t2 :> [participants |-> <<>>, self |-> FALSE, committing |-> FALSE] ) )
+
+State 12: <ShardTxnPrepare(s1,t1) line 518, col 5 to line 532, col 172 of module MultiShardTxn>
+/\ txnSnapshots = ( s1 :>
+      ( t1 :>
+            [ ts |-> 0,
+              data |-> (k1 :> t1 @@ k2 :> NoValue),
+              prepared |-> TRUE,
+              readSet |-> {} ] @@
+        t2 :> NoValue ) @@
+  s2 :>
+      ( t1 :>
+            [ ts |-> 0,
+              data |-> (k1 :> NoValue @@ k2 :> NoValue),
+              prepared |-> FALSE,
+              readSet |-> {} ] @@
+        t2 :> NoValue ) )
+/\ rCatalog = (r1 :> (k1 :> s1 @@ k2 :> s2))
+/\ rtxn = (r1 :> (t1 :> 2 @@ t2 :> 1))
+/\ shardOps = ( s1 :> (t1 :> <<[op |-> "write", key |-> k1, value |-> t1]>> @@ t2 :> <<>>) @@
+  s2 :> (t1 :> <<>> @@ t2 :> <<>>) )
+/\ rTxnReadTs = (r1 :> (t1 :> 0 @@ t2 :> 0))
+/\ epoch = (s1 :> 1 @@ s2 :> 1)
+/\ shardPreparedTxns = (s1 :> {t1} @@ s2 :> {})
+/\ msgsPrepare = { [shard |-> s1, tid |-> t1, coordinator |-> s1],
+  [shard |-> s2, tid |-> t1, coordinator |-> s1] }
+/\ msgsVoteCommit = {[shard |-> s1, tid |-> t1, prepareTs |-> 1, to |-> s1]}
+/\ msgsAbort = {}
+/\ shardTxnReqs = ( s1 :>
+      ( t1 :> <<>> @@
+        t2 :>
+            << [ k |-> k1,
+                 op |-> "read",
+                 coord |-> TRUE,
+                 start |-> TRUE,
+                 shard |-> s1,
+                 readTs |-> 0,
+                 rc |-> "local" ] >> ) @@
+  s2 :>
+      ( t1 :>
+            << [ k |-> k2,
+                 op |-> "write",
+                 coord |-> FALSE,
+                 start |-> TRUE,
+                 shard |-> s2,
+                 readTs |-> 0,
+                 rc |-> "local" ] >> @@
+        t2 :> <<>> ) )
+/\ coordCommitVotes = (s1 :> (t1 :> {} @@ t2 :> {}) @@ s2 :> (t1 :> {} @@ t2 :> {}))
+/\ msgsCommit = {}
+/\ rParticipants = ( r1 :>
+      ( t1 :> <<<<s1, {"write"}>>, <<s2, {"write"}>>>> @@
+        t2 :> <<<<s1, {"read"}>>>> ) )
+/\ catalog = (k1 :> s1 @@ k2 :> s2)
+/\ ops = (t1 :> <<>> @@ t2 :> <<>>)
+/\ shardTxns = (s1 :> {t1} @@ s2 :> {t1})
+/\ commitIndex = (s1 :> 0 @@ s2 :> 0)
+/\ rInCommit = (r1 :> (t1 :> TRUE @@ t2 :> FALSE))
+/\ log = (s1 :> <<[ts |-> 1, tid |-> t1, prepare |-> TRUE]>> @@ s2 :> <<>>)
+/\ aborted = (s1 :> (t1 :> FALSE @@ t2 :> FALSE) @@ s2 :> (t1 :> FALSE @@ t2 :> FALSE))
+/\ coordInfo = ( s1 :>
+      ( t1 :>
+            [participants |-> <<s1, s2>>, self |-> TRUE, committing |-> TRUE] @@
+        t2 :> [participants |-> <<>>, self |-> FALSE, committing |-> FALSE] ) @@
+  s2 :>
+      ( t1 :> [participants |-> <<s2>>, self |-> FALSE, committing |-> FALSE] @@
+        t2 :> [participants |-> <<>>, self |-> FALSE, committing |-> FALSE] ) )
+
+State 13: <ShardTxnStart(s1,t2) line 404, col 5 to line 414, col 206 of module MultiShardTxn>
+/\ txnSnapshots = ( s1 :>
+      ( t1 :>
+            [ ts |-> 0,
+              data |-> (k1 :> t1 @@ k2 :> NoValue),
+              prepared |-> TRUE,
+              readSet |-> {} ] @@
+        t2 :>
+            [ ts |-> 1,
+              data |-> (k1 :> NoValue @@ k2 :> NoValue),
+              prepared |-> FALSE,
+              readSet |-> {} ] ) @@
+  s2 :>
+      ( t1 :>
+            [ ts |-> 0,
+              data |-> (k1 :> NoValue @@ k2 :> NoValue),
+              prepared |-> FALSE,
+              readSet |-> {} ] @@
+        t2 :> NoValue ) )
+/\ rCatalog = (r1 :> (k1 :> s1 @@ k2 :> s2))
+/\ rtxn = (r1 :> (t1 :> 2 @@ t2 :> 1))
+/\ shardOps = ( s1 :> (t1 :> <<[op |-> "write", key |-> k1, value |-> t1]>> @@ t2 :> <<>>) @@
+  s2 :> (t1 :> <<>> @@ t2 :> <<>>) )
+/\ rTxnReadTs = (r1 :> (t1 :> 0 @@ t2 :> 0))
+/\ epoch = (s1 :> 1 @@ s2 :> 1)
+/\ shardPreparedTxns = (s1 :> {t1} @@ s2 :> {})
+/\ msgsPrepare = { [shard |-> s1, tid |-> t1, coordinator |-> s1],
+  [shard |-> s2, tid |-> t1, coordinator |-> s1] }
+/\ msgsVoteCommit = {[shard |-> s1, tid |-> t1, prepareTs |-> 1, to |-> s1]}
+/\ msgsAbort = {}
+/\ shardTxnReqs = ( s1 :>
+      ( t1 :> <<>> @@
+        t2 :>
+            << [ k |-> k1,
+                 op |-> "read",
+                 coord |-> TRUE,
+                 start |-> TRUE,
+                 shard |-> s1,
+                 readTs |-> 0,
+                 rc |-> "local" ] >> ) @@
+  s2 :>
+      ( t1 :>
+            << [ k |-> k2,
+                 op |-> "write",
+                 coord |-> FALSE,
+                 start |-> TRUE,
+                 shard |-> s2,
+                 readTs |-> 0,
+                 rc |-> "local" ] >> @@
+        t2 :> <<>> ) )
+/\ coordCommitVotes = (s1 :> (t1 :> {} @@ t2 :> {}) @@ s2 :> (t1 :> {} @@ t2 :> {}))
+/\ msgsCommit = {}
+/\ rParticipants = ( r1 :>
+      ( t1 :> <<<<s1, {"write"}>>, <<s2, {"write"}>>>> @@
+        t2 :> <<<<s1, {"read"}>>>> ) )
+/\ catalog = (k1 :> s1 @@ k2 :> s2)
+/\ ops = (t1 :> <<>> @@ t2 :> <<>>)
+/\ shardTxns = (s1 :> {t1, t2} @@ s2 :> {t1})
+/\ commitIndex = (s1 :> 0 @@ s2 :> 0)
+/\ rInCommit = (r1 :> (t1 :> TRUE @@ t2 :> FALSE))
+/\ log = (s1 :> <<[ts |-> 1, tid |-> t1, prepare |-> TRUE]>> @@ s2 :> <<>>)
+/\ aborted = (s1 :> (t1 :> FALSE @@ t2 :> FALSE) @@ s2 :> (t1 :> FALSE @@ t2 :> FALSE))
+/\ coordInfo = ( s1 :>
+      ( t1 :>
+            [participants |-> <<s1, s2>>, self |-> TRUE, committing |-> TRUE] @@
+        t2 :>
+            [participants |-> <<s1>>, self |-> TRUE, committing |-> FALSE] ) @@
+  s2 :>
+      ( t1 :> [participants |-> <<s2>>, self |-> FALSE, committing |-> FALSE] @@
+        t2 :> [participants |-> <<>>, self |-> FALSE, committing |-> FALSE] ) )
+
+State 14: <ShardTxnPrepare(s2,t1) line 518, col 5 to line 532, col 172 of module MultiShardTxn>
+/\ txnSnapshots = ( s1 :>
+      ( t1 :>
+            [ ts |-> 0,
+              data |-> (k1 :> t1 @@ k2 :> NoValue),
+              prepared |-> TRUE,
+              readSet |-> {} ] @@
+        t2 :>
+            [ ts |-> 1,
+              data |-> (k1 :> NoValue @@ k2 :> NoValue),
+              prepared |-> FALSE,
+              readSet |-> {} ] ) @@
+  s2 :>
+      ( t1 :>
+            [ ts |-> 0,
+              data |-> (k1 :> NoValue @@ k2 :> NoValue),
+              prepared |-> TRUE,
+              readSet |-> {} ] @@
+        t2 :> NoValue ) )
+/\ rCatalog = (r1 :> (k1 :> s1 @@ k2 :> s2))
+/\ rtxn = (r1 :> (t1 :> 2 @@ t2 :> 1))
+/\ shardOps = ( s1 :> (t1 :> <<[op |-> "write", key |-> k1, value |-> t1]>> @@ t2 :> <<>>) @@
+  s2 :> (t1 :> <<>> @@ t2 :> <<>>) )
+/\ rTxnReadTs = (r1 :> (t1 :> 0 @@ t2 :> 0))
+/\ epoch = (s1 :> 1 @@ s2 :> 1)
+/\ shardPreparedTxns = (s1 :> {t1} @@ s2 :> {t1})
+/\ msgsPrepare = { [shard |-> s1, tid |-> t1, coordinator |-> s1],
+  [shard |-> s2, tid |-> t1, coordinator |-> s1] }
+/\ msgsVoteCommit = { [shard |-> s1, tid |-> t1, prepareTs |-> 1, to |-> s1],
+  [shard |-> s2, tid |-> t1, prepareTs |-> 1, to |-> s1] }
+/\ msgsAbort = {}
+/\ shardTxnReqs = ( s1 :>
+      ( t1 :> <<>> @@
+        t2 :>
+            << [ k |-> k1,
+                 op |-> "read",
+                 coord |-> TRUE,
+                 start |-> TRUE,
+                 shard |-> s1,
+                 readTs |-> 0,
+                 rc |-> "local" ] >> ) @@
+  s2 :>
+      ( t1 :>
+            << [ k |-> k2,
+                 op |-> "write",
+                 coord |-> FALSE,
+                 start |-> TRUE,
+                 shard |-> s2,
+                 readTs |-> 0,
+                 rc |-> "local" ] >> @@
+        t2 :> <<>> ) )
+/\ coordCommitVotes = (s1 :> (t1 :> {} @@ t2 :> {}) @@ s2 :> (t1 :> {} @@ t2 :> {}))
+/\ msgsCommit = {}
+/\ rParticipants = ( r1 :>
+      ( t1 :> <<<<s1, {"write"}>>, <<s2, {"write"}>>>> @@
+        t2 :> <<<<s1, {"read"}>>>> ) )
+/\ catalog = (k1 :> s1 @@ k2 :> s2)
+/\ ops = (t1 :> <<>> @@ t2 :> <<>>)
+/\ shardTxns = (s1 :> {t1, t2} @@ s2 :> {t1})
+/\ commitIndex = (s1 :> 0 @@ s2 :> 0)
+/\ rInCommit = (r1 :> (t1 :> TRUE @@ t2 :> FALSE))
+/\ log = ( s1 :> <<[ts |-> 1, tid |-> t1, prepare |-> TRUE]>> @@
+  s2 :> <<[ts |-> 1, tid |-> t1, prepare |-> TRUE]>> )
+/\ aborted = (s1 :> (t1 :> FALSE @@ t2 :> FALSE) @@ s2 :> (t1 :> FALSE @@ t2 :> FALSE))
+/\ coordInfo = ( s1 :>
+      ( t1 :>
+            [participants |-> <<s1, s2>>, self |-> TRUE, committing |-> TRUE] @@
+        t2 :>
+            [participants |-> <<s1>>, self |-> TRUE, committing |-> FALSE] ) @@
+  s2 :>
+      ( t1 :> [participants |-> <<s2>>, self |-> FALSE, committing |-> FALSE] @@
+        t2 :> [participants |-> <<>>, self |-> FALSE, committing |-> FALSE] ) )
+
+State 15: <ShardTxnCoordinatorRecvCommitVote(s1,t1,s1) line 493, col 5 to line 502, col 214 of module MultiShardTxn>
+/\ txnSnapshots = ( s1 :>
+      ( t1 :>
+            [ ts |-> 0,
+              data |-> (k1 :> t1 @@ k2 :> NoValue),
+              prepared |-> TRUE,
+              readSet |-> {} ] @@
+        t2 :>
+            [ ts |-> 1,
+              data |-> (k1 :> NoValue @@ k2 :> NoValue),
+              prepared |-> FALSE,
+              readSet |-> {} ] ) @@
+  s2 :>
+      ( t1 :>
+            [ ts |-> 0,
+              data |-> (k1 :> NoValue @@ k2 :> NoValue),
+              prepared |-> TRUE,
+              readSet |-> {} ] @@
+        t2 :> NoValue ) )
+/\ rCatalog = (r1 :> (k1 :> s1 @@ k2 :> s2))
+/\ rtxn = (r1 :> (t1 :> 2 @@ t2 :> 1))
+/\ shardOps = ( s1 :> (t1 :> <<[op |-> "write", key |-> k1, value |-> t1]>> @@ t2 :> <<>>) @@
+  s2 :> (t1 :> <<>> @@ t2 :> <<>>) )
+/\ rTxnReadTs = (r1 :> (t1 :> 0 @@ t2 :> 0))
+/\ epoch = (s1 :> 1 @@ s2 :> 1)
+/\ shardPreparedTxns = (s1 :> {t1} @@ s2 :> {t1})
+/\ msgsPrepare = { [shard |-> s1, tid |-> t1, coordinator |-> s1],
+  [shard |-> s2, tid |-> t1, coordinator |-> s1] }
+/\ msgsVoteCommit = {[shard |-> s2, tid |-> t1, prepareTs |-> 1, to |-> s1]}
+/\ msgsAbort = {}
+/\ shardTxnReqs = ( s1 :>
+      ( t1 :> <<>> @@
+        t2 :>
+            << [ k |-> k1,
+                 op |-> "read",
+                 coord |-> TRUE,
+                 start |-> TRUE,
+                 shard |-> s1,
+                 readTs |-> 0,
+                 rc |-> "local" ] >> ) @@
+  s2 :>
+      ( t1 :>
+            << [ k |-> k2,
+                 op |-> "write",
+                 coord |-> FALSE,
+                 start |-> TRUE,
+                 shard |-> s2,
+                 readTs |-> 0,
+                 rc |-> "local" ] >> @@
+        t2 :> <<>> ) )
+/\ coordCommitVotes = (s1 :> (t1 :> {<<s1, 1>>} @@ t2 :> {}) @@ s2 :> (t1 :> {} @@ t2 :> {}))
+/\ msgsCommit = {}
+/\ rParticipants = ( r1 :>
+      ( t1 :> <<<<s1, {"write"}>>, <<s2, {"write"}>>>> @@
+        t2 :> <<<<s1, {"read"}>>>> ) )
+/\ catalog = (k1 :> s1 @@ k2 :> s2)
+/\ ops = (t1 :> <<>> @@ t2 :> <<>>)
+/\ shardTxns = (s1 :> {t1, t2} @@ s2 :> {t1})
+/\ commitIndex = (s1 :> 0 @@ s2 :> 0)
+/\ rInCommit = (r1 :> (t1 :> TRUE @@ t2 :> FALSE))
+/\ log = ( s1 :> <<[ts |-> 1, tid |-> t1, prepare |-> TRUE]>> @@
+  s2 :> <<[ts |-> 1, tid |-> t1, prepare |-> TRUE]>> )
+/\ aborted = (s1 :> (t1 :> FALSE @@ t2 :> FALSE) @@ s2 :> (t1 :> FALSE @@ t2 :> FALSE))
+/\ coordInfo = ( s1 :>
+      ( t1 :>
+            [participants |-> <<s1, s2>>, self |-> TRUE, committing |-> TRUE] @@
+        t2 :>
+            [participants |-> <<s1>>, self |-> TRUE, committing |-> FALSE] ) @@
+  s2 :>
+      ( t1 :> [participants |-> <<s2>>, self |-> FALSE, committing |-> FALSE] @@
+        t2 :> [participants |-> <<>>, self |-> FALSE, committing |-> FALSE] ) )
+
+State 16: <ShardTxnCoordinatorRecvCommitVote(s1,t1,s2) line 493, col 5 to line 502, col 214 of module MultiShardTxn>
+/\ txnSnapshots = ( s1 :>
+      ( t1 :>
+            [ ts |-> 0,
+              data |-> (k1 :> t1 @@ k2 :> NoValue),
+              prepared |-> TRUE,
+              readSet |-> {} ] @@
+        t2 :>
+            [ ts |-> 1,
+              data |-> (k1 :> NoValue @@ k2 :> NoValue),
+              prepared |-> FALSE,
+              readSet |-> {} ] ) @@
+  s2 :>
+      ( t1 :>
+            [ ts |-> 0,
+              data |-> (k1 :> NoValue @@ k2 :> NoValue),
+              prepared |-> TRUE,
+              readSet |-> {} ] @@
+        t2 :> NoValue ) )
+/\ rCatalog = (r1 :> (k1 :> s1 @@ k2 :> s2))
+/\ rtxn = (r1 :> (t1 :> 2 @@ t2 :> 1))
+/\ shardOps = ( s1 :> (t1 :> <<[op |-> "write", key |-> k1, value |-> t1]>> @@ t2 :> <<>>) @@
+  s2 :> (t1 :> <<>> @@ t2 :> <<>>) )
+/\ rTxnReadTs = (r1 :> (t1 :> 0 @@ t2 :> 0))
+/\ epoch = (s1 :> 1 @@ s2 :> 1)
+/\ shardPreparedTxns = (s1 :> {t1} @@ s2 :> {t1})
+/\ msgsPrepare = { [shard |-> s1, tid |-> t1, coordinator |-> s1],
+  [shard |-> s2, tid |-> t1, coordinator |-> s1] }
+/\ msgsVoteCommit = {}
+/\ msgsAbort = {}
+/\ shardTxnReqs = ( s1 :>
+      ( t1 :> <<>> @@
+        t2 :>
+            << [ k |-> k1,
+                 op |-> "read",
+                 coord |-> TRUE,
+                 start |-> TRUE,
+                 shard |-> s1,
+                 readTs |-> 0,
+                 rc |-> "local" ] >> ) @@
+  s2 :>
+      ( t1 :>
+            << [ k |-> k2,
+                 op |-> "write",
+                 coord |-> FALSE,
+                 start |-> TRUE,
+                 shard |-> s2,
+                 readTs |-> 0,
+                 rc |-> "local" ] >> @@
+        t2 :> <<>> ) )
+/\ coordCommitVotes = ( s1 :> (t1 :> {<<s1, 1>>, <<s2, 1>>} @@ t2 :> {}) @@
+  s2 :> (t1 :> {} @@ t2 :> {}) )
+/\ msgsCommit = {}
+/\ rParticipants = ( r1 :>
+      ( t1 :> <<<<s1, {"write"}>>, <<s2, {"write"}>>>> @@
+        t2 :> <<<<s1, {"read"}>>>> ) )
+/\ catalog = (k1 :> s1 @@ k2 :> s2)
+/\ ops = (t1 :> <<>> @@ t2 :> <<>>)
+/\ shardTxns = (s1 :> {t1, t2} @@ s2 :> {t1})
+/\ commitIndex = (s1 :> 0 @@ s2 :> 0)
+/\ rInCommit = (r1 :> (t1 :> TRUE @@ t2 :> FALSE))
+/\ log = ( s1 :> <<[ts |-> 1, tid |-> t1, prepare |-> TRUE]>> @@
+  s2 :> <<[ts |-> 1, tid |-> t1, prepare |-> TRUE]>> )
+/\ aborted = (s1 :> (t1 :> FALSE @@ t2 :> FALSE) @@ s2 :> (t1 :> FALSE @@ t2 :> FALSE))
+/\ coordInfo = ( s1 :>
+      ( t1 :>
+            [participants |-> <<s1, s2>>, self |-> TRUE, committing |-> TRUE] @@
+        t2 :>
+            [participants |-> <<s1>>, self |-> TRUE, committing |-> FALSE] ) @@
+  s2 :>
+      ( t1 :> [participants |-> <<s2>>, self |-> FALSE, committing |-> FALSE] @@
+        t2 :> [participants |-> <<>>, self |-> FALSE, committing |-> FALSE] ) )
+
+State 17: <ShardTxnCoordinatorDecideCommit(s1,t1) line 507, col 5 to line 513, col 230 of module MultiShardTxn>
+/\ txnSnapshots = ( s1 :>
+      ( t1 :>
+            [ ts |-> 0,
+              data |-> (k1 :> t1 @@ k2 :> NoValue),
+              prepared |-> TRUE,
+              readSet |-> {} ] @@
+        t2 :>
+            [ ts |-> 1,
+              data |-> (k1 :> NoValue @@ k2 :> NoValue),
+              prepared |-> FALSE,
+              readSet |-> {} ] ) @@
+  s2 :>
+      ( t1 :>
+            [ ts |-> 0,
+              data |-> (k1 :> NoValue @@ k2 :> NoValue),
+              prepared |-> TRUE,
+              readSet |-> {} ] @@
+        t2 :> NoValue ) )
+/\ rCatalog = (r1 :> (k1 :> s1 @@ k2 :> s2))
+/\ rtxn = (r1 :> (t1 :> 2 @@ t2 :> 1))
+/\ shardOps = ( s1 :> (t1 :> <<[op |-> "write", key |-> k1, value |-> t1]>> @@ t2 :> <<>>) @@
+  s2 :> (t1 :> <<>> @@ t2 :> <<>>) )
+/\ rTxnReadTs = (r1 :> (t1 :> 0 @@ t2 :> 0))
+/\ epoch = (s1 :> 1 @@ s2 :> 1)
+/\ shardPreparedTxns = (s1 :> {t1} @@ s2 :> {t1})
+/\ msgsPrepare = { [shard |-> s1, tid |-> t1, coordinator |-> s1],
+  [shard |-> s2, tid |-> t1, coordinator |-> s1] }
+/\ msgsVoteCommit = {}
+/\ msgsAbort = {}
+/\ shardTxnReqs = ( s1 :>
+      ( t1 :> <<>> @@
+        t2 :>
+            << [ k |-> k1,
+                 op |-> "read",
+                 coord |-> TRUE,
+                 start |-> TRUE,
+                 shard |-> s1,
+                 readTs |-> 0,
+                 rc |-> "local" ] >> ) @@
+  s2 :>
+      ( t1 :>
+            << [ k |-> k2,
+                 op |-> "write",
+                 coord |-> FALSE,
+                 start |-> TRUE,
+                 shard |-> s2,
+                 readTs |-> 0,
+                 rc |-> "local" ] >> @@
+        t2 :> <<>> ) )
+/\ coordCommitVotes = ( s1 :> (t1 :> {<<s1, 1>>, <<s2, 1>>} @@ t2 :> {}) @@
+  s2 :> (t1 :> {} @@ t2 :> {}) )
+/\ msgsCommit = { [shard |-> s1, tid |-> t1, commitTs |-> 1],
+  [shard |-> s2, tid |-> t1, commitTs |-> 1] }
+/\ rParticipants = ( r1 :>
+      ( t1 :> <<<<s1, {"write"}>>, <<s2, {"write"}>>>> @@
+        t2 :> <<<<s1, {"read"}>>>> ) )
+/\ catalog = (k1 :> s1 @@ k2 :> s2)
+/\ ops = (t1 :> <<>> @@ t2 :> <<>>)
+/\ shardTxns = (s1 :> {t1, t2} @@ s2 :> {t1})
+/\ commitIndex = (s1 :> 0 @@ s2 :> 0)
+/\ rInCommit = (r1 :> (t1 :> TRUE @@ t2 :> FALSE))
+/\ log = ( s1 :> <<[ts |-> 1, tid |-> t1, prepare |-> TRUE]>> @@
+  s2 :> <<[ts |-> 1, tid |-> t1, prepare |-> TRUE]>> )
+/\ aborted = (s1 :> (t1 :> FALSE @@ t2 :> FALSE) @@ s2 :> (t1 :> FALSE @@ t2 :> FALSE))
+/\ coordInfo = ( s1 :>
+      ( t1 :>
+            [participants |-> <<s1, s2>>, self |-> TRUE, committing |-> TRUE] @@
+        t2 :>
+            [participants |-> <<s1>>, self |-> TRUE, committing |-> FALSE] ) @@
+  s2 :>
+      ( t1 :> [participants |-> <<s2>>, self |-> FALSE, committing |-> FALSE] @@
+        t2 :> [participants |-> <<>>, self |-> FALSE, committing |-> FALSE] ) )
+
+State 18: <ShardTxnRead(s1,t2,k1) line 419, col 5 to line 432, col 177 of module MultiShardTxn>
+/\ txnSnapshots = ( s1 :>
+      ( t1 :>
+            [ ts |-> 0,
+              data |-> (k1 :> t1 @@ k2 :> NoValue),
+              prepared |-> TRUE,
+              readSet |-> {} ] @@
+        t2 :>
+            [ ts |-> 1,
+              data |-> (k1 :> NoValue @@ k2 :> NoValue),
+              prepared |-> FALSE,
+              readSet |-> {k1} ] ) @@
+  s2 :>
+      ( t1 :>
+            [ ts |-> 0,
+              data |-> (k1 :> NoValue @@ k2 :> NoValue),
+              prepared |-> TRUE,
+              readSet |-> {} ] @@
+        t2 :> NoValue ) )
+/\ rCatalog = (r1 :> (k1 :> s1 @@ k2 :> s2))
+/\ rtxn = (r1 :> (t1 :> 2 @@ t2 :> 1))
+/\ shardOps = ( s1 :>
+      ( t1 :> <<[op |-> "write", key |-> k1, value |-> t1]>> @@
+        t2 :> <<[op |-> "read", key |-> k1, value |-> NoValue]>> ) @@
+  s2 :> (t1 :> <<>> @@ t2 :> <<>>) )
+/\ rTxnReadTs = (r1 :> (t1 :> 0 @@ t2 :> 0))
+/\ epoch = (s1 :> 1 @@ s2 :> 1)
+/\ shardPreparedTxns = (s1 :> {t1} @@ s2 :> {t1})
+/\ msgsPrepare = { [shard |-> s1, tid |-> t1, coordinator |-> s1],
+  [shard |-> s2, tid |-> t1, coordinator |-> s1] }
+/\ msgsVoteCommit = {}
+/\ msgsAbort = {}
+/\ shardTxnReqs = ( s1 :> (t1 :> <<>> @@ t2 :> <<>>) @@
+  s2 :>
+      ( t1 :>
+            << [ k |-> k2,
+                 op |-> "write",
+                 coord |-> FALSE,
+                 start |-> TRUE,
+                 shard |-> s2,
+                 readTs |-> 0,
+                 rc |-> "local" ] >> @@
+        t2 :> <<>> ) )
+/\ coordCommitVotes = ( s1 :> (t1 :> {<<s1, 1>>, <<s2, 1>>} @@ t2 :> {}) @@
+  s2 :> (t1 :> {} @@ t2 :> {}) )
+/\ msgsCommit = { [shard |-> s1, tid |-> t1, commitTs |-> 1],
+  [shard |-> s2, tid |-> t1, commitTs |-> 1] }
+/\ rParticipants = ( r1 :>
+      ( t1 :> <<<<s1, {"write"}>>, <<s2, {"write"}>>>> @@
+        t2 :> <<<<s1, {"read"}>>>> ) )
+/\ catalog = (k1 :> s1 @@ k2 :> s2)
+/\ ops = (t1 :> <<>> @@ t2 :> <<>>)
+/\ shardTxns = (s1 :> {t1, t2} @@ s2 :> {t1})
+/\ commitIndex = (s1 :> 0 @@ s2 :> 0)
+/\ rInCommit = (r1 :> (t1 :> TRUE @@ t2 :> FALSE))
+/\ log = ( s1 :> <<[ts |-> 1, tid |-> t1, prepare |-> TRUE]>> @@
+  s2 :> <<[ts |-> 1, tid |-> t1, prepare |-> TRUE]>> )
+/\ aborted = (s1 :> (t1 :> FALSE @@ t2 :> FALSE) @@ s2 :> (t1 :> FALSE @@ t2 :> FALSE))
+/\ coordInfo = ( s1 :>
+      ( t1 :>
+            [participants |-> <<s1, s2>>, self |-> TRUE, committing |-> TRUE] @@
+        t2 :>
+            [participants |-> <<s1>>, self |-> TRUE, committing |-> FALSE] ) @@
+  s2 :>
+      ( t1 :> [participants |-> <<s2>>, self |-> FALSE, committing |-> FALSE] @@
+        t2 :> [participants |-> <<>>, self |-> FALSE, committing |-> FALSE] ) )
+
+State 19: <RouterTxnOp(r1,s1,t2,k1,"read") line 292, col 5 to line 309, col 198 of module MultiShardTxn>
+/\ txnSnapshots = ( s1 :>
+      ( t1 :>
+            [ ts |-> 0,
+              data |-> (k1 :> t1 @@ k2 :> NoValue),
+              prepared |-> TRUE,
+              readSet |-> {} ] @@
+        t2 :>
+            [ ts |-> 1,
+              data |-> (k1 :> NoValue @@ k2 :> NoValue),
+              prepared |-> FALSE,
+              readSet |-> {k1} ] ) @@
+  s2 :>
+      ( t1 :>
+            [ ts |-> 0,
+              data |-> (k1 :> NoValue @@ k2 :> NoValue),
+              prepared |-> TRUE,
+              readSet |-> {} ] @@
+        t2 :> NoValue ) )
+/\ rCatalog = (r1 :> (k1 :> s1 @@ k2 :> s2))
+/\ rtxn = (r1 :> (t1 :> 2 @@ t2 :> 2))
+/\ shardOps = ( s1 :>
+      ( t1 :> <<[op |-> "write", key |-> k1, value |-> t1]>> @@
+        t2 :> <<[op |-> "read", key |-> k1, value |-> NoValue]>> ) @@
+  s2 :> (t1 :> <<>> @@ t2 :> <<>>) )
+/\ rTxnReadTs = (r1 :> (t1 :> 0 @@ t2 :> 0))
+/\ epoch = (s1 :> 1 @@ s2 :> 1)
+/\ shardPreparedTxns = (s1 :> {t1} @@ s2 :> {t1})
+/\ msgsPrepare = { [shard |-> s1, tid |-> t1, coordinator |-> s1],
+  [shard |-> s2, tid |-> t1, coordinator |-> s1] }
+/\ msgsVoteCommit = {}
+/\ msgsAbort = {}
+/\ shardTxnReqs = ( s1 :>
+      ( t1 :> <<>> @@
+        t2 :>
+            << [ k |-> k1,
+                 op |-> "read",
+                 coord |-> FALSE,
+                 start |-> FALSE,
+                 shard |-> s1,
+                 readTs |-> 0,
+                 rc |-> "local" ] >> ) @@
+  s2 :>
+      ( t1 :>
+            << [ k |-> k2,
+                 op |-> "write",
+                 coord |-> FALSE,
+                 start |-> TRUE,
+                 shard |-> s2,
+                 readTs |-> 0,
+                 rc |-> "local" ] >> @@
+        t2 :> <<>> ) )
+/\ coordCommitVotes = ( s1 :> (t1 :> {<<s1, 1>>, <<s2, 1>>} @@ t2 :> {}) @@
+  s2 :> (t1 :> {} @@ t2 :> {}) )
+/\ msgsCommit = { [shard |-> s1, tid |-> t1, commitTs |-> 1],
+  [shard |-> s2, tid |-> t1, commitTs |-> 1] }
+/\ rParticipants = ( r1 :>
+      ( t1 :> <<<<s1, {"write"}>>, <<s2, {"write"}>>>> @@
+        t2 :> <<<<s1, {"read"}>>>> ) )
+/\ catalog = (k1 :> s1 @@ k2 :> s2)
+/\ ops = (t1 :> <<>> @@ t2 :> <<>>)
+/\ shardTxns = (s1 :> {t1, t2} @@ s2 :> {t1})
+/\ commitIndex = (s1 :> 0 @@ s2 :> 0)
+/\ rInCommit = (r1 :> (t1 :> TRUE @@ t2 :> FALSE))
+/\ log = ( s1 :> <<[ts |-> 1, tid |-> t1, prepare |-> TRUE]>> @@
+  s2 :> <<[ts |-> 1, tid |-> t1, prepare |-> TRUE]>> )
+/\ aborted = (s1 :> (t1 :> FALSE @@ t2 :> FALSE) @@ s2 :> (t1 :> FALSE @@ t2 :> FALSE))
+/\ coordInfo = ( s1 :>
+      ( t1 :>
+            [participants |-> <<s1, s2>>, self |-> TRUE, committing |-> TRUE] @@
+        t2 :>
+            [participants |-> <<s1>>, self |-> TRUE, committing |-> FALSE] ) @@
+  s2 :>
+      ( t1 :> [participants |-> <<s2>>, self |-> FALSE, committing |-> FALSE] @@
+        t2 :> [participants |-> <<>>, self |-> FALSE, committing |-> FALSE] ) )
+
+State 20: <ShardTxnCommit(s1,t1) line 536, col 5 to line 553, col 146 of module MultiShardTxn>
+/\ txnSnapshots = ( s1 :>
+      ( t1 :> NoValue @@
+        t2 :>
+            [ ts |-> 1,
+              data |-> (k1 :> NoValue @@ k2 :> NoValue),
+              prepared |-> FALSE,
+              readSet |-> {k1} ] ) @@
+  s2 :>
+      ( t1 :>
+            [ ts |-> 0,
+              data |-> (k1 :> NoValue @@ k2 :> NoValue),
+              prepared |-> TRUE,
+              readSet |-> {} ] @@
+        t2 :> NoValue ) )
+/\ rCatalog = (r1 :> (k1 :> s1 @@ k2 :> s2))
+/\ rtxn = (r1 :> (t1 :> 2 @@ t2 :> 2))
+/\ shardOps = ( s1 :>
+      ( t1 :> <<[op |-> "write", key |-> k1, value |-> t1]>> @@
+        t2 :> <<[op |-> "read", key |-> k1, value |-> NoValue]>> ) @@
+  s2 :> (t1 :> <<>> @@ t2 :> <<>>) )
+/\ rTxnReadTs = (r1 :> (t1 :> 0 @@ t2 :> 0))
+/\ epoch = (s1 :> 1 @@ s2 :> 1)
+/\ shardPreparedTxns = (s1 :> {} @@ s2 :> {t1})
+/\ msgsPrepare = { [shard |-> s1, tid |-> t1, coordinator |-> s1],
+  [shard |-> s2, tid |-> t1, coordinator |-> s1] }
+/\ msgsVoteCommit = {}
+/\ msgsAbort = {}
+/\ shardTxnReqs = ( s1 :>
+      ( t1 :> <<>> @@
+        t2 :>
+            << [ k |-> k1,
+                 op |-> "read",
+                 coord |-> FALSE,
+                 start |-> FALSE,
+                 shard |-> s1,
+                 readTs |-> 0,
+                 rc |-> "local" ] >> ) @@
+  s2 :>
+      ( t1 :>
+            << [ k |-> k2,
+                 op |-> "write",
+                 coord |-> FALSE,
+                 start |-> TRUE,
+                 shard |-> s2,
+                 readTs |-> 0,
+                 rc |-> "local" ] >> @@
+        t2 :> <<>> ) )
+/\ coordCommitVotes = ( s1 :> (t1 :> {<<s1, 1>>, <<s2, 1>>} @@ t2 :> {}) @@
+  s2 :> (t1 :> {} @@ t2 :> {}) )
+/\ msgsCommit = {[shard |-> s2, tid |-> t1, commitTs |-> 1]}
+/\ rParticipants = ( r1 :>
+      ( t1 :> <<<<s1, {"write"}>>, <<s2, {"write"}>>>> @@
+        t2 :> <<<<s1, {"read"}>>>> ) )
+/\ catalog = (k1 :> s1 @@ k2 :> s2)
+/\ ops = (t1 :> <<[op |-> "write", key |-> k1, value |-> t1]>> @@ t2 :> <<>>)
+/\ shardTxns = (s1 :> {t2} @@ s2 :> {t1})
+/\ commitIndex = (s1 :> 0 @@ s2 :> 0)
+/\ rInCommit = (r1 :> (t1 :> TRUE @@ t2 :> FALSE))
+/\ log = ( s1 :>
+      << [ts |-> 1, tid |-> t1, prepare |-> TRUE],
+         [ts |-> 1, tid |-> t1, data |-> (k1 :> t1)] >> @@
+  s2 :> <<[ts |-> 1, tid |-> t1, prepare |-> TRUE]>> )
+/\ aborted = (s1 :> (t1 :> FALSE @@ t2 :> FALSE) @@ s2 :> (t1 :> FALSE @@ t2 :> FALSE))
+/\ coordInfo = ( s1 :>
+      ( t1 :>
+            [participants |-> <<s1, s2>>, self |-> TRUE, committing |-> TRUE] @@
+        t2 :>
+            [participants |-> <<s1>>, self |-> TRUE, committing |-> FALSE] ) @@
+  s2 :>
+      ( t1 :> [participants |-> <<s2>>, self |-> FALSE, committing |-> FALSE] @@
+        t2 :> [participants |-> <<>>, self |-> FALSE, committing |-> FALSE] ) )
+
+State 21: <ShardTxnRead(s1,t2,k1) line 419, col 5 to line 432, col 177 of module MultiShardTxn>
+/\ txnSnapshots = ( s1 :>
+      ( t1 :> NoValue @@
+        t2 :>
+            [ ts |-> 1,
+              data |-> (k1 :> NoValue @@ k2 :> NoValue),
+              prepared |-> FALSE,
+              readSet |-> {k1} ] ) @@
+  s2 :>
+      ( t1 :>
+            [ ts |-> 0,
+              data |-> (k1 :> NoValue @@ k2 :> NoValue),
+              prepared |-> TRUE,
+              readSet |-> {} ] @@
+        t2 :> NoValue ) )
+/\ rCatalog = (r1 :> (k1 :> s1 @@ k2 :> s2))
+/\ rtxn = (r1 :> (t1 :> 2 @@ t2 :> 2))
+/\ shardOps = ( s1 :>
+      ( t1 :> <<[op |-> "write", key |-> k1, value |-> t1]>> @@
+        t2 :>
+            << [op |-> "read", key |-> k1, value |-> NoValue],
+               [op |-> "read", key |-> k1, value |-> t1] >> ) @@
+  s2 :> (t1 :> <<>> @@ t2 :> <<>>) )
+/\ rTxnReadTs = (r1 :> (t1 :> 0 @@ t2 :> 0))
+/\ epoch = (s1 :> 1 @@ s2 :> 1)
+/\ shardPreparedTxns = (s1 :> {} @@ s2 :> {t1})
+/\ msgsPrepare = { [shard |-> s1, tid |-> t1, coordinator |-> s1],
+  [shard |-> s2, tid |-> t1, coordinator |-> s1] }
+/\ msgsVoteCommit = {}
+/\ msgsAbort = {}
+/\ shardTxnReqs = ( s1 :> (t1 :> <<>> @@ t2 :> <<>>) @@
+  s2 :>
+      ( t1 :>
+            << [ k |-> k2,
+                 op |-> "write",
+                 coord |-> FALSE,
+                 start |-> TRUE,
+                 shard |-> s2,
+                 readTs |-> 0,
+                 rc |-> "local" ] >> @@
+        t2 :> <<>> ) )
+/\ coordCommitVotes = ( s1 :> (t1 :> {<<s1, 1>>, <<s2, 1>>} @@ t2 :> {}) @@
+  s2 :> (t1 :> {} @@ t2 :> {}) )
+/\ msgsCommit = {[shard |-> s2, tid |-> t1, commitTs |-> 1]}
+/\ rParticipants = ( r1 :>
+      ( t1 :> <<<<s1, {"write"}>>, <<s2, {"write"}>>>> @@
+        t2 :> <<<<s1, {"read"}>>>> ) )
+/\ catalog = (k1 :> s1 @@ k2 :> s2)
+/\ ops = (t1 :> <<[op |-> "write", key |-> k1, value |-> t1]>> @@ t2 :> <<>>)
+/\ shardTxns = (s1 :> {t2} @@ s2 :> {t1})
+/\ commitIndex = (s1 :> 0 @@ s2 :> 0)
+/\ rInCommit = (r1 :> (t1 :> TRUE @@ t2 :> FALSE))
+/\ log = ( s1 :>
+      << [ts |-> 1, tid |-> t1, prepare |-> TRUE],
+         [ts |-> 1, tid |-> t1, data |-> (k1 :> t1)] >> @@
+  s2 :> <<[ts |-> 1, tid |-> t1, prepare |-> TRUE]>> )
+/\ aborted = (s1 :> (t1 :> FALSE @@ t2 :> FALSE) @@ s2 :> (t1 :> FALSE @@ t2 :> FALSE))
+/\ coordInfo = ( s1 :>
+      ( t1 :>
+            [participants |-> <<s1, s2>>, self |-> TRUE, committing |-> TRUE] @@
+        t2 :>
+            [participants |-> <<s1>>, self |-> TRUE, committing |-> FALSE] ) @@
+  s2 :>
+      ( t1 :> [participants |-> <<s2>>, self |-> FALSE, committing |-> FALSE] @@
+        t2 :> [participants |-> <<>>, self |-> FALSE, committing |-> FALSE] ) )
+
+State 22: <RouterTxnCommitSingleShard(r1,s1,t2) line 350, col 5 to line 359, col 251 of module MultiShardTxn>
+/\ txnSnapshots = ( s1 :>
+      ( t1 :> NoValue @@
+        t2 :>
+            [ ts |-> 1,
+              data |-> (k1 :> NoValue @@ k2 :> NoValue),
+              prepared |-> FALSE,
+              readSet |-> {k1} ] ) @@
+  s2 :>
+      ( t1 :>
+            [ ts |-> 0,
+              data |-> (k1 :> NoValue @@ k2 :> NoValue),
+              prepared |-> TRUE,
+              readSet |-> {} ] @@
+        t2 :> NoValue ) )
+/\ rCatalog = (r1 :> (k1 :> s1 @@ k2 :> s2))
+/\ rtxn = (r1 :> (t1 :> 2 @@ t2 :> 2))
+/\ shardOps = ( s1 :>
+      ( t1 :> <<[op |-> "write", key |-> k1, value |-> t1]>> @@
+        t2 :>
+            << [op |-> "read", key |-> k1, value |-> NoValue],
+               [op |-> "read", key |-> k1, value |-> t1] >> ) @@
+  s2 :> (t1 :> <<>> @@ t2 :> <<>>) )
+/\ rTxnReadTs = (r1 :> (t1 :> 0 @@ t2 :> 0))
+/\ epoch = (s1 :> 1 @@ s2 :> 1)
+/\ shardPreparedTxns = (s1 :> {} @@ s2 :> {t1})
+/\ msgsPrepare = { [shard |-> s1, tid |-> t1, coordinator |-> s1],
+  [shard |-> s2, tid |-> t1, coordinator |-> s1] }
+/\ msgsVoteCommit = {}
+/\ msgsAbort = {}
+/\ shardTxnReqs = ( s1 :> (t1 :> <<>> @@ t2 :> <<>>) @@
+  s2 :>
+      ( t1 :>
+            << [ k |-> k2,
+                 op |-> "write",
+                 coord |-> FALSE,
+                 start |-> TRUE,
+                 shard |-> s2,
+                 readTs |-> 0,
+                 rc |-> "local" ] >> @@
+        t2 :> <<>> ) )
+/\ coordCommitVotes = ( s1 :> (t1 :> {<<s1, 1>>, <<s2, 1>>} @@ t2 :> {}) @@
+  s2 :> (t1 :> {} @@ t2 :> {}) )
+/\ msgsCommit = { [shard |-> s1, tid |-> t2, commitTs |-> NoValue],
+  [shard |-> s2, tid |-> t1, commitTs |-> 1] }
+/\ rParticipants = ( r1 :>
+      ( t1 :> <<<<s1, {"write"}>>, <<s2, {"write"}>>>> @@
+        t2 :> <<<<s1, {"read"}>>>> ) )
+/\ catalog = (k1 :> s1 @@ k2 :> s2)
+/\ ops = (t1 :> <<[op |-> "write", key |-> k1, value |-> t1]>> @@ t2 :> <<>>)
+/\ shardTxns = (s1 :> {t2} @@ s2 :> {t1})
+/\ commitIndex = (s1 :> 0 @@ s2 :> 0)
+/\ rInCommit = (r1 :> (t1 :> TRUE @@ t2 :> TRUE))
+/\ log = ( s1 :>
+      << [ts |-> 1, tid |-> t1, prepare |-> TRUE],
+         [ts |-> 1, tid |-> t1, data |-> (k1 :> t1)] >> @@
+  s2 :> <<[ts |-> 1, tid |-> t1, prepare |-> TRUE]>> )
+/\ aborted = (s1 :> (t1 :> FALSE @@ t2 :> FALSE) @@ s2 :> (t1 :> FALSE @@ t2 :> FALSE))
+/\ coordInfo = ( s1 :>
+      ( t1 :>
+            [participants |-> <<s1, s2>>, self |-> TRUE, committing |-> TRUE] @@
+        t2 :>
+            [participants |-> <<s1>>, self |-> TRUE, committing |-> FALSE] ) @@
+  s2 :>
+      ( t1 :> [participants |-> <<s2>>, self |-> FALSE, committing |-> FALSE] @@
+        t2 :> [participants |-> <<>>, self |-> FALSE, committing |-> FALSE] ) )
+
+State 23: <ShardTxnCommit(s1,t2) line 536, col 5 to line 553, col 146 of module MultiShardTxn>
+/\ txnSnapshots = ( s1 :> (t1 :> NoValue @@ t2 :> NoValue) @@
+  s2 :>
+      ( t1 :>
+            [ ts |-> 0,
+              data |-> (k1 :> NoValue @@ k2 :> NoValue),
+              prepared |-> TRUE,
+              readSet |-> {} ] @@
+        t2 :> NoValue ) )
+/\ rCatalog = (r1 :> (k1 :> s1 @@ k2 :> s2))
+/\ rtxn = (r1 :> (t1 :> 2 @@ t2 :> 2))
+/\ shardOps = ( s1 :>
+      ( t1 :> <<[op |-> "write", key |-> k1, value |-> t1]>> @@
+        t2 :>
+            << [op |-> "read", key |-> k1, value |-> NoValue],
+               [op |-> "read", key |-> k1, value |-> t1] >> ) @@
+  s2 :> (t1 :> <<>> @@ t2 :> <<>>) )
+/\ rTxnReadTs = (r1 :> (t1 :> 0 @@ t2 :> 0))
+/\ epoch = (s1 :> 1 @@ s2 :> 1)
+/\ shardPreparedTxns = (s1 :> {} @@ s2 :> {t1})
+/\ msgsPrepare = { [shard |-> s1, tid |-> t1, coordinator |-> s1],
+  [shard |-> s2, tid |-> t1, coordinator |-> s1] }
+/\ msgsVoteCommit = {}
+/\ msgsAbort = {}
+/\ shardTxnReqs = ( s1 :> (t1 :> <<>> @@ t2 :> <<>>) @@
+  s2 :>
+      ( t1 :>
+            << [ k |-> k2,
+                 op |-> "write",
+                 coord |-> FALSE,
+                 start |-> TRUE,
+                 shard |-> s2,
+                 readTs |-> 0,
+                 rc |-> "local" ] >> @@
+        t2 :> <<>> ) )
+/\ coordCommitVotes = ( s1 :> (t1 :> {<<s1, 1>>, <<s2, 1>>} @@ t2 :> {}) @@
+  s2 :> (t1 :> {} @@ t2 :> {}) )
+/\ msgsCommit = {[shard |-> s2, tid |-> t1, commitTs |-> 1]}
+/\ rParticipants = ( r1 :>
+      ( t1 :> <<<<s1, {"write"}>>, <<s2, {"write"}>>>> @@
+        t2 :> <<<<s1, {"read"}>>>> ) )
+/\ catalog = (k1 :> s1 @@ k2 :> s2)
+/\ ops = ( t1 :> <<[op |-> "write", key |-> k1, value |-> t1]>> @@
+  t2 :>
+      << [op |-> "read", key |-> k1, value |-> NoValue],
+         [op |-> "read", key |-> k1, value |-> t1] >> )
+/\ shardTxns = (s1 :> {} @@ s2 :> {t1})
+/\ commitIndex = (s1 :> 0 @@ s2 :> 0)
+/\ rInCommit = (r1 :> (t1 :> TRUE @@ t2 :> TRUE))
+/\ log = ( s1 :>
+      << [ts |-> 1, tid |-> t1, prepare |-> TRUE],
+         [ts |-> 1, tid |-> t1, data |-> (k1 :> t1)],
+         [ts |-> 2, tid |-> t2, data |-> <<>>] >> @@
+  s2 :> <<[ts |-> 1, tid |-> t1, prepare |-> TRUE]>> )
+/\ aborted = (s1 :> (t1 :> FALSE @@ t2 :> FALSE) @@ s2 :> (t1 :> FALSE @@ t2 :> FALSE))
+/\ coordInfo = ( s1 :>
+      ( t1 :>
+            [participants |-> <<s1, s2>>, self |-> TRUE, committing |-> TRUE] @@
+        t2 :>
+            [participants |-> <<s1>>, self |-> TRUE, committing |-> FALSE] ) @@
+  s2 :>
+      ( t1 :> [participants |-> <<s2>>, self |-> FALSE, committing |-> FALSE] @@
+        t2 :> [participants |-> <<>>, self |-> FALSE, committing |-> FALSE] ) )
+
+378906 states generated, 84251 distinct states found, 16326 states left on queue.
+The depth of the complete state graph search is 23.
+Finished in 02s at (2025-01-10 11:34:07)
