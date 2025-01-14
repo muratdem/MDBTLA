@@ -63,20 +63,20 @@ Init ==
     /\ mepoch = 1
     /\ mtxnSnapshots = [t \in MTxId |-> Nil]
 
-Timestamps == 1..3
+Timestamps == 1..6
 
 Next == 
     \/ \E tid \in MTxId, readTs \in Timestamps : MDBTxnStart(tid, readTs, RC)
     \/ \E tid \in MTxId, k \in Keys, v \in Values : MDBTxnWrite(tid, k, v)
-    \/ \E tid \in MTxId, k \in Keys, v \in Values \cup {NoValue} : MDBTxnRead(tid, k, v)
+    \/ \E tid \in MTxId, k \in Keys, v \in (Values \cup {NoValue}) : MDBTxnRead(tid, k, v)
     \/ \E tid \in MTxId, commitTs \in Timestamps : MDBTxnCommit(tid, commitTs)
     \/ \E tid \in MTxId, prepareTs \in Timestamps : MDBTxnPrepare(tid, prepareTs)
     \/ \E tid \in MTxId : MDBTxnAbort(tid)
 
 
 Symmetry == Permutations(Keys) \union Permutations(Values) \union Permutations(MTxId)
-StateConstraint == Len(mlog) <= 10
+StateConstraint == Len(mlog) <= 15
 
-Bait1 == Len(mlog) < 7
+Bait1 == Len(mlog) < 10
 
 ======================
