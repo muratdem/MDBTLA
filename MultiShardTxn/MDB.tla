@@ -129,6 +129,8 @@ ActiveReadTimestamps == { IF mtxnSnapshots[tx] = Nil THEN 0 ELSE mtxnSnapshots[t
 \* Next timestamp to use for a transaction operation.
 NextTs == Max(PrepareOrCommitTimestamps \cup ActiveReadTimestamps) + 1
 
+ActiveTransactions == {tx \in DOMAIN mtxnSnapshots : mtxnSnapshots[tx] # Nil}
+
 \* 
 \* Perform a snapshot read of a given key at timestamp.
 \* 
