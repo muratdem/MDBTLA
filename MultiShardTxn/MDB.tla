@@ -5,7 +5,7 @@ CONSTANTS WC,  \* write concern
           RC   \* read concern
 
 CONSTANTS Keys, 
-          Values, 
+        \*   Values, 
           NoValue,
           MTxId,
           Nil
@@ -22,6 +22,8 @@ LogIndices == Nat \ {0}
 
 Epochs == Nat \ {0}
 
+\* Make values the same as transaction IDs.
+Values == MTxId
 
 \* The result a read will have if no value can be found.
 NotFoundReadResult == [

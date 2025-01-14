@@ -16,20 +16,23 @@ ShardMDBTxnStart(tid, readTs, rc) ==
     /\ UNCHANGED <<mlog, mcommitIndex, mepoch>>
    
 \* Writes to the local KV store of a shard.
-ShardMDBTxnWrite(tid, k) == 
+ShardMDBTxnWrite(tid, k, v) == 
     \* The write to this key does not overlap with any writes to the same key
     \* from other, concurrent transactions.
     /\ tid \in ActiveTransactions
+    \* Transactions always write their own ID as the value, to uniquely identify their writes.
+    /\ v = tid
     /\ ~WriteConflictExists(tid, k)
     \* Update the transaction's snapshot data.
-    /\ mtxnSnapshots' = UpdateSnapshot(tid, k, tid)
+    /\ mtxnSnapshots' = UpdateSnapshot(tid, k, v)
     /\ UNCHANGED <<mlog, mcommitIndex, mepoch>>
 
 \* Reads from the local KV store of a shard.
-ShardMDBTxnRead(tid, k) ==
+ShardMDBTxnRead(tid, k, v) ==
     \* Non-snapshot read aren't actually required to block on prepare conflicts (see https://jira.mongodb.org/browse/SERVER-36382). 
     /\ tid \in ActiveTransactions
-    /\ RC = "snapshot" => ~PrepareConflict(tid, k)
+    /\ ~PrepareConflict(tid, k)
+    /\ v = TxnRead(tid, k)
     /\ mtxnSnapshots' = [mtxnSnapshots EXCEPT ![tid]["readSet"] = @ \cup {k}]
     /\ UNCHANGED <<mlog, mcommitIndex, mepoch>>
 
@@ -64,16 +67,16 @@ Timestamps == 1..3
 
 Next == 
     \/ \E tid \in MTxId, readTs \in Timestamps : ShardMDBTxnStart(tid, readTs, RC)
-    \/ \E tid \in MTxId, k \in Keys : ShardMDBTxnWrite(tid, k)
-    \/ \E tid \in MTxId, k \in Keys : ShardMDBTxnRead(tid, k)
+    \/ \E tid \in MTxId, k \in Keys, v \in Values : ShardMDBTxnWrite(tid, k, v)
+    \/ \E tid \in MTxId, k \in Keys, v \in Values \cup {NoValue} : ShardMDBTxnRead(tid, k, v)
     \/ \E tid \in MTxId, commitTs \in Timestamps : ShardMDBTxnCommit(tid, commitTs)
     \/ \E tid \in MTxId, prepareTs \in Timestamps : ShardMDBTxnPrepare(tid, prepareTs)
     \/ \E tid \in MTxId : ShardMDBTxnAbort(tid)
 
 
 Symmetry == Permutations(Keys) \union Permutations(Values) \union Permutations(MTxId)
-StateConstraint == Len(mlog) <= 3
+StateConstraint == Len(mlog) <= 10
 
-Bait1 == Len(mlog) < 4
+Bait1 == Len(mlog) < 7
 
 ======================

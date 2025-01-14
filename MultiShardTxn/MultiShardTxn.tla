@@ -110,7 +110,7 @@ ShardMDB(s) == INSTANCE MDB WITH
                     mcommitIndex <- commitIndex[s], 
                     mepoch <- epoch[s], 
                     mtxnSnapshots <- txnSnapshots[s],
-                    Values <- TxId,
+                    \* Values <- TxId,
                     MTxId <- TxId,
                     Nil <- NoValue
 
