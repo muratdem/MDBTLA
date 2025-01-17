@@ -53,6 +53,8 @@ MDBTxnCommit(tid, commitTs) ==
     \* Commit the transaction on the MDB KV store.
     \* Write all updated keys back to the shard oplog.
     /\ tid \in ActiveTransactions
+    \* Must be greater than the newest known commit timestamp.
+    /\ {mlog[i].ts : i \in DOMAIN mlog} # {} => commitTs > Max({mlog[i].ts : i \in DOMAIN mlog})
     /\ mlog' = CommitTxnToLog(tid, commitTs)
     /\ mtxnSnapshots' = [mtxnSnapshots EXCEPT ![tid] = Nil]
     /\ UNCHANGED <<mepoch, mcommitIndex, txnStatus>>
@@ -85,7 +87,7 @@ Next ==
     \/ \E tid \in MTxId, k \in Keys, v \in Values : MDBTxnWrite(tid, k, v)
     \/ \E tid \in MTxId, k \in Keys, v \in (Values \cup {NoValue}) : MDBTxnRead(tid, k, v)
     \/ \E tid \in MTxId, commitTs \in Timestamps : MDBTxnCommit(tid, commitTs)
-    \/ \E tid \in MTxId, prepareTs \in Timestamps : MDBTxnPrepare(tid, prepareTs)
+    \* \/ \E tid \in MTxId, prepareTs \in Timestamps : MDBTxnPrepare(tid, prepareTs)
     \/ \E tid \in MTxId : MDBTxnAbort(tid)
 
 
