@@ -39,7 +39,7 @@ def print_trace():
         # print("Final State:", final_state)
         wt_actions.append(make_wt_action(transition['name'], action_args))
 
-    print("WT Actions:")
+    print("\n-----\nWT Actions:")
 
     # Open a separate session for all transactions.
     txns = ["t1", "t2"]
