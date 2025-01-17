@@ -1,6 +1,13 @@
 ---- MODULE MDBTest ----
 EXTENDS Sequences, Naturals, Util, TLC, MDB
 
+\* Stores latest operation status for each operation of a transaction (e.g.
+\* records error codes, etc.)
+VARIABLE txnStatus
+
+STATUS_OK == "OK"
+STATUS_ROLLBACK == "WT_ROLLBACK"
+
 \* 
 \* Action wrappers for operations on the MDB instance.
 \* 
@@ -14,7 +21,7 @@ MDBTxnStart(tid, readTs, rc) ==
     \* Save a snapshot of the current MongoDB instance at this shard for this transaction to use.
     /\ tid \notin ActiveTransactions
     /\ mtxnSnapshots' = [mtxnSnapshots EXCEPT ![tid] = SnapshotKV(readTs, rc)]
-    /\ UNCHANGED <<mlog, mcommitIndex, mepoch>>
+    /\ UNCHANGED <<mlog, mcommitIndex, mepoch, txnStatus>>
    
 \* Writes to the local KV store of a shard.
 MDBTxnWrite(tid, k, v) == 
@@ -23,9 +30,14 @@ MDBTxnWrite(tid, k, v) ==
     /\ tid \in ActiveTransactions
     \* Transactions always write their own ID as the value, to uniquely identify their writes.
     /\ v = tid
-    /\ ~WriteConflictExists(tid, k)
-    \* Update the transaction's snapshot data.
-    /\ mtxnSnapshots' = UpdateSnapshot(tid, k, v)
+    /\ \/ /\ ~WriteConflictExists(tid, k)
+          \* Update the transaction's snapshot data.
+          /\ mtxnSnapshots' = UpdateSnapshot(tid, k, v)
+          /\ UNCHANGED <<txnStatus>>
+       \/ /\ WriteConflictExists(tid, k)
+          \* If there is a write conflict, the transaction must roll back.
+          /\ txnStatus' = [txnStatus EXCEPT ![tid] = STATUS_ROLLBACK]
+          /\ UNCHANGED mtxnSnapshots
     /\ UNCHANGED <<mlog, mcommitIndex, mepoch>>
 
 \* Reads from the local KV store of a shard.
@@ -35,7 +47,7 @@ MDBTxnRead(tid, k, v) ==
     /\ ~PrepareConflict(tid, k)
     /\ v = TxnRead(tid, k)
     /\ mtxnSnapshots' = [mtxnSnapshots EXCEPT ![tid]["readSet"] = @ \cup {k}]
-    /\ UNCHANGED <<mlog, mcommitIndex, mepoch>>
+    /\ UNCHANGED <<mlog, mcommitIndex, mepoch, txnStatus>>
 
 MDBTxnCommit(tid, commitTs) == 
     \* Commit the transaction on the MDB KV store.
@@ -43,27 +55,28 @@ MDBTxnCommit(tid, commitTs) ==
     /\ tid \in ActiveTransactions
     /\ mlog' = CommitTxnToLog(tid, commitTs)
     /\ mtxnSnapshots' = [mtxnSnapshots EXCEPT ![tid] = Nil]
-    /\ UNCHANGED <<mepoch, mcommitIndex>>
+    /\ UNCHANGED <<mepoch, mcommitIndex, txnStatus>>
 
 MDBTxnPrepare(tid, prepareTs) == 
     /\ tid \in ActiveTransactions
     /\ ~mtxnSnapshots[tid]["prepared"]
     /\ mtxnSnapshots' = [mtxnSnapshots EXCEPT ![tid]["prepared"] = TRUE]
     /\ mlog' = PrepareTxnToLog(tid, prepareTs)
-    /\ UNCHANGED <<mcommitIndex, mepoch>>
+    /\ UNCHANGED <<mcommitIndex, mepoch, txnStatus>>
 
 MDBTxnAbort(tid) == 
     /\ tid \in ActiveTransactions
     /\ mtxnSnapshots' = [mtxnSnapshots EXCEPT ![tid] = Nil]
-    /\ UNCHANGED <<mlog, mcommitIndex, mepoch>>
+    /\ UNCHANGED <<mlog, mcommitIndex, mepoch, txnStatus>>
 
-vars == <<mlog, mcommitIndex, mepoch, mtxnSnapshots>>
+vars == <<mlog, mcommitIndex, mepoch, mtxnSnapshots, txnStatus>>
 
 Init == 
     /\ mlog = <<>>
     /\ mcommitIndex = 0
     /\ mepoch = 1
     /\ mtxnSnapshots = [t \in MTxId |-> Nil]
+    /\ txnStatus = [t \in MTxId |-> STATUS_OK]
 
 Timestamps == 1..4
 
@@ -79,6 +92,7 @@ Next ==
 Symmetry == Permutations(Keys) \union Permutations(Values) \union Permutations(MTxId)
 StateConstraint == Len(mlog) <= 3
 
-Bait1 == Len(mlog) < 4
+\* Bait1 == ~(Len(mlog) = 3 /\ \E tid \in MTxId : txnStatus[tid] = STATUS_ROLLBACK)
+Bait1 == ~(\E tid \in MTxId : txnStatus[tid] = STATUS_ROLLBACK)
 
 ======================

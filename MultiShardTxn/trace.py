@@ -1,8 +1,10 @@
 import json
 
-def make_wt_action(action_name, action_args):
+def make_wt_action(pre_state, action_name, action_args, post_state):
     print(action_name)
     wt_action_name = action_name.lower().replace("mdbtxn", "transaction_")
+    err_code = post_state[1]['txnStatus'][action_args['tid']]
+    print(err_code)
     txn_session = f"sess_{action_args['tid']}"
     if action_name == "MDBTxnStart":
         wt_action_name = f"{txn_session}.begin_transaction('read_timestamp=' + self.timestamp_str({action_args['readTs']}))"
@@ -15,7 +17,7 @@ def make_wt_action(action_name, action_args):
     if action_name == "MDBTxnCommit":
         wt_action_name = f"{txn_session}.commit_transaction('commit_timestamp=' + self.timestamp_str({action_args['commitTs']}))"
     # wt_args = [str(action_args[p]) for p in action_args]
-    return f"{wt_action_name}"
+    return f"{wt_action_name}, {err_code}"
 
 def print_trace():
     with open('trace.json', 'r') as f:
@@ -26,10 +28,10 @@ def print_trace():
     # Print each action in the trace
     for action in trace['action']:
         # Each action has 3 elements: initial state, transition info, final state
-        # init_state = action[0]
+        pre_state = action[0]
         transition = action[1] 
         action_args = transition['context']
-        # final_state = action[2]
+        post_state = action[2]
         
         print("\nAction:", transition['name'])
         # print("Initial State:", init_state)
@@ -37,7 +39,7 @@ def print_trace():
         # print("Parameters:", transition['parameters'])
         # print("Context:", transition['context'])
         # print("Final State:", final_state)
-        wt_actions.append(make_wt_action(transition['name'], action_args))
+        wt_actions.append(make_wt_action(pre_state, transition['name'], action_args, post_state))
 
     print("\n-----\nWT Actions:")
 
