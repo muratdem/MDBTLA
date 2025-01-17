@@ -49,12 +49,14 @@ MDBTxnRead(tid, k, v) ==
     /\ mtxnSnapshots' = [mtxnSnapshots EXCEPT ![tid]["readSet"] = @ \cup {k}]
     /\ UNCHANGED <<mlog, mcommitIndex, mepoch, txnStatus>>
 
+CommitTimestamps == {mlog[i].ts : i \in DOMAIN mlog}
+
 MDBTxnCommit(tid, commitTs) == 
     \* Commit the transaction on the MDB KV store.
     \* Write all updated keys back to the shard oplog.
     /\ tid \in ActiveTransactions
     \* Must be greater than the newest known commit timestamp.
-    /\ {mlog[i].ts : i \in DOMAIN mlog} # {} => commitTs > Max({mlog[i].ts : i \in DOMAIN mlog})
+    /\ (ActiveReadTimestamps \cup CommitTimestamps) # {} => commitTs > Max(ActiveReadTimestamps \cup CommitTimestamps)
     /\ mlog' = CommitTxnToLog(tid, commitTs)
     /\ mtxnSnapshots' = [mtxnSnapshots EXCEPT ![tid] = Nil]
     /\ UNCHANGED <<mepoch, mcommitIndex, txnStatus>>
@@ -80,7 +82,7 @@ Init ==
     /\ mtxnSnapshots = [t \in MTxId |-> Nil]
     /\ txnStatus = [t \in MTxId |-> STATUS_OK]
 
-Timestamps == 1..4
+Timestamps == 1..5
 
 Next == 
     \/ \E tid \in MTxId, readTs \in Timestamps : MDBTxnStart(tid, readTs, RC)
@@ -92,9 +94,10 @@ Next ==
 
 
 Symmetry == Permutations(Keys) \union Permutations(Values) \union Permutations(MTxId)
-StateConstraint == Len(mlog) <= 3
+StateConstraint == Len(mlog) <= 2
 
 \* Bait1 == ~(Len(mlog) = 3 /\ \E tid \in MTxId : txnStatus[tid] = STATUS_ROLLBACK)
-Bait1 == ~(\E tid \in MTxId : txnStatus[tid] = STATUS_ROLLBACK)
+\* Bait1 == ~(\E tid \in MTxId : txnStatus[tid] = STATUS_ROLLBACK)
+Bait1 == Len(mlog) < 2
 
 ======================
