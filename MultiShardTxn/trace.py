@@ -1,5 +1,29 @@
 import json
 
+WT_TEST_TEMPLATE = """
+# [TEST_TAGS]
+# transactions
+# [END_TAGS]
+
+import wttest
+import wiredtiger
+from wtscenario import make_scenarios
+
+# test_txn01.py
+#    Transactions: basic functionality
+class test_txn01(wttest.WiredTigerTestCase):
+
+    def test_trace_1(self):
+        key_format = "S"
+        value_format = "S"
+        self.uri = 'table:test_txn01'
+        self.session.create(self.uri,
+            'key_format=' + key_format +
+            ',value_format=' + value_format)
+
+        conn = self.conn
+"""
+
 def make_wt_action(pre_state, action_name, action_args, post_state):
     print(action_name)
     tid = action_args['tid']
@@ -13,11 +37,11 @@ def make_wt_action(pre_state, action_name, action_args, post_state):
     if action_name == "MDBTxnWrite":
         wt_action_name = f"{txn_cursor}.set_key(\"{action_args['k']}\");{txn_cursor}.set_value(\"{action_args['v']}\");{txn_cursor}.insert()"
     if action_name == "MDBTxnRead":
-        wt_action_name = f"{txn_cursor}.set_key(\"{action_args['k']}\");sret = {txn_cursor}.search()\n"
+        wt_action_name = f"{txn_cursor}.set_key(\"{action_args['k']}\");sret = {txn_cursor}.search()"
         if action_args['v'] == "NoValue":
-            wt_action_name += f"    self.assertEquals(sret, wiredtiger.WT_NOTFOUND)"
+            wt_action_name += f";self.assertEquals(sret, wiredtiger.WT_NOTFOUND)"
         else:
-            wt_action_name += f"    self.assertEquals({txn_cursor}.get_value(), \"{action_args['v']}\")"
+            wt_action_name += f";self.assertEquals({txn_cursor}.get_value(), \"{action_args['v']}\")"
     if action_name == "MDBTxnPrepare":
         wt_action_name = f"{txn_session}.prepare_transaction('prepare_timestamp=' + self.timestamp_str({action_args['prepareTs']}))"
     if action_name == "MDBTxnCommit":
@@ -38,7 +62,7 @@ def make_wt_action(pre_state, action_name, action_args, post_state):
         lines.append("self.assertTrue(wiredtiger.wiredtiger_strerror(wiredtiger.WT_ROLLBACK) in str(e))")
     else:
         lines.append("self.assertEquals(res, None)")
-    return "\n".join(lines)
+    return lines
 
 def print_trace():
     with open('trace.json', 'r') as f:
@@ -67,10 +91,13 @@ def print_trace():
     # Open a separate session for all transactions.
     txns = ["t1", "t2"]
 
-    f = open("trace_actions.txt", "w")
+    f = open("test_txn_trace1.py", "w")
+    f.write(WT_TEST_TEMPLATE)
+
+    tab = lambda  n : "    " * n
 
     for t in txns:
-        out = f"sess_{t} = conn.open_session()\n"
+        out = tab(2) + f"sess_{t} = conn.open_session()\n"
         print(out)
         f.write(out)
     print("")
@@ -80,9 +107,10 @@ def print_trace():
         print(action_label)
         print(a)
         print("")
-        f.write(action_label)
+        f.write(tab(2) + action_label)
         f.write("\n")
-        f.write(a)  
+        for l in a:
+            f.write(tab(2) + l + "\n")  
         f.write("\n")
     f.close()
 
