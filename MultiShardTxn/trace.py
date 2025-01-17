@@ -64,14 +64,14 @@ def make_wt_action(pre_state, action_name, action_args, post_state):
         lines.append("self.assertEquals(res, None)")
     return lines
 
-def print_trace():
+def print_trace(max_len=1000):
     with open('trace.json', 'r') as f:
         trace = json.load(f)
 
     wt_actions = []
         
     # Print each action in the trace
-    for action in trace['action']:
+    for action in trace['action'][:max_len]:
         # Each action has 3 elements: initial state, transition info, final state
         pre_state = action[0]
         transition = action[1] 
@@ -103,7 +103,12 @@ def print_trace():
     print("")
     f.write("\n")
     for i, a in enumerate(wt_actions):
-        action_label = f"## Action {i}: {trace['action'][i][1]['name']}, {[trace['action'][i][1]['context'][p] for p in trace['action'][i][1]['parameters']]}"
+        action_name = trace['action'][i][1]['name']
+        action_ctx = trace['action'][i][1]['context']
+        params = trace['action'][i][1]['parameters']
+        print(action_ctx)
+        action_params_str = ','.join([str(action_ctx[p]) for p in params])
+        action_label = f"### Action {i+1}: {action_name}({action_params_str})"
         print(action_label)
         print(a)
         print("")
@@ -115,4 +120,4 @@ def print_trace():
     f.close()
 
 if __name__ == '__main__':
-    print_trace()
+    print_trace(max_len=100)
