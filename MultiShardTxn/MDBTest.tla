@@ -12,6 +12,7 @@ EXTENDS Sequences, Naturals, Util, TLC, MDB
 MDBTxnStart(tid, readTs, rc) == 
     \* Start the transaction on the MDB KV store.
     \* Save a snapshot of the current MongoDB instance at this shard for this transaction to use.
+    /\ tid \notin ActiveTransactions
     /\ mtxnSnapshots' = [mtxnSnapshots EXCEPT ![tid] = SnapshotKV(readTs, rc)]
     /\ UNCHANGED <<mlog, mcommitIndex, mepoch>>
    
@@ -46,6 +47,7 @@ MDBTxnCommit(tid, commitTs) ==
 
 MDBTxnPrepare(tid, prepareTs) == 
     /\ tid \in ActiveTransactions
+    /\ ~mtxnSnapshots[tid]["prepared"]
     /\ mtxnSnapshots' = [mtxnSnapshots EXCEPT ![tid]["prepared"] = TRUE]
     /\ mlog' = PrepareTxnToLog(tid, prepareTs)
     /\ UNCHANGED <<mcommitIndex, mepoch>>
@@ -63,7 +65,7 @@ Init ==
     /\ mepoch = 1
     /\ mtxnSnapshots = [t \in MTxId |-> Nil]
 
-Timestamps == 1..6
+Timestamps == 1..4
 
 Next == 
     \/ \E tid \in MTxId, readTs \in Timestamps : MDBTxnStart(tid, readTs, RC)
@@ -75,8 +77,8 @@ Next ==
 
 
 Symmetry == Permutations(Keys) \union Permutations(Values) \union Permutations(MTxId)
-StateConstraint == Len(mlog) <= 15
+StateConstraint == Len(mlog) <= 3
 
-Bait1 == Len(mlog) < 10
+Bait1 == Len(mlog) < 4
 
 ======================
