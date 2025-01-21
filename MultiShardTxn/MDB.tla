@@ -160,7 +160,8 @@ SnapshotKV(ts, rc) ==
         ts |-> readTs,
         data |-> [k \in Keys |-> SnapshotRead(k, readTs).value],
         prepared |-> FALSE,
-        readSet |-> {}
+        readSet |-> {},
+        writeSet |-> {}
     ]
     
 
@@ -218,11 +219,19 @@ TxnRead(tid, k) ==
 
 UpdateSnapshot(tid, k, v) == [mtxnSnapshots EXCEPT ![tid].data[k] = v]
 
-SnapshotUpdatedKeys(tid) == {k \in Keys : mtxnSnapshots[tid] # Nil /\ mtxnSnapshots[tid].data[k] = tid}
+SnapshotUpdatedKeys(tid) == {
+    k \in Keys : 
+        /\ mtxnSnapshots[tid] # Nil 
+        /\ k \in mtxnSnapshots[tid]["writeSet"]
+}
 
 CommitTxnToLog(tid, commitTs) == 
     \* Even for read only transactions, we write a no-op to the log.
-    Append(mlog, [data |-> [key \in SnapshotUpdatedKeys(tid) |-> tid], ts |-> commitTs, tid |-> tid])
+    Append(mlog, [
+        data |-> [key \in SnapshotUpdatedKeys(tid) |-> tid], 
+        ts |-> commitTs, 
+        tid |-> tid
+    ])
 
 CommitTxnToLogWithDurable(tid, commitTs, durableTs) == 
     \* Even for read only transactions, we write a no-op to the log.

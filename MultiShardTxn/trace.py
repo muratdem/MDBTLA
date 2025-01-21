@@ -32,26 +32,28 @@ def make_wt_action(pre_state, action_name, action_args, post_state):
     txn_cursor = f"cursor_{tid}"
     print(err_code)
     txn_session = f"sess_{tid}"
-    if action_name == "MDBTxnStart":
+    if action_name == "StartTransaction":
         wt_action_name = f"{txn_session}.begin_transaction('read_timestamp=' + self.timestamp_str({action_args['readTs']}));{txn_cursor} = {txn_session}.open_cursor(self.uri, None)"
-    if action_name == "MDBTxnWrite":
+    if action_name == "TransactionWrite":
         wt_action_name = f"{txn_cursor}.set_key(\"{action_args['k']}\");{txn_cursor}.set_value(\"{action_args['v']}\");{txn_cursor}.insert()"
-    if action_name == "MDBTxnRead":
+    if action_name == "TransactionRead":
         wt_action_name = f"{txn_cursor}.set_key(\"{action_args['k']}\");sret = {txn_cursor}.search()"
         if action_args['v'] == "NoValue":
             wt_action_name += f";self.assertEquals(sret, wiredtiger.WT_NOTFOUND)"
         else:
             wt_action_name += f";self.assertEquals({txn_cursor}.get_value(), \"{action_args['v']}\")"
-    if action_name == "MDBTxnPrepare":
+    if action_name == "TransactionRemove":
+        wt_action_name = f"{txn_cursor}.set_key(\"{action_args['k']}\");sret = {txn_cursor}.remove()"
+    if action_name == "PrepareTransaction":
         wt_action_name = f"{txn_session}.prepare_transaction('prepare_timestamp=' + self.timestamp_str({action_args['prepareTs']}))"
-    if action_name == "MDBTxnCommit":
+    if action_name == "CommitTransaction":
         args = f"'commit_timestamp=' + self.timestamp_str({action_args['commitTs']})"
         wt_action_name = f"{txn_session}.commit_transaction({args})"
-    if action_name == "MDBTxnCommitPrepared":
+    if action_name == "CommitPreparedTransaction":
         # Specify commit and durable timestamps (prepared transactions require both.).
         args = f"'commit_timestamp=' + self.timestamp_str({action_args['commitTs']}) + ',durable_timestamp=' + self.timestamp_str({action_args['durableTs']})"
         wt_action_name = f"{txn_session}.commit_transaction({args})"
-    if action_name == "MDBTxnAbort":
+    if action_name == "AbortTransaction":
         wt_action_name = f"{txn_session}.rollback_transaction()"
     # wt_args = [str(action_args[p]) for p in action_args]
     # return f"{wt_action_name}, {err_code}"

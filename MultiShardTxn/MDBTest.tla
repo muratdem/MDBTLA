@@ -9,14 +9,14 @@ STATUS_OK == "OK"
 STATUS_ROLLBACK == "WT_ROLLBACK"
 
 \* 
-\* Action wrappers for operations on the MDB instance.
+\* Action wrappers for operations on the MDB WiredTiger/storage instance.
 \* 
 \* This should more or less be the abstract transaction interface each shard
 \* needs to consider when executing transactions that are part of distributed,
 \* cross-shard transaction.
 \* 
 
-MDBTxnStart(tid, readTs, rc) == 
+StartTransaction(tid, readTs, rc) == 
     \* Start the transaction on the MDB KV store.
     \* Save a snapshot of the current MongoDB instance at this shard for this transaction to use.
     /\ tid \notin ActiveTransactions
@@ -25,7 +25,7 @@ MDBTxnStart(tid, readTs, rc) ==
     /\ UNCHANGED <<mlog, mcommitIndex, mepoch, txnStatus>>
    
 \* Writes to the local KV store of a shard.
-MDBTxnWrite(tid, k, v) == 
+TransactionWrite(tid, k, v) == 
     \* The write to this key does not overlap with any writes to the same key
     \* from other, concurrent transactions.
     /\ tid \in ActiveTransactions
@@ -43,7 +43,7 @@ MDBTxnWrite(tid, k, v) ==
     /\ UNCHANGED <<mlog, mcommitIndex, mepoch>>
 
 \* Reads from the local KV store of a shard.
-MDBTxnRead(tid, k, v) ==
+TransactionRead(tid, k, v) ==
     \* Non-snapshot read aren't actually required to block on prepare conflicts (see https://jira.mongodb.org/browse/SERVER-36382). 
     /\ tid \in ActiveTransactions
     /\ tid \notin PreparedTransactions
@@ -52,9 +52,24 @@ MDBTxnRead(tid, k, v) ==
     /\ mtxnSnapshots' = [mtxnSnapshots EXCEPT ![tid]["readSet"] = @ \cup {k}]
     /\ UNCHANGED <<mlog, mcommitIndex, mepoch, txnStatus>>
 
+\* Delete a key.
+TransactionRemove(tid, k) ==
+    /\ tid \in ActiveTransactions
+    /\ tid \notin PreparedTransactions
+    /\ \/ /\ ~WriteConflictExists(tid, k)
+          \* Update the transaction's snapshot data.
+          /\ mtxnSnapshots' = [mtxnSnapshots EXCEPT ![tid]["writeSet"] = @ \cup {k}, 
+                                                    ![tid].data[k] = NoValue]
+          /\ UNCHANGED <<txnStatus>>
+       \/ /\ WriteConflictExists(tid, k)
+          \* If there is a write conflict, the transaction must roll back.
+          /\ txnStatus' = [txnStatus EXCEPT ![tid] = STATUS_ROLLBACK]
+          /\ UNCHANGED mtxnSnapshots
+    /\ UNCHANGED <<mlog, mcommitIndex, mepoch>>
+
 CommitTimestamps == {mlog[i].ts : i \in DOMAIN mlog}
 
-MDBTxnCommit(tid, commitTs) == 
+CommitTransaction(tid, commitTs) == 
     \* Commit the transaction on the MDB KV store.
     \* Write all updated keys back to the shard oplog.
     /\ tid \in ActiveTransactions
@@ -65,7 +80,7 @@ MDBTxnCommit(tid, commitTs) ==
     /\ mtxnSnapshots' = [mtxnSnapshots EXCEPT ![tid] = Nil]
     /\ UNCHANGED <<mepoch, mcommitIndex, txnStatus>>
 
-MDBTxnCommitPrepared(tid, commitTs, durableTs) == 
+CommitPreparedTransaction(tid, commitTs, durableTs) == 
     \* Commit the transaction on the MDB KV store.
     \* Write all updated keys back to the shard oplog.
     /\ commitTs = durableTs \* for now force these equal.
@@ -76,7 +91,7 @@ MDBTxnCommitPrepared(tid, commitTs, durableTs) ==
     /\ mtxnSnapshots' = [mtxnSnapshots EXCEPT ![tid] = Nil]
     /\ UNCHANGED <<mepoch, mcommitIndex, txnStatus>>
 
-MDBTxnPrepare(tid, prepareTs) == 
+PrepareTransaction(tid, prepareTs) == 
     /\ tid \in ActiveTransactions
     /\ ~mtxnSnapshots[tid]["prepared"]
     /\ prepareTs > mtxnSnapshots[tid].ts
@@ -84,7 +99,7 @@ MDBTxnPrepare(tid, prepareTs) ==
     /\ mlog' = PrepareTxnToLog(tid, prepareTs)
     /\ UNCHANGED <<mcommitIndex, mepoch, txnStatus>>
 
-MDBTxnAbort(tid) == 
+AbortTransaction(tid) == 
     /\ tid \in ActiveTransactions
     /\ mtxnSnapshots' = [mtxnSnapshots EXCEPT ![tid] = Nil]
     /\ UNCHANGED <<mlog, mcommitIndex, mepoch, txnStatus>>
@@ -101,13 +116,14 @@ Init ==
 Timestamps == 1..5
 
 Next == 
-    \/ \E tid \in MTxId, readTs \in Timestamps : MDBTxnStart(tid, readTs, RC)
-    \/ \E tid \in MTxId, k \in Keys, v \in Values : MDBTxnWrite(tid, k, v)
-    \/ \E tid \in MTxId, k \in Keys, v \in (Values \cup {NoValue}) : MDBTxnRead(tid, k, v)
-    \/ \E tid \in MTxId, commitTs \in Timestamps : MDBTxnCommit(tid, commitTs)
-    \/ \E tid \in MTxId, commitTs, durableTs \in Timestamps : MDBTxnCommitPrepared(tid, commitTs, durableTs)
-    \/ \E tid \in MTxId, prepareTs \in Timestamps : MDBTxnPrepare(tid, prepareTs)
-    \/ \E tid \in MTxId : MDBTxnAbort(tid)
+    \/ \E tid \in MTxId, readTs \in Timestamps : StartTransaction(tid, readTs, RC)
+    \/ \E tid \in MTxId, k \in Keys, v \in Values : TransactionWrite(tid, k, v)
+    \/ \E tid \in MTxId, k \in Keys, v \in (Values \cup {NoValue}) : TransactionRead(tid, k, v)
+    \/ \E tid \in MTxId, k \in Keys : TransactionRemove(tid, k)
+    \/ \E tid \in MTxId, commitTs \in Timestamps : CommitTransaction(tid, commitTs)
+    \/ \E tid \in MTxId, commitTs, durableTs \in Timestamps : CommitPreparedTransaction(tid, commitTs, durableTs)
+    \/ \E tid \in MTxId, prepareTs \in Timestamps : PrepareTransaction(tid, prepareTs)
+    \/ \E tid \in MTxId : AbortTransaction(tid)
 
 
 Symmetry == Permutations(Keys) \union Permutations(Values) \union Permutations(MTxId)
@@ -115,6 +131,6 @@ StateConstraint == Len(mlog) <= 2
 
 \* Bait1 == ~(Len(mlog) = 3 /\ \E tid \in MTxId : txnStatus[tid] = STATUS_ROLLBACK)
 \* Bait1 == ~(\E tid \in MTxId : txnStatus[tid] = STATUS_ROLLBACK)
-Bait1 == Len(mlog) < 3
-
+\* Bait1 == ~(Len(mlog) = 3 /\ \E tid \in MTxId, k \in Keys : mtxnSnapshots[tid] # Nil /\ mtxnSnapshots[tid][k] = NoValue)
+Bait1 == ~(Len(mlog) = 2)
 ======================
