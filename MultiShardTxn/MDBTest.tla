@@ -85,6 +85,7 @@ CommitPreparedTransaction(tid, commitTs, durableTs) ==
     \* Write all updated keys back to the shard oplog.
     /\ commitTs = durableTs \* for now force these equal.
     /\ tid \in ActiveTransactions
+    /\ tid \in PreparedTransactions
     \* Must be greater than the newest known commit timestamp.
     /\ (ActiveReadTimestamps \cup CommitTimestamps) # {} => commitTs > Max(ActiveReadTimestamps \cup CommitTimestamps)
     /\ mlog' = CommitTxnToLogWithDurable(tid, commitTs, durableTs)
