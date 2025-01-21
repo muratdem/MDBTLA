@@ -20,6 +20,7 @@ MDBTxnStart(tid, readTs, rc) ==
     \* Start the transaction on the MDB KV store.
     \* Save a snapshot of the current MongoDB instance at this shard for this transaction to use.
     /\ tid \notin ActiveTransactions
+    /\ ~\E i \in DOMAIN mlog : mlog[i].tid = tid \* don't re-use transactions ids.
     /\ mtxnSnapshots' = [mtxnSnapshots EXCEPT ![tid] = SnapshotKV(readTs, rc)]
     /\ UNCHANGED <<mlog, mcommitIndex, mepoch, txnStatus>>
    
@@ -28,6 +29,7 @@ MDBTxnWrite(tid, k, v) ==
     \* The write to this key does not overlap with any writes to the same key
     \* from other, concurrent transactions.
     /\ tid \in ActiveTransactions
+    /\ tid \notin PreparedTransactions
     \* Transactions always write their own ID as the value, to uniquely identify their writes.
     /\ v = tid
     /\ \/ /\ ~WriteConflictExists(tid, k)
@@ -44,6 +46,7 @@ MDBTxnWrite(tid, k, v) ==
 MDBTxnRead(tid, k, v) ==
     \* Non-snapshot read aren't actually required to block on prepare conflicts (see https://jira.mongodb.org/browse/SERVER-36382). 
     /\ tid \in ActiveTransactions
+    /\ tid \notin PreparedTransactions
     /\ ~PrepareConflict(tid, k)
     /\ v = TxnRead(tid, k)
     /\ mtxnSnapshots' = [mtxnSnapshots EXCEPT ![tid]["readSet"] = @ \cup {k}]
@@ -55,15 +58,28 @@ MDBTxnCommit(tid, commitTs) ==
     \* Commit the transaction on the MDB KV store.
     \* Write all updated keys back to the shard oplog.
     /\ tid \in ActiveTransactions
+    /\ tid \notin PreparedTransactions
     \* Must be greater than the newest known commit timestamp.
     /\ (ActiveReadTimestamps \cup CommitTimestamps) # {} => commitTs > Max(ActiveReadTimestamps \cup CommitTimestamps)
     /\ mlog' = CommitTxnToLog(tid, commitTs)
     /\ mtxnSnapshots' = [mtxnSnapshots EXCEPT ![tid] = Nil]
     /\ UNCHANGED <<mepoch, mcommitIndex, txnStatus>>
 
+MDBTxnCommitPrepared(tid, commitTs, durableTs) == 
+    \* Commit the transaction on the MDB KV store.
+    \* Write all updated keys back to the shard oplog.
+    /\ commitTs = durableTs \* for now force these equal.
+    /\ tid \in ActiveTransactions
+    \* Must be greater than the newest known commit timestamp.
+    /\ (ActiveReadTimestamps \cup CommitTimestamps) # {} => commitTs > Max(ActiveReadTimestamps \cup CommitTimestamps)
+    /\ mlog' = CommitTxnToLogWithDurable(tid, commitTs, durableTs)
+    /\ mtxnSnapshots' = [mtxnSnapshots EXCEPT ![tid] = Nil]
+    /\ UNCHANGED <<mepoch, mcommitIndex, txnStatus>>
+
 MDBTxnPrepare(tid, prepareTs) == 
     /\ tid \in ActiveTransactions
     /\ ~mtxnSnapshots[tid]["prepared"]
+    /\ prepareTs > mtxnSnapshots[tid].ts
     /\ mtxnSnapshots' = [mtxnSnapshots EXCEPT ![tid]["prepared"] = TRUE]
     /\ mlog' = PrepareTxnToLog(tid, prepareTs)
     /\ UNCHANGED <<mcommitIndex, mepoch, txnStatus>>
@@ -89,6 +105,7 @@ Next ==
     \/ \E tid \in MTxId, k \in Keys, v \in Values : MDBTxnWrite(tid, k, v)
     \/ \E tid \in MTxId, k \in Keys, v \in (Values \cup {NoValue}) : MDBTxnRead(tid, k, v)
     \/ \E tid \in MTxId, commitTs \in Timestamps : MDBTxnCommit(tid, commitTs)
+    \/ \E tid \in MTxId, commitTs, durableTs \in Timestamps : MDBTxnCommitPrepared(tid, commitTs, durableTs)
     \/ \E tid \in MTxId, prepareTs \in Timestamps : MDBTxnPrepare(tid, prepareTs)
     \/ \E tid \in MTxId : MDBTxnAbort(tid)
 
@@ -98,6 +115,6 @@ StateConstraint == Len(mlog) <= 2
 
 \* Bait1 == ~(Len(mlog) = 3 /\ \E tid \in MTxId : txnStatus[tid] = STATUS_ROLLBACK)
 \* Bait1 == ~(\E tid \in MTxId : txnStatus[tid] = STATUS_ROLLBACK)
-Bait1 == Len(mlog) < 2
+Bait1 == Len(mlog) < 3
 
 ======================

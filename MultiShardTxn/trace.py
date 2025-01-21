@@ -33,7 +33,7 @@ def make_wt_action(pre_state, action_name, action_args, post_state):
     print(err_code)
     txn_session = f"sess_{tid}"
     if action_name == "MDBTxnStart":
-        wt_action_name = f"{txn_session}.begin_transaction('read_timestamp=' + self.timestamp_str({action_args['readTs']}));{txn_cursor} = sess_t1.open_cursor(self.uri, None)"
+        wt_action_name = f"{txn_session}.begin_transaction('read_timestamp=' + self.timestamp_str({action_args['readTs']}));{txn_cursor} = {txn_session}.open_cursor(self.uri, None)"
     if action_name == "MDBTxnWrite":
         wt_action_name = f"{txn_cursor}.set_key(\"{action_args['k']}\");{txn_cursor}.set_value(\"{action_args['v']}\");{txn_cursor}.insert()"
     if action_name == "MDBTxnRead":
@@ -45,7 +45,12 @@ def make_wt_action(pre_state, action_name, action_args, post_state):
     if action_name == "MDBTxnPrepare":
         wt_action_name = f"{txn_session}.prepare_transaction('prepare_timestamp=' + self.timestamp_str({action_args['prepareTs']}))"
     if action_name == "MDBTxnCommit":
-        wt_action_name = f"{txn_session}.commit_transaction('commit_timestamp=' + self.timestamp_str({action_args['commitTs']}))"
+        args = f"'commit_timestamp=' + self.timestamp_str({action_args['commitTs']})"
+        wt_action_name = f"{txn_session}.commit_transaction({args})"
+    if action_name == "MDBTxnCommitPrepared":
+        # Specify commit and durable timestamps (prepared transactions require both.).
+        args = f"'commit_timestamp=' + self.timestamp_str({action_args['commitTs']}) + ',durable_timestamp=' + self.timestamp_str({action_args['durableTs']})"
+        wt_action_name = f"{txn_session}.commit_transaction({args})"
     if action_name == "MDBTxnAbort":
         wt_action_name = f"{txn_session}.rollback_transaction()"
     # wt_args = [str(action_args[p]) for p in action_args]

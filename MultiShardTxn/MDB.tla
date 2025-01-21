@@ -132,6 +132,7 @@ ActiveReadTimestamps == { IF mtxnSnapshots[tx] = Nil THEN 0 ELSE mtxnSnapshots[t
 NextTs == Max(PrepareOrCommitTimestamps \cup ActiveReadTimestamps) + 1
 
 ActiveTransactions == {tid \in MTxId : mtxnSnapshots[tid] # Nil}
+PreparedTransactions == {tid \in MTxId : mtxnSnapshots[tid] # Nil /\ mtxnSnapshots[tid].prepared}
 
 \* 
 \* Perform a snapshot read of a given key at timestamp.
@@ -222,6 +223,16 @@ SnapshotUpdatedKeys(tid) == {k \in Keys : mtxnSnapshots[tid] # Nil /\ mtxnSnapsh
 CommitTxnToLog(tid, commitTs) == 
     \* Even for read only transactions, we write a no-op to the log.
     Append(mlog, [data |-> [key \in SnapshotUpdatedKeys(tid) |-> tid], ts |-> commitTs, tid |-> tid])
+
+CommitTxnToLogWithDurable(tid, commitTs, durableTs) == 
+    \* Even for read only transactions, we write a no-op to the log.
+    Append(mlog, [
+        data |-> [key \in SnapshotUpdatedKeys(tid) |-> tid],
+        ts |-> commitTs, 
+        durableTs |-> durableTs,
+        tid |-> tid
+    ])
+
 
 PrepareTxnToLog(tid, prepareTs) ==
     Append(mlog, [prepare |-> TRUE, ts |-> prepareTs, tid |-> tid])
