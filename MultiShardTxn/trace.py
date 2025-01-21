@@ -1,4 +1,5 @@
 import json
+import os
 
 WT_TEST_TEMPLATE = """
 # [TEST_TAGS]
@@ -13,6 +14,18 @@ from wtscenario import make_scenarios
 #    Transactions: basic functionality
 class test_txn01(wttest.WiredTigerTestCase):
 
+    def test_trace_1(self):
+        key_format = "S"
+        value_format = "S"
+        self.uri = 'table:test_txn01'
+        self.session.create(self.uri,
+            'key_format=' + key_format +
+            ',value_format=' + value_format)
+
+        conn = self.conn
+"""
+
+WT_TEST_FN_TEMPLATE = """
     def test_trace_1(self):
         key_format = "S"
         value_format = "S"
@@ -71,60 +84,77 @@ def make_wt_action(pre_state, action_name, action_args, post_state):
         lines.append("self.assertEquals(res, None)")
     return lines
 
-def print_trace(max_len=1000):
-    with open('trace.json', 'r') as f:
-        trace = json.load(f)
-
-    wt_actions = []
-        
-    # Print each action in the trace
-    for action in trace['action'][:max_len]:
-        # Each action has 3 elements: initial state, transition info, final state
-        pre_state = action[0]
-        transition = action[1] 
-        action_args = transition['context']
-        post_state = action[2]
-        
-        print("\nAction:", transition['name'])
-        # print("Initial State:", init_state)
-        print("Parameters:", action_args)
-        # print("Parameters:", transition['parameters'])
-        # print("Context:", transition['context'])
-        # print("Final State:", final_state)
-        wt_actions.append(make_wt_action(pre_state, transition['name'], action_args, post_state))
-
+def gen_wt_test_from_traces(traces, max_len=1000):
     print("\n-----\nWT Actions:")
 
     # Open a separate session for all transactions.
     txns = ["t1", "t2"]
 
-    f = open("test_txn_trace1.py", "w")
+    f = open("test_txn_model_traces.py", "w")
     f.write(WT_TEST_TEMPLATE)
 
     tab = lambda  n : "    " * n
 
-    for t in txns:
-        out = tab(2) + f"sess_{t} = conn.open_session()\n"
-        print(out)
-        f.write(out)
-    print("")
-    f.write("\n")
-    for i, a in enumerate(wt_actions):
-        action_name = trace['action'][i][1]['name']
-        action_ctx = trace['action'][i][1]['context']
-        params = trace['action'][i][1]['parameters']
-        print(action_ctx)
-        action_params_str = ','.join([str(action_ctx[p]) for p in params])
-        action_label = f"### Action {i+1}: {action_name}({action_params_str})"
-        print(action_label)
-        print(a)
+    for i, trace in enumerate(traces):
+
+        wt_actions = []
+            
+        # Print each action in the trace
+        for action in trace['action'][:max_len]:
+            # Each action has 3 elements: initial state, transition info, final state
+            pre_state = action[0]
+            transition = action[1] 
+            action_args = transition['context']
+            post_state = action[2]
+            
+            print("\nAction:", transition['name'])
+            # print("Initial State:", init_state)
+            print("Parameters:", action_args)
+            # print("Parameters:", transition['parameters'])
+            # print("Context:", transition['context'])
+            # print("Final State:", final_state)
+            wt_actions.append(make_wt_action(pre_state, transition['name'], action_args, post_state))
+
+
+        f.write(WT_TEST_FN_TEMPLATE.replace("test_trace_1", f"test_trace_{i}"))
+
+        for t in txns:
+            out = tab(2) + f"sess_{t} = conn.open_session()\n"
+            print(out)
+            f.write(out)
         print("")
-        f.write(tab(2) + action_label)
         f.write("\n")
-        for l in a:
-            f.write(tab(2) + l + "\n")  
-        f.write("\n")
+        for i, a in enumerate(wt_actions):
+            action_name = trace['action'][i][1]['name']
+            action_ctx = trace['action'][i][1]['context']
+            params = trace['action'][i][1]['parameters']
+            print(action_ctx)
+            action_params_str = ','.join([str(action_ctx[p]) for p in params])
+            action_label = f"### Action {i+1}: {action_name}({action_params_str})"
+            print(action_label)
+            print(a)
+            print("")
+            f.write(tab(2) + action_label)
+            f.write("\n")
+            for l in a:
+                f.write(tab(2) + l + "\n")  
+            f.write("\n")
     f.close()
 
+def gen_tla_model_trace(json_trace="trace.json"):
+    tlc = "java -cp /usr/local/bin/tla2tools-v1.8.jar tlc2.TLC -noGenerateSpecTE"
+    spec = "MDBTest"
+    cmd = f"{tlc} -dumpTrace json {json_trace} -simulate -workers 10 -cleanup -deadlock {spec}.tla"
+    # print(cmd)
+    os.system(cmd)
+
 if __name__ == '__main__':
-    print_trace(max_len=100)
+    if not os.path.exists("model_traces"):
+        os.makedirs("model_traces")
+    traces = []
+    for i in range(8):
+        gen_tla_model_trace(f"model_traces/trace_{i}.json")
+        # print_trace(max_len=100)
+        trace = json.load(open(f"model_traces/trace_{i}.json"))
+        traces.append(trace)
+    gen_wt_test_from_traces(traces, max_len=100)
