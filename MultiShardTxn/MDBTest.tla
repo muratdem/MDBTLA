@@ -5,6 +5,9 @@ EXTENDS Sequences, Naturals, Util, TLC, MDB
 \* records error codes, etc.)
 VARIABLE txnStatus
 
+\* Tracks the global "stable timestamp" within the storage layer.
+VARIABLE stableTs
+
 STATUS_OK == "OK"
 STATUS_ROLLBACK == "WT_ROLLBACK"
 
@@ -22,7 +25,7 @@ StartTransaction(tid, readTs, rc) ==
     /\ tid \notin ActiveTransactions
     /\ ~\E i \in DOMAIN mlog : mlog[i].tid = tid \* don't re-use transactions ids.
     /\ mtxnSnapshots' = [mtxnSnapshots EXCEPT ![tid] = SnapshotKV(readTs, rc)]
-    /\ UNCHANGED <<mlog, mcommitIndex, mepoch, txnStatus>>
+    /\ UNCHANGED <<mlog, mcommitIndex, mepoch, txnStatus, stableTs>>
    
 \* Writes to the local KV store of a shard.
 TransactionWrite(tid, k, v) == 
@@ -40,7 +43,7 @@ TransactionWrite(tid, k, v) ==
           \* If there is a write conflict, the transaction must roll back.
           /\ txnStatus' = [txnStatus EXCEPT ![tid] = STATUS_ROLLBACK]
           /\ UNCHANGED mtxnSnapshots
-    /\ UNCHANGED <<mlog, mcommitIndex, mepoch>>
+    /\ UNCHANGED <<mlog, mcommitIndex, mepoch, stableTs>>
 
 \* Reads from the local KV store of a shard.
 TransactionRead(tid, k, v) ==
@@ -50,7 +53,7 @@ TransactionRead(tid, k, v) ==
     /\ ~PrepareConflict(tid, k)
     /\ v = TxnRead(tid, k)
     /\ mtxnSnapshots' = [mtxnSnapshots EXCEPT ![tid]["readSet"] = @ \cup {k}]
-    /\ UNCHANGED <<mlog, mcommitIndex, mepoch, txnStatus>>
+    /\ UNCHANGED <<mlog, mcommitIndex, mepoch, txnStatus, stableTs>>
 
 \* Delete a key.
 TransactionRemove(tid, k) ==
@@ -65,7 +68,7 @@ TransactionRemove(tid, k) ==
           \* If there is a write conflict, the transaction must roll back.
           /\ txnStatus' = [txnStatus EXCEPT ![tid] = STATUS_ROLLBACK]
           /\ UNCHANGED mtxnSnapshots
-    /\ UNCHANGED <<mlog, mcommitIndex, mepoch>>
+    /\ UNCHANGED <<mlog, mcommitIndex, mepoch, stableTs>>
 
 CommitTimestamps == {mlog[i].ts : i \in DOMAIN mlog}
 
@@ -78,7 +81,7 @@ CommitTransaction(tid, commitTs) ==
     /\ (ActiveReadTimestamps \cup CommitTimestamps) # {} => commitTs > Max(ActiveReadTimestamps \cup CommitTimestamps)
     /\ mlog' = CommitTxnToLog(tid, commitTs)
     /\ mtxnSnapshots' = [mtxnSnapshots EXCEPT ![tid] = Nil]
-    /\ UNCHANGED <<mepoch, mcommitIndex, txnStatus>>
+    /\ UNCHANGED <<mepoch, mcommitIndex, txnStatus, stableTs>>
 
 CommitPreparedTransaction(tid, commitTs, durableTs) == 
     \* Commit the transaction on the MDB KV store.
@@ -90,7 +93,7 @@ CommitPreparedTransaction(tid, commitTs, durableTs) ==
     /\ (ActiveReadTimestamps \cup CommitTimestamps) # {} => commitTs > Max(ActiveReadTimestamps \cup CommitTimestamps)
     /\ mlog' = CommitTxnToLogWithDurable(tid, commitTs, durableTs)
     /\ mtxnSnapshots' = [mtxnSnapshots EXCEPT ![tid] = Nil]
-    /\ UNCHANGED <<mepoch, mcommitIndex, txnStatus>>
+    /\ UNCHANGED <<mepoch, mcommitIndex, txnStatus, stableTs>>
 
 PrepareTransaction(tid, prepareTs) == 
     /\ tid \in ActiveTransactions
@@ -98,14 +101,18 @@ PrepareTransaction(tid, prepareTs) ==
     /\ prepareTs > mtxnSnapshots[tid].ts
     /\ mtxnSnapshots' = [mtxnSnapshots EXCEPT ![tid]["prepared"] = TRUE]
     /\ mlog' = PrepareTxnToLog(tid, prepareTs)
-    /\ UNCHANGED <<mcommitIndex, mepoch, txnStatus>>
+    /\ UNCHANGED <<mcommitIndex, mepoch, txnStatus, stableTs>>
 
 AbortTransaction(tid) == 
     /\ tid \in ActiveTransactions
     /\ mtxnSnapshots' = [mtxnSnapshots EXCEPT ![tid] = Nil]
-    /\ UNCHANGED <<mlog, mcommitIndex, mepoch, txnStatus>>
+    /\ UNCHANGED <<mlog, mcommitIndex, mepoch, txnStatus, stableTs>>
 
-vars == <<mlog, mcommitIndex, mepoch, mtxnSnapshots, txnStatus>>
+SetStableTimestamp(ts) == 
+    /\ stableTs' = ts
+    /\ UNCHANGED <<mlog, mcommitIndex, mepoch, mtxnSnapshots, txnStatus>>
+
+vars == <<mlog, mcommitIndex, mepoch, mtxnSnapshots, txnStatus, stableTs>>
 
 Init == 
     /\ mlog = <<>>
@@ -113,6 +120,7 @@ Init ==
     /\ mepoch = 1
     /\ mtxnSnapshots = [t \in MTxId |-> Nil]
     /\ txnStatus = [t \in MTxId |-> STATUS_OK]
+    /\ stableTs = 0
 
 Timestamps == 1..5
 
@@ -125,6 +133,7 @@ Next ==
     \/ \E tid \in MTxId, commitTs, durableTs \in Timestamps : CommitPreparedTransaction(tid, commitTs, durableTs)
     \/ \E tid \in MTxId, prepareTs \in Timestamps : PrepareTransaction(tid, prepareTs)
     \/ \E tid \in MTxId : AbortTransaction(tid)
+    \/ \E ts \in Timestamps : SetStableTimestamp(ts)
 
 
 Symmetry == Permutations(Keys) \union Permutations(Values) \union Permutations(MTxId)

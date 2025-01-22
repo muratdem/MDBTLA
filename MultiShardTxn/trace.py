@@ -39,11 +39,14 @@ WT_TEST_FN_TEMPLATE = """
 
 def make_wt_action(pre_state, action_name, action_args, post_state):
     print(action_name)
-    tid = action_args['tid']
+    tid = ""
+    err_code = None
+    if "tid" in action_args:
+        tid = action_args['tid']
+        err_code = post_state[1]['txnStatus'][tid]
     wt_action_name = action_name.lower().replace("mdbtxn", "transaction_")
-    err_code = post_state[1]['txnStatus'][tid]
     txn_cursor = f"cursor_{tid}"
-    print(err_code)
+    # print(err_code)
     txn_session = f"sess_{tid}"
     if action_name == "StartTransaction":
         wt_action_name = f"{txn_session}.begin_transaction('read_timestamp=' + self.timestamp_str({action_args['readTs']}));{txn_cursor} = {txn_session}.open_cursor(self.uri, None)"
@@ -68,6 +71,8 @@ def make_wt_action(pre_state, action_name, action_args, post_state):
         wt_action_name = f"{txn_session}.commit_transaction({args})"
     if action_name == "AbortTransaction":
         wt_action_name = f"{txn_session}.rollback_transaction()"
+    if action_name == "SetStableTimestamp":
+        wt_action_name = f"self.conn.set_timestamp('stable_timestamp='+self.timestamp_str({action_args['ts']}))"
     # wt_args = [str(action_args[p]) for p in action_args]
     # return f"{wt_action_name}, {err_code}"
     lines = [
