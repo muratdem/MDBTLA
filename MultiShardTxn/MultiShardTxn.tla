@@ -11,6 +11,8 @@ CONSTANT Shard
 
 CONSTANT NoValue
 
+CONSTANT PrepareBlocksReads
+
 \* Global read concern setting for all transactions.
 CONSTANTS RC
 
@@ -208,7 +210,8 @@ ShardMDBTxnWrite(s, tid, k) ==
 \* Reads from the local KV store of a shard.
 ShardMDBTxnRead(s, tid, k) ==
     \* All transactions currently block on prepare conflicts (https://github.com/mongodb/mongo/blob/aed71ad67b0264e3e0f0d9545145e14027ce27e4/src/mongo/db/read_concern_mongod.cpp#L279-L281. 
-    /\ ~ShardMDB(s)!PrepareConflict(tid, k)
+    \* For only "read committed" guarantees, we don't expect this should be needed, though.
+    /\ PrepareBlocksReads => ~ShardMDB(s)!PrepareConflict(tid, k)
     /\ txnSnapshots' = [txnSnapshots EXCEPT ![s][tid]["readSet"] = @ \cup {k}]
     /\ UNCHANGED <<log, commitIndex, epoch>>
 
