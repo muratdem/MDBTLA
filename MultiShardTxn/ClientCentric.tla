@@ -194,6 +194,11 @@ CT_RC(transaction, execution) == Preread(execution, transaction)
 ReadCommitted(initialState, transactions) == satisfyIsolationLevel(initialState, transactions, CT_RC)
 
 \* Repeatable Read
+\* 
+\* Note: this is an attempt to define a natural isolation level stronger than READ COMMITTED
+\* and weaker than Snapshot Isolation, but we don't expect this to actually correspond to the
+\* standard, formal notions of the REPEATABLE READ isolation level.
+\* 
 CT_RR(transaction, execution) ==
     \* All transactions read from some committed state.
     /\ Preread(execution, transaction) 
