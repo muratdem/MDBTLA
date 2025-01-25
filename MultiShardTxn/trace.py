@@ -1,5 +1,6 @@
 import json
 import os
+import random
 
 WT_TEST_TEMPLATE = """
 # [TEST_TAGS]
@@ -15,25 +16,17 @@ from wtscenario import make_scenarios
 class test_txn01(wttest.WiredTigerTestCase):
 
     def test_trace_1(self):
-        key_format = "S"
-        value_format = "S"
+        key_format,value_format = "S","S"
         self.uri = 'table:test_txn01'
-        self.session.create(self.uri,
-            'key_format=' + key_format +
-            ',value_format=' + value_format)
-
+        self.session.create(self.uri, 'key_format=' + key_format + ',value_format=' + value_format)
         conn = self.conn
 """
 
 WT_TEST_FN_TEMPLATE = """
     def test_trace_1(self):
-        key_format = "S"
-        value_format = "S"
+        key_format,value_format = "S","S"
         self.uri = 'table:test_txn01'
-        self.session.create(self.uri,
-            'key_format=' + key_format +
-            ',value_format=' + value_format)
-
+        self.session.create(self.uri, 'key_format=' + key_format + ',value_format=' + value_format)
         conn = self.conn
 """
 
@@ -84,7 +77,7 @@ def make_wt_action(pre_state, action_name, action_args, post_state):
     ]
     if err_code == "WT_ROLLBACK":
         lines.append("self.assertNotEqual(res, None)")
-        lines.append("self.assertTrue(wiredtiger.wiredtiger_strerror(wiredtiger.WT_ROLLBACK) in str(e))")
+        lines.append("self.assertTrue(wiredtiger.wiredtiger_strerror(wiredtiger.WT_ROLLBACK) in str(res))")
     else:
         lines.append("self.assertEquals(res, None)")
     return lines
@@ -146,10 +139,10 @@ def gen_wt_test_from_traces(traces, max_len=1000):
             f.write("\n")
     f.close()
 
-def gen_tla_model_trace(json_trace="trace.json"):
+def gen_tla_model_trace(json_trace="trace.json", seed=0):
     tlc = "java -cp /usr/local/bin/tla2tools-v1.8.jar tlc2.TLC -noGenerateSpecTE"
     spec = "MDBTest"
-    cmd = f"{tlc} -dumpTrace json {json_trace} -simulate -workers 10 -cleanup -deadlock {spec}.tla"
+    cmd = f"{tlc} -seed {seed} -dumpTrace json {json_trace} -simulate -workers 1 -cleanup -deadlock {spec}.tla"
     # print(cmd)
     os.system(cmd)
 
@@ -157,8 +150,10 @@ if __name__ == '__main__':
     if not os.path.exists("model_traces"):
         os.makedirs("model_traces")
     traces = []
-    for i in range(8):
-        gen_tla_model_trace(f"model_traces/trace_{i}.json")
+    random.seed(0)
+    for i in range(3):
+        next_seed = random.randint(0, 1000000)
+        gen_tla_model_trace(f"model_traces/trace_{i}.json", seed=next_seed)
         # print_trace(max_len=100)
         trace = json.load(open(f"model_traces/trace_{i}.json"))
         traces.append(trace)
