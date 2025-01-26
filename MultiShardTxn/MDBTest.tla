@@ -38,7 +38,7 @@ TransactionWrite(tid, k, v) ==
     /\ \/ /\ ~WriteConflictExists(tid, k)
           \* Update the transaction's snapshot data.
           /\ mtxnSnapshots' = UpdateSnapshot(tid, k, v)
-          /\ UNCHANGED <<txnStatus>>
+          /\ txnStatus' = [txnStatus EXCEPT ![tid] = STATUS_OK]
        \/ /\ WriteConflictExists(tid, k)
           \* If there is a write conflict, the transaction must roll back.
           /\ txnStatus' = [txnStatus EXCEPT ![tid] = STATUS_ROLLBACK]
@@ -81,7 +81,8 @@ CommitTransaction(tid, commitTs) ==
     /\ (ActiveReadTimestamps \cup CommitTimestamps) # {} => commitTs > Max(ActiveReadTimestamps \cup CommitTimestamps)
     /\ mlog' = CommitTxnToLog(tid, commitTs)
     /\ mtxnSnapshots' = [mtxnSnapshots EXCEPT ![tid] = Nil]
-    /\ UNCHANGED <<mepoch, mcommitIndex, txnStatus, stableTs>>
+    /\ txnStatus' = [txnStatus EXCEPT ![tid] = STATUS_OK]
+    /\ UNCHANGED <<mepoch, mcommitIndex, stableTs>>
 
 CommitPreparedTransaction(tid, commitTs, durableTs) == 
     \* Commit the transaction on the MDB KV store.
@@ -93,7 +94,8 @@ CommitPreparedTransaction(tid, commitTs, durableTs) ==
     /\ (ActiveReadTimestamps \cup CommitTimestamps) # {} => commitTs > Max(ActiveReadTimestamps \cup CommitTimestamps)
     /\ mlog' = CommitTxnToLogWithDurable(tid, commitTs, durableTs)
     /\ mtxnSnapshots' = [mtxnSnapshots EXCEPT ![tid] = Nil]
-    /\ UNCHANGED <<mepoch, mcommitIndex, txnStatus, stableTs>>
+    /\ txnStatus' = [txnStatus EXCEPT ![tid] = STATUS_OK]
+    /\ UNCHANGED <<mepoch, mcommitIndex, stableTs>>
 
 PrepareTransaction(tid, prepareTs) == 
     /\ tid \in ActiveTransactions
@@ -106,7 +108,8 @@ PrepareTransaction(tid, prepareTs) ==
 AbortTransaction(tid) == 
     /\ tid \in ActiveTransactions
     /\ mtxnSnapshots' = [mtxnSnapshots EXCEPT ![tid] = Nil]
-    /\ UNCHANGED <<mlog, mcommitIndex, mepoch, txnStatus, stableTs>>
+    /\ txnStatus' = [txnStatus EXCEPT ![tid] = STATUS_OK]
+    /\ UNCHANGED <<mlog, mcommitIndex, mepoch, stableTs>>
 
 SetStableTimestamp(ts) == 
     /\ stableTs' = ts
@@ -143,4 +146,5 @@ StateConstraint == Len(mlog) <= 2
 \* Bait1 == ~(\E tid \in MTxId : txnStatus[tid] = STATUS_ROLLBACK)
 \* Bait1 == ~(Len(mlog) = 3 /\ \E tid \in MTxId, k \in Keys : mtxnSnapshots[tid] # Nil /\ mtxnSnapshots[tid][k] = NoValue)
 Bait1 == ~(Len(mlog) = 2)
+BaitLevel == TLCGet("level") < 12
 ======================
