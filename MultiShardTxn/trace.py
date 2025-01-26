@@ -126,9 +126,13 @@ def gen_wt_test_from_traces(traces, max_len=1000):
             action_name = trace['action'][i][1]['name']
             action_ctx = trace['action'][i][1]['context']
             params = trace['action'][i][1]['parameters']
+            tid = action_ctx['tid']
+
+            post_state = trace['action'][i][2][1]
             print(action_ctx)
             action_params_str = ','.join([str(action_ctx[p]) for p in params])
-            action_label = f"### Action {i+1}: {action_name}({action_params_str})"
+            print(post_state)
+            action_label = f"### Action {i+1}: {action_name}({action_params_str}) res:{post_state['txnStatus'][tid]}"
             print(action_label)
             print(a)
             print("")
