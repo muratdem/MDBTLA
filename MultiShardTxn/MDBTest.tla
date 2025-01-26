@@ -53,7 +53,8 @@ TransactionRead(tid, k, v) ==
     /\ ~PrepareConflict(tid, k)
     /\ v = TxnRead(tid, k)
     /\ mtxnSnapshots' = [mtxnSnapshots EXCEPT ![tid]["readSet"] = @ \cup {k}]
-    /\ UNCHANGED <<mlog, mcommitIndex, mepoch, txnStatus, stableTs>>
+    /\ txnStatus' = [txnStatus EXCEPT ![tid] = STATUS_OK]
+    /\ UNCHANGED <<mlog, mcommitIndex, mepoch, stableTs>>
 
 \* Delete a key.
 TransactionRemove(tid, k) ==
@@ -63,7 +64,7 @@ TransactionRemove(tid, k) ==
           \* Update the transaction's snapshot data.
           /\ mtxnSnapshots' = [mtxnSnapshots EXCEPT ![tid]["writeSet"] = @ \cup {k}, 
                                                     ![tid].data[k] = NoValue]
-          /\ UNCHANGED <<txnStatus>>
+          /\ txnStatus' = [txnStatus EXCEPT ![tid] = STATUS_OK]
        \/ /\ WriteConflictExists(tid, k)
           \* If there is a write conflict, the transaction must roll back.
           /\ txnStatus' = [txnStatus EXCEPT ![tid] = STATUS_ROLLBACK]
