@@ -10,6 +10,7 @@ VARIABLE stableTs
 
 STATUS_OK == "OK"
 STATUS_ROLLBACK == "WT_ROLLBACK"
+STATUS_NOTFOUND == "WT_NOTFOUND"
 
 \* 
 \* Action wrappers for operations on the MDB WiredTiger/storage instance.
@@ -50,10 +51,15 @@ TransactionRead(tid, k, v) ==
     \* Non-snapshot read aren't actually required to block on prepare conflicts (see https://jira.mongodb.org/browse/SERVER-36382). 
     /\ tid \in ActiveTransactions
     /\ tid \notin PreparedTransactions
-    /\ ~PrepareConflict(tid, k)
     /\ v = TxnRead(tid, k)
-    /\ mtxnSnapshots' = [mtxnSnapshots EXCEPT ![tid]["readSet"] = @ \cup {k}]
-    /\ txnStatus' = [txnStatus EXCEPT ![tid] = STATUS_OK]
+    /\ \/ /\ ~PrepareConflict(tid, k)
+          /\ v # NoValue
+          /\ mtxnSnapshots' = [mtxnSnapshots EXCEPT ![tid]["readSet"] = @ \cup {k}]
+          /\ txnStatus' = [txnStatus EXCEPT ![tid] = STATUS_OK]
+       \* Key does not exist.
+       \/ /\ v = NoValue
+          /\ txnStatus' = [txnStatus EXCEPT ![tid] = STATUS_NOTFOUND]
+          /\ UNCHANGED mtxnSnapshots
     /\ UNCHANGED <<mlog, mcommitIndex, mepoch, stableTs>>
 
 \* Delete a key.
