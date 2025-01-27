@@ -151,11 +151,20 @@ def gen_tla_model_trace(json_trace="trace.json", seed=0):
     os.system(cmd)
 
 if __name__ == '__main__':
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--ntests', type=int, default=50, help='Number of test traces to generate')
+    args = parser.parse_args()
+    ntests = args.ntests
+
     if not os.path.exists("model_traces"):
         os.makedirs("model_traces")
+
+    random.seed(12)
+
     traces = []
-    random.seed(0)
-    for i in range(3):
+
+    for i in range(ntests):
         next_seed = random.randint(0, 1000000)
         gen_tla_model_trace(f"model_traces/trace_{i}.json", seed=next_seed)
         # print_trace(max_len=100)
