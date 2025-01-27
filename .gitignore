@@ -5,3 +5,4 @@ logout
 *_gen.cfg
 model_traces/
 test_txn_model_traces.py
+.hypothesis/
