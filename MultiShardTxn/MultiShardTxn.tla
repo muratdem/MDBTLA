@@ -204,7 +204,8 @@ ShardMDBTxnWrite(s, tid, k) ==
     \* from other, concurrent transactions.
     /\ ~ShardMDB(s)!WriteConflictExists(tid, k)
     \* Update the transaction's snapshot data.
-    /\ txnSnapshots' = [txnSnapshots EXCEPT ![s] = ShardMDB(s)!UpdateSnapshot(tid, k, tid)]
+    /\ txnSnapshots' = [txnSnapshots EXCEPT ![s][tid].writeSet = @ \cup {k}, 
+                                            ![s][tid].data[k] = tid]
     /\ UNCHANGED <<log, commitIndex, epoch>>
 
 \* Reads from the local KV store of a shard.
