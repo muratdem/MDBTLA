@@ -38,7 +38,8 @@ TransactionWrite(tid, k, v) ==
     /\ v = tid
     /\ \/ /\ ~WriteConflictExists(tid, k)
           \* Update the transaction's snapshot data.
-          /\ mtxnSnapshots' = UpdateSnapshot(tid, k, v)
+          /\ mtxnSnapshots' = [mtxnSnapshots EXCEPT ![tid]["writeSet"] = @ \cup {k}, 
+                                                    ![tid].data[k] = tid]
           /\ txnStatus' = [txnStatus EXCEPT ![tid] = STATUS_OK]
        \/ /\ WriteConflictExists(tid, k)
           \* If there is a write conflict, the transaction must roll back.
