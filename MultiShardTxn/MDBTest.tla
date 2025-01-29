@@ -11,6 +11,7 @@ VARIABLE stableTs
 STATUS_OK == "OK"
 STATUS_ROLLBACK == "WT_ROLLBACK"
 STATUS_NOTFOUND == "WT_NOTFOUND"
+STATUS_PREPARE_CONFLICT == "WT_PREPARE_CONFLICT"
 
 \* 
 \* Action wrappers for operations on the MDB WiredTiger/storage instance.
@@ -62,8 +63,13 @@ TransactionRead(tid, k, v) ==
           /\ mtxnSnapshots' = [mtxnSnapshots EXCEPT ![tid]["readSet"] = @ \cup {k}]
           /\ txnStatus' = [txnStatus EXCEPT ![tid] = STATUS_OK]
        \* Key does not exist.
-       \/ /\ v = NoValue
+       \/ /\ ~PrepareConflict(tid, k)
+          /\ v = NoValue
           /\ txnStatus' = [txnStatus EXCEPT ![tid] = STATUS_NOTFOUND]
+          /\ UNCHANGED mtxnSnapshots
+      \* Prepare conflict (transaction is not aborted).
+       \/ /\ PrepareConflict(tid, k)
+          /\ txnStatus' = [txnStatus EXCEPT ![tid] = STATUS_PREPARE_CONFLICT]
           /\ UNCHANGED mtxnSnapshots
     /\ UNCHANGED <<mlog, mcommitIndex, mepoch, stableTs>>
 
@@ -119,7 +125,8 @@ PrepareTransaction(tid, prepareTs) ==
     /\ prepareTs > mtxnSnapshots[tid].ts
     /\ mtxnSnapshots' = [mtxnSnapshots EXCEPT ![tid]["prepared"] = TRUE]
     /\ mlog' = PrepareTxnToLog(tid, prepareTs)
-    /\ UNCHANGED <<mcommitIndex, mepoch, txnStatus, stableTs>>
+    /\ txnStatus' = [txnStatus EXCEPT ![tid] = STATUS_OK]
+    /\ UNCHANGED <<mcommitIndex, mepoch, stableTs>>
 
 AbortTransaction(tid) == 
     /\ tid \in ActiveTransactions
