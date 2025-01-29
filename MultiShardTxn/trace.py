@@ -1,6 +1,7 @@
 import json
 import os
 import random
+import argparse
 
 WT_TEST_TEMPLATE = """
 # [TEST_TAGS]
@@ -11,15 +12,16 @@ import wttest
 import wiredtiger
 from wtscenario import make_scenarios
 
-# test_txn01.py
-#    Transactions: basic functionality
-class test_txn01(wttest.WiredTigerTestCase):
+class test_txn_mbt(wttest.WiredTigerTestCase):
 
-    def test_trace_1(self):
-        key_format,value_format = "S","S"
-        self.uri = 'table:test_txn01'
-        self.session.create(self.uri, 'key_format=' + key_format + ',value_format=' + value_format)
-        conn = self.conn
+    def check_action(self, action_fn, expected_res, expected_exception):
+        res = None
+        try:
+            action_fn()
+        except wiredtiger.WiredTigerError as e:
+            res = e
+        self.assertEquals(res, None)
+        self.assertTrue(wiredtiger.wiredtiger_strerror(expected_exception) in str(res))
 """
 
 WT_TEST_FN_TEMPLATE = """
@@ -38,7 +40,7 @@ def make_wt_action(pre_state, action_name, action_args, post_state):
         tid = action_args['tid']
         err_code = post_state[1]['txnStatus'][tid]
     wt_action_name = action_name.lower().replace("mdbtxn", "transaction_")
-    txn_cursor = f"cursor_{tid}"
+    txn_cursor = f"self.cursor_{tid}"
     # print(err_code)
     txn_session = f"sess_{tid}"
     if action_name == "StartTransaction":
@@ -69,17 +71,30 @@ def make_wt_action(pre_state, action_name, action_args, post_state):
     # wt_args = [str(action_args[p]) for p in action_args]
     # return f"{wt_action_name}, {err_code}"
     lines = [
-        "res = None",
+        "res,sret = None,None",
         "try:",
         f"    {wt_action_name}",
         "except wiredtiger.WiredTigerError as e:",
         "    res = e"
     ]
+    res_expected = None
+    exception_str = None
     if err_code == "WT_ROLLBACK":
         lines.append("self.assertNotEqual(res, None)")
+        res_expected = 1
+        exception_str = "wiredtiger.WT_ROLLBACK"
         lines.append("self.assertTrue(wiredtiger.wiredtiger_strerror(wiredtiger.WT_ROLLBACK) in str(res))")
+    elif err_code == "WT_NOTFOUND":
+        # lines.append("self.assertEqual(res, None)")
+        lines.append("self.assertEqual(wiredtiger.WT_NOTFOUND, sret)")
+    elif err_code == "WT_PREPARE_CONFLICT":
+        lines.append("self.assertTrue(wiredtiger.wiredtiger_strerror(wiredtiger.WT_PREPARE_CONFLICT) in str(res))")
     else:
         lines.append("self.assertEquals(res, None)")
+    # lines = [
+        # "self.check_action(lambda: " + wt_action_name + ", " + str(res_expected) + ", " + str(exception_str) + ")"
+    # ]
+
     return lines
 
 def gen_wt_test_from_traces(traces, max_len=1000):
