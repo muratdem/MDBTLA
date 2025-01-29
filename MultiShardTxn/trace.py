@@ -137,6 +137,8 @@ def gen_wt_test_from_traces(traces, max_len=1000):
             f.write(out)
         print("")
         f.write("\n")
+        action_labels = []
+        test_lines = []
         for i, a in enumerate(wt_actions):
             action_name = trace['action'][i][1]['name']
             action_ctx = trace['action'][i][1]['context']
@@ -148,14 +150,19 @@ def gen_wt_test_from_traces(traces, max_len=1000):
             action_params_str = ','.join([str(action_ctx[p]) for p in params])
             print(post_state)
             action_label = f"### Action {i+1}: {action_name}({action_params_str}) res:{post_state['txnStatus'][tid]}"
+            action_labels.append(tab(2) +action_label)
             print(action_label)
             print(a)
             print("")
-            f.write(tab(2) + action_label)
-            f.write("\n")
+            test_lines.append(tab(2) + action_label)
+            test_lines.append("\n")
             for l in a:
-                f.write(tab(2) + l + "\n")  
-            f.write("\n")
+                test_lines.append(tab(2) + l + "\n")
+            test_lines.append("\n")
+        f.write("\n")
+        f.write("\n".join(action_labels))
+        f.write("\n\n\n")
+        f.writelines(test_lines)
     f.close()
 
 def gen_tla_model_trace(json_trace="trace.json", seed=0):
