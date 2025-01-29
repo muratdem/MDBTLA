@@ -122,7 +122,10 @@ PrepareTransaction(tid, prepareTs) ==
     /\ tid \in ActiveTransactions
     /\ ~mtxnSnapshots[tid]["prepared"]
     /\ ~mtxnSnapshots[tid]["aborted"]
+    \* Prepare timestamp must be greater than our own read timestamp,
+    \* and greater than any active read timestamp.
     /\ prepareTs > mtxnSnapshots[tid].ts
+    /\ prepareTs > Max(ActiveReadTimestamps)
     /\ mtxnSnapshots' = [mtxnSnapshots EXCEPT ![tid]["prepared"] = TRUE]
     /\ mlog' = PrepareTxnToLog(tid, prepareTs)
     /\ txnStatus' = [txnStatus EXCEPT ![tid] = STATUS_OK]
@@ -148,26 +151,25 @@ Init ==
     /\ txnStatus = [t \in MTxId |-> STATUS_OK]
     /\ stableTs = 0
 
-Timestamps == 1..5
+Timestamps == 1..3
 
 Next == 
     \/ \E tid \in MTxId, readTs \in Timestamps : StartTransaction(tid, readTs, RC)
     \/ \E tid \in MTxId, k \in Keys, v \in Values : TransactionWrite(tid, k, v)
     \/ \E tid \in MTxId, k \in Keys, v \in (Values \cup {NoValue}) : TransactionRead(tid, k, v)
-    \/ \E tid \in MTxId, k \in Keys : TransactionRemove(tid, k)
+    \* \/ \E tid \in MTxId, k \in Keys : TransactionRemove(tid, k)
     \/ \E tid \in MTxId, commitTs \in Timestamps : CommitTransaction(tid, commitTs)
     \/ \E tid \in MTxId, commitTs, durableTs \in Timestamps : CommitPreparedTransaction(tid, commitTs, durableTs)
     \/ \E tid \in MTxId, prepareTs \in Timestamps : PrepareTransaction(tid, prepareTs)
-    \/ \E tid \in MTxId : AbortTransaction(tid)
-    \/ \E ts \in Timestamps : SetStableTimestamp(ts)
+    \* \/ \E tid \in MTxId : AbortTransaction(tid)
+    \* \/ \E ts \in Timestamps : SetStableTimestamp(ts)
 
-
-Symmetry == Permutations(Keys) \union Permutations(Values) \union Permutations(MTxId)
-StateConstraint == Len(mlog) <= 2
+Symmetry == Permutations(Keys) \union Permutations(MTxId)
+StateConstraint == Len(mlog) <= 10
 
 \* Bait1 == ~(Len(mlog) = 3 /\ \E tid \in MTxId : txnStatus[tid] = STATUS_ROLLBACK)
 \* Bait1 == ~(\E tid \in MTxId : txnStatus[tid] = STATUS_ROLLBACK)
 \* Bait1 == ~(Len(mlog) = 3 /\ \E tid \in MTxId, k \in Keys : mtxnSnapshots[tid] # Nil /\ mtxnSnapshots[tid][k] = NoValue)
 Bait1 == ~(Len(mlog) = 2)
-BaitLevel == TLCGet("level") < 12
+BaitLevel == TLCGet("level") < 9
 ======================

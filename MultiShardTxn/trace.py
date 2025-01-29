@@ -101,7 +101,7 @@ def gen_wt_test_from_traces(traces, max_len=1000):
     print("\n-----\nWT Actions:")
 
     # Open a separate session for all transactions.
-    txns = ["t1", "t2"]
+    txns = ["t1", "t2", "t3"]
 
     f = open("test_txn_model_traces.py", "w")
     f.write(WT_TEST_TEMPLATE)
