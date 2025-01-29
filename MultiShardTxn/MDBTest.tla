@@ -24,9 +24,11 @@ StartTransaction(tid, readTs, rc) ==
     \* Start the transaction on the MDB KV store.
     \* Save a snapshot of the current MongoDB instance at this shard for this transaction to use.
     /\ tid \notin ActiveTransactions
-    /\ ~\E i \in DOMAIN mlog : mlog[i].tid = tid \* don't re-use transactions ids.
+    \* Don't re-use transaction ids.
+    /\ ~\E i \in DOMAIN mlog : mlog[i].tid = tid
     /\ mtxnSnapshots' = [mtxnSnapshots EXCEPT ![tid] = SnapshotKV(readTs, rc)]
-    /\ UNCHANGED <<mlog, mcommitIndex, mepoch, txnStatus, stableTs>>
+    /\ txnStatus' = [txnStatus EXCEPT ![tid] = STATUS_OK]
+    /\ UNCHANGED <<mlog, mcommitIndex, mepoch, stableTs>>
    
 \* Writes to the local KV store of a shard.
 TransactionWrite(tid, k, v) == 
@@ -34,6 +36,7 @@ TransactionWrite(tid, k, v) ==
     \* from other, concurrent transactions.
     /\ tid \in ActiveTransactions
     /\ tid \notin PreparedTransactions
+    /\ ~mtxnSnapshots[tid]["aborted"]
     \* Transactions always write their own ID as the value, to uniquely identify their writes.
     /\ v = tid
     /\ \/ /\ ~WriteConflictExists(tid, k)
@@ -42,9 +45,9 @@ TransactionWrite(tid, k, v) ==
                                                     ![tid].data[k] = tid]
           /\ txnStatus' = [txnStatus EXCEPT ![tid] = STATUS_OK]
        \/ /\ WriteConflictExists(tid, k)
-          \* If there is a write conflict, the transaction must roll back.
+          \* If there is a write conflict, the transaction must roll back (i.e. it is aborted).
           /\ txnStatus' = [txnStatus EXCEPT ![tid] = STATUS_ROLLBACK]
-          /\ UNCHANGED mtxnSnapshots
+          /\ mtxnSnapshots' = [mtxnSnapshots EXCEPT ![tid]["aborted"] = TRUE]
     /\ UNCHANGED <<mlog, mcommitIndex, mepoch, stableTs>>
 
 \* Reads from the local KV store of a shard.
@@ -52,6 +55,7 @@ TransactionRead(tid, k, v) ==
     \* Non-snapshot read aren't actually required to block on prepare conflicts (see https://jira.mongodb.org/browse/SERVER-36382). 
     /\ tid \in ActiveTransactions
     /\ tid \notin PreparedTransactions
+    /\ ~mtxnSnapshots[tid]["aborted"]
     /\ v = TxnRead(tid, k)
     /\ \/ /\ ~PrepareConflict(tid, k)
           /\ v # NoValue
@@ -67,6 +71,7 @@ TransactionRead(tid, k, v) ==
 TransactionRemove(tid, k) ==
     /\ tid \in ActiveTransactions
     /\ tid \notin PreparedTransactions
+    /\ ~mtxnSnapshots[tid]["aborted"]
     /\ \/ /\ ~WriteConflictExists(tid, k)
           \* Update the transaction's snapshot data.
           /\ mtxnSnapshots' = [mtxnSnapshots EXCEPT ![tid]["writeSet"] = @ \cup {k}, 
@@ -75,7 +80,7 @@ TransactionRemove(tid, k) ==
        \/ /\ WriteConflictExists(tid, k)
           \* If there is a write conflict, the transaction must roll back.
           /\ txnStatus' = [txnStatus EXCEPT ![tid] = STATUS_ROLLBACK]
-          /\ UNCHANGED mtxnSnapshots
+          /\ mtxnSnapshots' = [mtxnSnapshots EXCEPT ![tid]["aborted"] = TRUE]
     /\ UNCHANGED <<mlog, mcommitIndex, mepoch, stableTs>>
 
 CommitTimestamps == {mlog[i].ts : i \in DOMAIN mlog}
@@ -85,6 +90,7 @@ CommitTransaction(tid, commitTs) ==
     \* Write all updated keys back to the shard oplog.
     /\ tid \in ActiveTransactions
     /\ tid \notin PreparedTransactions
+    /\ ~mtxnSnapshots[tid]["aborted"]
     \* Must be greater than the newest known commit timestamp.
     /\ (ActiveReadTimestamps \cup CommitTimestamps) # {} => commitTs > Max(ActiveReadTimestamps \cup CommitTimestamps)
     /\ mlog' = CommitTxnToLog(tid, commitTs)
@@ -98,6 +104,7 @@ CommitPreparedTransaction(tid, commitTs, durableTs) ==
     /\ commitTs = durableTs \* for now force these equal.
     /\ tid \in ActiveTransactions
     /\ tid \in PreparedTransactions
+    /\ ~mtxnSnapshots[tid]["aborted"]
     \* Must be greater than the newest known commit timestamp.
     /\ (ActiveReadTimestamps \cup CommitTimestamps) # {} => commitTs > Max(ActiveReadTimestamps \cup CommitTimestamps)
     /\ mlog' = CommitTxnToLogWithDurable(tid, commitTs, durableTs)
@@ -108,6 +115,7 @@ CommitPreparedTransaction(tid, commitTs, durableTs) ==
 PrepareTransaction(tid, prepareTs) == 
     /\ tid \in ActiveTransactions
     /\ ~mtxnSnapshots[tid]["prepared"]
+    /\ ~mtxnSnapshots[tid]["aborted"]
     /\ prepareTs > mtxnSnapshots[tid].ts
     /\ mtxnSnapshots' = [mtxnSnapshots EXCEPT ![tid]["prepared"] = TRUE]
     /\ mlog' = PrepareTxnToLog(tid, prepareTs)
@@ -115,7 +123,7 @@ PrepareTransaction(tid, prepareTs) ==
 
 AbortTransaction(tid) == 
     /\ tid \in ActiveTransactions
-    /\ mtxnSnapshots' = [mtxnSnapshots EXCEPT ![tid] = Nil]
+    /\ mtxnSnapshots' = [mtxnSnapshots EXCEPT ![tid] = Nil, ![tid]["aborted"] = TRUE]
     /\ txnStatus' = [txnStatus EXCEPT ![tid] = STATUS_OK]
     /\ UNCHANGED <<mlog, mcommitIndex, mepoch, stableTs>>
 
