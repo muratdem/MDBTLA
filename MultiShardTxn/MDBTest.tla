@@ -79,10 +79,16 @@ TransactionRemove(tid, k) ==
     /\ tid \notin PreparedTransactions
     /\ ~mtxnSnapshots[tid]["aborted"]
     /\ \/ /\ ~WriteConflictExists(tid, k)
+          /\ mtxnSnapshots[tid].data[k] # NoValue \* Key must exist.
           \* Update the transaction's snapshot data.
           /\ mtxnSnapshots' = [mtxnSnapshots EXCEPT ![tid]["writeSet"] = @ \cup {k}, 
                                                     ![tid].data[k] = NoValue]
           /\ txnStatus' = [txnStatus EXCEPT ![tid] = STATUS_OK]
+       \* If key does not exist in your snapshot then you can't remove it.
+       \/ /\ ~WriteConflictExists(tid, k)
+          /\ mtxnSnapshots[tid].data[k] = NoValue
+          /\ txnStatus' = [txnStatus EXCEPT ![tid] = STATUS_NOTFOUND]
+          /\ UNCHANGED mtxnSnapshots
        \/ /\ WriteConflictExists(tid, k)
           \* If there is a write conflict, the transaction must roll back.
           /\ txnStatus' = [txnStatus EXCEPT ![tid] = STATUS_ROLLBACK]
@@ -157,7 +163,7 @@ Next ==
     \/ \E tid \in MTxId, readTs \in Timestamps : StartTransaction(tid, readTs, RC)
     \/ \E tid \in MTxId, k \in Keys, v \in Values : TransactionWrite(tid, k, v)
     \/ \E tid \in MTxId, k \in Keys, v \in (Values \cup {NoValue}) : TransactionRead(tid, k, v)
-    \* \/ \E tid \in MTxId, k \in Keys : TransactionRemove(tid, k)
+    \/ \E tid \in MTxId, k \in Keys : TransactionRemove(tid, k)
     \/ \E tid \in MTxId, commitTs \in Timestamps : CommitTransaction(tid, commitTs)
     \/ \E tid \in MTxId, commitTs, durableTs \in Timestamps : CommitPreparedTransaction(tid, commitTs, durableTs)
     \/ \E tid \in MTxId, prepareTs \in Timestamps : PrepareTransaction(tid, prepareTs)

@@ -91,6 +91,8 @@ def make_wt_action(pre_state, action_name, action_args, post_state):
         lines.append("self.assertTrue(wiredtiger.wiredtiger_strerror(wiredtiger.WT_PREPARE_CONFLICT) in str(res))")
     else:
         lines.append("self.assertEquals(res, None)")
+        if action_name == "TransactionRemove":
+            lines.append("self.assertEquals(0, sret)")
     # lines = [
         # "self.check_action(lambda: " + wt_action_name + ", " + str(res_expected) + ", " + str(exception_str) + ")"
     # ]
@@ -182,7 +184,7 @@ if __name__ == '__main__':
     if not os.path.exists("model_traces"):
         os.makedirs("model_traces")
 
-    random.seed(12)
+    random.seed(13)
 
     traces = []
 

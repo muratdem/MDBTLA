@@ -187,7 +187,8 @@ WriteConflictExists(tid, k) ==
         \/ /\ mtxnSnapshots[tid] # Nil
            /\ mtxnSnapshots[tOther] # Nil
            \* The other transaction wrote to this value.
-           /\ mtxnSnapshots[tOther].data[k] = tOther
+        \*    /\ mtxnSnapshots[tOther].data[k] = tOther
+           /\ k \in mtxnSnapshots[tOther].writeSet
         \* If there exists another transaction that has written to this key and
         \* committed at a timestamp newer than your snapshot, this also should
         \* manifest as a conflict, since it implies this transaction may have
