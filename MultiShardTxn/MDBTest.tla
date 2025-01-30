@@ -169,6 +169,7 @@ Next ==
     \/ \E tid \in MTxId, prepareTs \in Timestamps : PrepareTransaction(tid, prepareTs)
     \* \/ \E tid \in MTxId : AbortTransaction(tid)
     \* \/ \E ts \in Timestamps : SetStableTimestamp(ts)
+    \* TODO Also consider adding model actions to read/query various timestamps (e.g. all_durable, oldest, etc.)
 
 Symmetry == Permutations(Keys) \union Permutations(MTxId)
 StateConstraint == Len(mlog) <= 10
