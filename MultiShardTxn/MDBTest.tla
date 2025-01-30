@@ -98,13 +98,15 @@ TransactionRemove(tid, k) ==
 CommitTimestamps == {mlog[i].ts : i \in DOMAIN mlog}
 
 CommitTransaction(tid, commitTs) == 
-    \* Commit the transaction on the MDB KV store.
-    \* Write all updated keys back to the shard oplog.
+    \* TODO: Eventually make this more permissive and explictly check errors on
+    \* invalid commit timestamps w.r.t stable timestamp (?)
+    /\ commitTs > stableTs 
     /\ tid \in ActiveTransactions
     /\ tid \notin PreparedTransactions
     /\ ~mtxnSnapshots[tid]["aborted"]
     \* Must be greater than the newest known commit timestamp.
     /\ (ActiveReadTimestamps \cup CommitTimestamps) # {} => commitTs > Max(ActiveReadTimestamps \cup CommitTimestamps)
+    \* Commit the transaction on the KV store and write all updated keys back to the log.
     /\ mlog' = CommitTxnToLog(tid, commitTs)
     /\ mtxnSnapshots' = [mtxnSnapshots EXCEPT ![tid] = Nil]
     /\ txnStatus' = [txnStatus EXCEPT ![tid] = STATUS_OK]
@@ -125,6 +127,9 @@ CommitPreparedTransaction(tid, commitTs, durableTs) ==
     /\ UNCHANGED <<mepoch, mcommitIndex, stableTs>>
 
 PrepareTransaction(tid, prepareTs) == 
+    \* TODO: Eventually make this more permissive and explictly check errors on
+    \* invalid commit timestamps w.r.t stable timestamp (?)
+    /\ prepareTs > stableTs 
     /\ tid \in ActiveTransactions
     /\ ~mtxnSnapshots[tid]["prepared"]
     /\ ~mtxnSnapshots[tid]["aborted"]
@@ -144,8 +149,16 @@ AbortTransaction(tid) ==
     /\ UNCHANGED <<mlog, mcommitIndex, mepoch, stableTs>>
 
 SetStableTimestamp(ts) == 
+    /\ ts >= stableTs
     /\ stableTs' = ts
     /\ UNCHANGED <<mlog, mcommitIndex, mepoch, mtxnSnapshots, txnStatus>>
+
+RollbackToStable == 
+    \* Mustn't initiate a RTS call if there are any open transactions.
+    /\ ActiveTransactions = {}
+    /\ stableTs' = stableTs
+    /\ mcommitIndex' = 5
+    /\ UNCHANGED <<mlog, mepoch, mtxnSnapshots, txnStatus>>
 
 vars == <<mlog, mcommitIndex, mepoch, mtxnSnapshots, txnStatus, stableTs>>
 
@@ -155,9 +168,10 @@ Init ==
     /\ mepoch = 1
     /\ mtxnSnapshots = [t \in MTxId |-> Nil]
     /\ txnStatus = [t \in MTxId |-> STATUS_OK]
-    /\ stableTs = 0
+    /\ stableTs = 1
 
-Timestamps == 1..3
+MaxTimestamp == 5
+Timestamps == 1..MaxTimestamp
 
 Next == 
     \/ \E tid \in MTxId, readTs \in Timestamps : StartTransaction(tid, readTs, RC)
