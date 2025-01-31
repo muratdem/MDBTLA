@@ -3,6 +3,8 @@ import os
 import random
 import argparse
 
+import cover
+
 WT_TEST_TEMPLATE = """
 # [TEST_TAGS]
 # transactions
@@ -38,7 +40,9 @@ def make_wt_action(pre_state, action_name, action_args, post_state):
     err_code = None
     if "tid" in action_args:
         tid = action_args['tid']
-        err_code = post_state[1]['txnStatus'][tid]
+        err_code = 0
+        if post_state is not None:
+            err_code = post_state[1]['txnStatus'][tid]
     wt_action_name = action_name.lower().replace("mdbtxn", "transaction_")
     txn_cursor = f"self.cursor_{tid}"
     # print(err_code)
@@ -190,8 +194,31 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--ntests', type=int, default=50, help='Number of test traces to generate')
+    parser.add_argument('--load_json_graph', action='store_true', help='Load and analyze JSON state graph')
     args = parser.parse_args()
     ntests = args.ntests
+
+    if args.load_json_graph:
+        G, edge_actions = cover.parse_json_state_graph("states.json")
+        covering_paths = cover.compute_path_coverings(G)
+
+        for cpath in covering_paths:
+            # print(cpath)
+            # Convert path to list of edges.
+            path_edges = []
+            for i in range(len(cpath)-1):
+                efrom, eto = cpath[i], cpath[i+1]
+                path_edges.append((efrom, eto))
+            # print("Path edges:", path_edges)
+            # print("Path edges:", [edge_actions[e] for e in path_edges])
+            for act in [edge_actions[e] for e in path_edges]:
+                print(act)
+                # print(act[0], act[1])
+                # act_params = act[1]
+                lines = make_wt_action(None, act["action"], act["actionParams"], None)
+                print("\n".join(lines))
+
+        exit(0)
 
     if not os.path.exists("model_traces"):
         os.makedirs("model_traces")
