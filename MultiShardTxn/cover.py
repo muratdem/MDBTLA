@@ -40,17 +40,30 @@ def sample_paths(Garg, num_paths, max_path_len, root_node):
 G = nx.DiGraph()
 
 # Parse TLC DOT graph manually since it's a simple format.
-f = open("states.dot")
-lines = f.readlines()
-for l in lines:
-    line = l.strip()
-    if " -> " in line:
-        edge_parts = line.split(" ")
-        # print(line.split(" ")[:3])
-        head = edge_parts[0]
-        tail = edge_parts[2]
-        G.add_edge(head, tail)
+# f = open("states.dot")
+# lines = f.readlines()
+# for l in lines:
+#     line = l.strip()
+#     if " -> " in line:
+#         edge_parts = line.split(" ")
+#         # print(line.split(" ")[:3])
+#         head = edge_parts[0]
+#         tail = edge_parts[2]
+#         G.add_edge(head, tail)
 
+
+# Stores mapping from graph edges to the action + parameters associated with
+# that transition edge.
+edge_actions = {}
+
+fgraph = open("states.json")
+json_graph = json.load(fgraph)
+for edge in json_graph["edges"]:
+    
+    G.add_edge(edge["from"], edge["to"])
+    edge_actions[(edge["from"], edge["to"])] = [edge["action"], edge["actionParams"]]
+
+# print(edge_actions)
 print("Original graph:")
 print(len(G.nodes()), "nodes")
 print(len(G.edges()), "edges")
@@ -105,8 +118,17 @@ assert len(all_covered_nodes) == len(mst.nodes())
 print("Covered nodes:", len(all_covered_nodes))
 print("Path coverings:", len(covering_paths))
 
-# for p in covering_paths:
-#     print(p)
+for cpath in covering_paths:
+    print(cpath)
+    # Convert path to list of edges.
+    path_edges = []
+    for i in range(len(cpath)-1):
+        efrom, eto = cpath[i], cpath[i+1]
+        path_edges.append((efrom, eto))
+    print("Path edges:", path_edges)
+    print("Path edges:", [edge_actions[e] for e in path_edges])
+    for act in [edge_actions[e] for e in path_edges]:
+        print(act[0], act[1])
 
 # 
 # TODO: More efficient path covering via min-flow?
