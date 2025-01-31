@@ -98,13 +98,15 @@ for p in spath_keys_sorted:
     # If this path does not cover any new nodes, don't add it.
     if set(spaths[p]).issubset(all_covered_nodes):
         continue
-    covering_paths.append(p)
+    covering_paths.append(spaths[p])
     all_covered_nodes.update(spaths[p])
 
 assert len(all_covered_nodes) == len(mst.nodes())
 print("Covered nodes:", len(all_covered_nodes))
 print("Path coverings:", len(covering_paths))
 
+# for p in covering_paths:
+#     print(p)
 
 # 
 # TODO: More efficient path covering via min-flow?
