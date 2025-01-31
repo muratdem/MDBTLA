@@ -199,9 +199,10 @@ if __name__ == '__main__':
     ntests = args.ntests
 
     if args.load_json_graph:
-        G, edge_actions = cover.parse_json_state_graph("states.json")
+        G, node_map, edge_actions = cover.parse_json_state_graph("states.json")
         covering_paths = cover.compute_path_coverings(G)
 
+        traces = []
         for cpath in covering_paths:
             # print(cpath)
             # Convert path to list of edges.
@@ -211,13 +212,25 @@ if __name__ == '__main__':
                 path_edges.append((efrom, eto))
             # print("Path edges:", path_edges)
             # print("Path edges:", [edge_actions[e] for e in path_edges])
+            trace = {"action":[]}
             for act in [edge_actions[e] for e in path_edges]:
                 print(act)
                 # print(act[0], act[1])
                 # act_params = act[1]
                 lines = make_wt_action(None, act["action"], act["actionParams"], None)
                 print("\n".join(lines))
-
+                pre_state = [1,node_map[act["from"]]]
+                post_state = [2,node_map[act["to"]]]
+                trace["action"].append([
+                    pre_state,
+                    {
+                        "context": act["actionParams"], 
+                        "name": act["action"]
+                    },
+                    post_state
+                ])
+            traces.append(trace)
+        gen_wt_test_from_traces(traces)
         exit(0)
 
     if not os.path.exists("model_traces"):

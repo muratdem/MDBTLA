@@ -59,16 +59,19 @@ def parse_json_state_graph(fpath="states.json"):
     fgraph = open(fpath)
     json_graph = json.load(fgraph)
     for edge in json_graph["edges"]:
-        
         G.add_edge(edge["from"], edge["to"])
         edge_actions[(edge["from"], edge["to"])] = edge
+
+    node_map = {}
+    for node in json_graph["states"]:
+        node_map[node["fp"]] = node["val"]
 
     # print(edge_actions)
     print("Original graph:")
     print(len(G.nodes()), "nodes")
     print(len(G.edges()), "edges")
 
-    return (G, edge_actions)
+    return (G, node_map, edge_actions)
 
 def compute_path_coverings(G):
     #### Compute path covering with some simple heuristics for test-case generation.
