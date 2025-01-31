@@ -68,6 +68,8 @@ def make_wt_action(pre_state, action_name, action_args, post_state):
         wt_action_name = f"{txn_session}.rollback_transaction()"
     if action_name == "SetStableTimestamp":
         wt_action_name = f"self.conn.set_timestamp('stable_timestamp='+self.timestamp_str({action_args['ts']}))"
+    if action_name == "RollbackToStable":
+        wt_action_name = f"self.conn.rollback_to_stable()"
     # wt_args = [str(action_args[p]) for p in action_args]
     # return f"{wt_action_name}, {err_code}"
     lines = [
@@ -119,7 +121,9 @@ def gen_wt_test_from_traces(traces, max_len=1000):
             # Each action has 3 elements: initial state, transition info, final state
             pre_state = action[0]
             transition = action[1] 
-            action_args = transition['context']
+            action_args = []
+            if "context" in transition:
+                action_args = transition['context']
             post_state = action[2]
             
             print("\nAction:", transition['name'])
@@ -143,8 +147,12 @@ def gen_wt_test_from_traces(traces, max_len=1000):
         test_lines = []
         for i, a in enumerate(wt_actions):
             action_name = trace['action'][i][1]['name']
-            action_ctx = trace['action'][i][1]['context']
-            params = trace['action'][i][1]['parameters']
+            action_ctx = {}
+            params = []
+            if "context" in trace['action'][i][1]:
+                action_ctx = trace['action'][i][1]['context']
+            if "parameters" in trace['action'][i][1]:
+                params = trace['action'][i][1]['parameters']
 
             post_state = trace['action'][i][2][1]
             print(action_ctx)
@@ -188,7 +196,7 @@ if __name__ == '__main__':
     if not os.path.exists("model_traces"):
         os.makedirs("model_traces")
 
-    random.seed(13)
+    random.seed(14)
 
     traces = []
 
