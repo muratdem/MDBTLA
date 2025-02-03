@@ -214,6 +214,8 @@ TxnRead(tid, k) ==
             /\ mlog[cmind].tid = tOther
             /\ mlog[cmind].ts <= mtxnSnapshots[tid].ts
             /\ k \in DOMAIN mlog[cmind].data
+            \* If we wrote to this key within our transaction, then we will always read our latest write.
+            /\ k \notin mtxnSnapshots[tid].writeSet
         \* Snapshot read directly from the log.
         THEN SnapshotRead(k, mtxnSnapshots[tid].ts).value 
         \* Just read from your stored snapshot.
