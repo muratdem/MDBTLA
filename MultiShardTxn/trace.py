@@ -201,14 +201,14 @@ def gen_tla_json_graph(json_graph="states.json", seed=0, spec="MDBTest"):
     config = {
         "init": "Init",
         "next": "Next",
-        # "Symmetry": "Symmetry",
+        # "symmetry": "Symmetry",
         "constraint": "StateConstraint",
         "constants": {
             "RC": "snapshot",
             "WC": "majority",
             "Nil": "Nil",
             "Keys": "{k1,k2}",
-            "MTxId": "{t1}",
+            "MTxId": "{t1,t2}",
             "NoValue": "NoValue",
             "MaxOpsPerTxn": "2"
         }
@@ -223,6 +223,8 @@ def gen_tla_json_graph(json_graph="states.json", seed=0, spec="MDBTest"):
         if "constraint" in config:
             f.write("CONSTRAINT " + config["constraint"] + "\n")
         # f.write("INVARIANT " + config["invariant"] + "\n")
+        if "symmetry" in config:
+            f.write("SYMMETRY " + config["symmetry"] + "\n")
 
         # json.dump(config, f)
         f.close()
