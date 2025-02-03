@@ -202,6 +202,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--ntests', type=int, default=50, help='Number of test traces to generate')
     parser.add_argument('--use_json_graph', action='store_true', help='Load and analyze JSON state graph')
+    parser.add_argument('--coverage_pct', type=float, default=1.0, help='Percentage of states to cover')
     args = parser.parse_args()
     ntests = args.ntests
 
@@ -215,7 +216,8 @@ if __name__ == '__main__':
         gen_tla_json_graph("states.json", spec="MDBTest")
 
         G, node_map, edge_actions = cover.parse_json_state_graph("states.json")
-        COVERAGE_PCT = 1.0
+        COVERAGE_PCT = args.coverage_pct
+        print(f"Computing path covering with {COVERAGE_PCT*100} % coverage.")
         covering_paths = cover.compute_path_coverings(G, cvg_pct=COVERAGE_PCT)
         print(f"Computed {len(covering_paths)} covering paths.")
 
