@@ -193,5 +193,5 @@ StateConstraint == Len(mlog) <= 10
 \* Bait1 == ~(\E tid \in MTxId : txnStatus[tid] = STATUS_ROLLBACK)
 \* Bait1 == ~(Len(mlog) = 3 /\ \E tid \in MTxId, k \in Keys : mtxnSnapshots[tid] # Nil /\ mtxnSnapshots[tid][k] = NoValue)
 Bait1 == ~(Len(mlog) = 2)
-BaitLevel == TLCGet("level") < 9
+BaitLevel == TLCGet("level") < 12
 ======================
