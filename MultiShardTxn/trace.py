@@ -39,7 +39,7 @@ WT_TEST_FN_TEMPLATE = """
 """
 
 def make_wt_action(pre_state, action_name, action_args, post_state):
-    print(action_name)
+    # print(action_name)
     tid = ""
     err_code = None
     if "tid" in action_args:
@@ -110,7 +110,7 @@ def make_wt_action(pre_state, action_name, action_args, post_state):
     return lines
 
 def gen_wt_test_from_traces(traces, max_len=1000):
-    print("\n-----\nWT Actions:")
+    # print("\n-----\nWT Actions:")
 
     # Open a separate session for all transactions.
     txns = ["t1", "t2", "t3"]
@@ -134,9 +134,9 @@ def gen_wt_test_from_traces(traces, max_len=1000):
                 action_args = transition['context']
             post_state = action[2]
             
-            print("\nAction:", transition['name'])
+            # print("\nAction:", transition['name'])
             # print("Initial State:", init_state)
-            print("Parameters:", action_args)
+            # print("Parameters:", action_args)
             # print("Parameters:", transition['parameters'])
             # print("Context:", transition['context'])
             # print("Final State:", final_state)
@@ -147,9 +147,9 @@ def gen_wt_test_from_traces(traces, max_len=1000):
 
         for t in txns:
             out = tab(2) + f"sess_{t} = conn.open_session()\n"
-            print(out)
+            # print(out)
             f.write(out)
-        print("")
+        # print("")
         f.write("\n")
         action_labels = []
         test_lines = []
@@ -163,9 +163,9 @@ def gen_wt_test_from_traces(traces, max_len=1000):
                 params = trace['action'][i][1]['parameters']
 
             post_state = trace['action'][i][2][1]
-            print(action_ctx)
+            # print(action_ctx)
             action_params_str = ', '.join([str(p) + "=" + str(action_ctx[p]) for p in action_ctx])
-            print(post_state)
+            # print(post_state)
             txn_post_state = None
             tid = None
             if "tid" in action_ctx:
@@ -174,9 +174,9 @@ def gen_wt_test_from_traces(traces, max_len=1000):
             action_label = f"# [Action {i+1}]: {action_name}({action_params_str}) res:{txn_post_state}"
             post_state_label = "\n" + str("\n".join([tab(2) +  "# " + str(k) + " = " + str(post_state[k]) for k in post_state.keys()]))
             action_labels.append(tab(2) + action_label + "\n" + tab(2) + post_state_label + "\n")
-            print(action_label)
-            print(a)
-            print("")
+            # print(action_label)
+            # print(a)
+            # print("")
             test_lines.append(tab(2) + action_label)
             test_lines.append("\n")
             for l in a:
@@ -228,7 +228,8 @@ def gen_tla_json_graph(json_graph="states.json", seed=0, spec="MDBTest"):
         f.close()
 
     tlc = "java -cp tla2tools-json.jar tlc2.TLC -noGenerateSpecTE"
-    cmd = f"{tlc} -seed {seed} -dump json {json_graph} -workers 4 -deadlock -config MDBTest_gen.cfg {spec}.tla"
+    fp = 10 # use a constant FP.
+    cmd = f"{tlc} -seed {seed} -dump json {json_graph} -fp {fp} -workers 4 -deadlock -config MDBTest_gen.cfg {spec}.tla"
     print(cmd)
     os.system(cmd)
 
@@ -253,7 +254,7 @@ if __name__ == '__main__':
 
         G, node_map, edge_actions = cover.parse_json_state_graph("states.json")
         COVERAGE_PCT = args.coverage_pct
-        print(f"Computing path covering with {COVERAGE_PCT*100} % coverage.")
+        print(f"Computing path covering with {COVERAGE_PCT*100}% coverage.")
         covering_paths = cover.compute_path_coverings(G, cvg_pct=COVERAGE_PCT)
         print(f"Computed {len(covering_paths)} covering paths.")
 

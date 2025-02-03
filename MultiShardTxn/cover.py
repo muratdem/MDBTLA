@@ -77,7 +77,7 @@ def compute_path_coverings(G, cvg_pct=1.0):
     #### Compute path covering with some simple heuristics for test-case generation.
 
     # Compute minimum spanning arborescence (converts original graph to DAG).
-    print("Computing MST...")
+    print("Computing MST arborescence...")
     start_time = time.time()
     mst = nx.minimum_spanning_arborescence(G)
 
