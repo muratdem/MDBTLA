@@ -196,8 +196,39 @@ def gen_tla_model_trace(json_trace="trace.json", seed=0):
     os.system(cmd)
 
 def gen_tla_json_graph(json_graph="states.json", seed=0, spec="MDBTest"):
+
+    # For now don't use symmetry when doing trace generation.
+    config = {
+        "init": "Init",
+        "next": "Next",
+        # "Symmetry": "Symmetry",
+        "constraint": "StateConstraint",
+        "constants": {
+            "RC": "snapshot",
+            "WC": "majority",
+            "Nil": "Nil",
+            "Keys": "{k1,k2}",
+            "MTxId": "{t1}",
+            "NoValue": "NoValue",
+            "MaxOpsPerTxn": "2"
+        }
+    }
+
+    # Create TLC config file from JSON config.
+    with open("MDBTest_gen.cfg", "w") as f:
+        f.write("INIT " + config["init"] + "\n")
+        f.write("NEXT " + config["next"] + "\n")
+        for k, v in config["constants"].items():
+            f.write(f"CONSTANT {k} = {v}\n")
+        if "constraint" in config:
+            f.write("CONSTRAINT " + config["constraint"] + "\n")
+        # f.write("INVARIANT " + config["invariant"] + "\n")
+
+        # json.dump(config, f)
+        f.close()
+
     tlc = "java -cp tla2tools-json.jar tlc2.TLC -noGenerateSpecTE"
-    cmd = f"{tlc} -seed {seed} -dump json {json_graph} -workers 4 -deadlock {spec}.tla"
+    cmd = f"{tlc} -seed {seed} -dump json {json_graph} -workers 4 -deadlock -config MDBTest_gen.cfg {spec}.tla"
     print(cmd)
     os.system(cmd)
 
