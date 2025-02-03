@@ -96,13 +96,13 @@ def make_wt_action(pre_state, action_name, action_args, post_state):
         lines.append("self.assertTrue(wiredtiger.wiredtiger_strerror(wiredtiger.WT_ROLLBACK) in str(res))")
     elif err_code == "WT_NOTFOUND":
         # lines.append("self.assertEqual(res, None)")
-        lines.append("self.assertEqual(wiredtiger.WT_NOTFOUND, sret)")
+        lines.append("self.assertEqual(sret, wiredtiger.WT_NOTFOUND)")
     elif err_code == "WT_PREPARE_CONFLICT":
         lines.append("self.assertTrue(wiredtiger.wiredtiger_strerror(wiredtiger.WT_PREPARE_CONFLICT) in str(res))")
     else:
         lines.append("self.assertEquals(res, None)")
         if action_name == "TransactionRemove":
-            lines.append("self.assertEquals(0, sret)")
+            lines.append("self.assertEquals(sret, 0)")
     # lines = [
         # "self.check_action(lambda: " + wt_action_name + ", " + str(res_expected) + ", " + str(exception_str) + ")"
     # ]
