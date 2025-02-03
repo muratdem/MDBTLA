@@ -201,11 +201,11 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--ntests', type=int, default=50, help='Number of test traces to generate')
-    parser.add_argument('--load_json_graph', action='store_true', help='Load and analyze JSON state graph')
+    parser.add_argument('--use_json_graph', action='store_true', help='Load and analyze JSON state graph')
     args = parser.parse_args()
     ntests = args.ntests
 
-    if args.load_json_graph:
+    if args.use_json_graph:
 
         #
         # Re-generate state graph.
