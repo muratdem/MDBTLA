@@ -5,6 +5,10 @@ import argparse
 
 import cover
 
+# 
+# Experiments in model-based test case generation for the WiredTiger API based on TLA+ model.
+# 
+
 WT_TEST_TEMPLATE = """
 # [TEST_TAGS]
 # transactions
