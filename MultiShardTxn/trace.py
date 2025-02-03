@@ -171,8 +171,9 @@ def gen_wt_test_from_traces(traces, max_len=1000):
             if "tid" in action_ctx:
                 tid = action_ctx['tid']
                 txn_post_state = post_state['txnStatus'][tid]
-            action_label = f"### Action {i+1}: {action_name}({action_params_str}) res:{txn_post_state}"
-            action_labels.append(tab(2) +action_label)
+            action_label = f"# [Action {i+1}]: {action_name}({action_params_str}) res:{txn_post_state}"
+            post_state_label = "\n" + str("\n".join([tab(2) +  "# " + str(k) + " = " + str(post_state[k]) for k in post_state.keys()]))
+            action_labels.append(tab(2) + action_label + "\n" + tab(2) + post_state_label + "\n")
             print(action_label)
             print(a)
             print("")
