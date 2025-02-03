@@ -190,6 +190,13 @@ def gen_tla_model_trace(json_trace="trace.json", seed=0):
     # print(cmd)
     os.system(cmd)
 
+def gen_tla_json_graph(json_graph="states.json", seed=0, spec="MDBTest"):
+    tlc = "java -cp tla2tools-json.jar tlc2.TLC -noGenerateSpecTE"
+    cmd = f"{tlc} -seed {seed} -dump json {json_graph} -workers 4 -deadlock {spec}.tla"
+    print(cmd)
+    os.system(cmd)
+
+
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
@@ -199,8 +206,18 @@ if __name__ == '__main__':
     ntests = args.ntests
 
     if args.load_json_graph:
+
+        #
+        # Re-generate state graph.
+        # 
+        # java -cp tla2tools-json.jar tlc2.TLC -dump json states.json -workers 10 -deadlock MDBTest
+        # 
+        gen_tla_json_graph("states.json", spec="MDBTest")
+
         G, node_map, edge_actions = cover.parse_json_state_graph("states.json")
-        covering_paths = cover.compute_path_coverings(G)
+        COVERAGE_PCT = 1.0
+        covering_paths = cover.compute_path_coverings(G, cvg_pct=COVERAGE_PCT)
+        print(f"Computed {len(covering_paths)} covering paths.")
 
         traces = []
         for cpath in covering_paths:
@@ -214,11 +231,11 @@ if __name__ == '__main__':
             # print("Path edges:", [edge_actions[e] for e in path_edges])
             trace = {"action":[]}
             for act in [edge_actions[e] for e in path_edges]:
-                print(act)
+                # print(act)
                 # print(act[0], act[1])
                 # act_params = act[1]
-                lines = make_wt_action(None, act["action"], act["actionParams"], None)
-                print("\n".join(lines))
+                # lines = make_wt_action(None, act["action"], act["actionParams"], None)
+                # print("\n".join(lines))
                 pre_state = [1,node_map[act["from"]]]
                 post_state = [2,node_map[act["to"]]]
                 trace["action"].append([
@@ -231,6 +248,8 @@ if __name__ == '__main__':
                 ])
             traces.append(trace)
         gen_wt_test_from_traces(traces)
+        print(f"Number of states in full model: {len(G.nodes())}")
+        print(f"Computed path covering with {len(covering_paths)} paths.")
         exit(0)
 
     if not os.path.exists("model_traces"):

@@ -73,7 +73,7 @@ def parse_json_state_graph(fpath="states.json"):
 
     return (G, node_map, edge_actions)
 
-def compute_path_coverings(G):
+def compute_path_coverings(G, cvg_pct=1.0):
     #### Compute path covering with some simple heuristics for test-case generation.
 
     # Compute minimum spanning arborescence (converts original graph to DAG).
@@ -102,8 +102,10 @@ def compute_path_coverings(G):
             continue
         covering_paths.append(spaths[p])
         all_covered_nodes.update(spaths[p])
+        if len(all_covered_nodes) >= (cvg_pct * len(mst.nodes())):
+            break
 
-    assert len(all_covered_nodes) == len(mst.nodes())
+    assert len(all_covered_nodes) >= (cvg_pct * len(mst.nodes()))
     print("Covered nodes:", len(all_covered_nodes))
     print("Path coverings:", len(covering_paths))
 
