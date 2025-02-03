@@ -208,8 +208,8 @@ def gen_tla_json_graph(json_graph="states.json", seed=0, spec="MDBTest"):
         # "symmetry": "Symmetry",
         "constraint": "StateConstraint",
         "constants": {
-            "RC": "snapshot",
-            "WC": "majority",
+            "RC": "\"snapshot\"",
+            "WC": "\"majority\"",
             "Nil": "Nil",
             "Keys": "{k1,k2}",
             "MTxId": "{t1,t2}",
