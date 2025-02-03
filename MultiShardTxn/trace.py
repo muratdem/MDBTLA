@@ -164,7 +164,7 @@ def gen_wt_test_from_traces(traces, max_len=1000):
 
             post_state = trace['action'][i][2][1]
             print(action_ctx)
-            action_params_str = ','.join([str(action_ctx[p]) for p in params])
+            action_params_str = ', '.join([str(p) + "=" + str(action_ctx[p]) for p in action_ctx])
             print(post_state)
             txn_post_state = None
             tid = None
