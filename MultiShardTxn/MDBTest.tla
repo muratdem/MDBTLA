@@ -105,7 +105,8 @@ CommitTransaction(tid, commitTs) ==
     /\ tid \notin PreparedTransactions
     /\ ~mtxnSnapshots[tid]["aborted"]
     \* Must be greater than the newest known commit timestamp.
-    /\ (ActiveReadTimestamps \cup CommitTimestamps) # {} => commitTs > Max(ActiveReadTimestamps \cup CommitTimestamps)
+    \* Weaken this i.e. for distributed transactions commit timestamps may be chosen older than active timestamps.
+    \* /\ (ActiveReadTimestamps \cup CommitTimestamps) # {} => commitTs > Max(ActiveReadTimestamps \cup CommitTimestamps)
     \* Commit the transaction on the KV store and write all updated keys back to the log.
     /\ mlog' = CommitTxnToLog(tid, commitTs)
     /\ mtxnSnapshots' = [mtxnSnapshots EXCEPT ![tid] = Nil]
