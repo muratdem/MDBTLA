@@ -160,6 +160,7 @@ SnapshotKV(ts, rc) ==
         ts |-> readTs,
         data |-> [k \in Keys |-> SnapshotRead(k, readTs).value],
         prepared |-> FALSE,
+        prepareTs |-> Nil,
         aborted |-> FALSE,
         readSet |-> {},
         writeSet |-> {}

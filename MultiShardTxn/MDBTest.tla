@@ -105,8 +105,7 @@ CommitTransaction(tid, commitTs) ==
     /\ tid \notin PreparedTransactions
     /\ ~mtxnSnapshots[tid]["aborted"]
     \* Must be greater than the newest known commit timestamp.
-    \* Weaken this i.e. for distributed transactions commit timestamps may be chosen older than active timestamps.
-    \* /\ (ActiveReadTimestamps \cup CommitTimestamps) # {} => commitTs > Max(ActiveReadTimestamps \cup CommitTimestamps)
+    /\ (ActiveReadTimestamps \cup CommitTimestamps) # {} => commitTs > Max(ActiveReadTimestamps \cup CommitTimestamps)
     \* Commit the transaction on the KV store and write all updated keys back to the log.
     /\ mlog' = CommitTxnToLog(tid, commitTs)
     /\ mtxnSnapshots' = [mtxnSnapshots EXCEPT ![tid] = Nil]
@@ -120,8 +119,10 @@ CommitPreparedTransaction(tid, commitTs, durableTs) ==
     /\ tid \in ActiveTransactions
     /\ tid \in PreparedTransactions
     /\ ~mtxnSnapshots[tid]["aborted"]
-    \* Must be greater than the newest known commit timestamp.
-    /\ (ActiveReadTimestamps \cup CommitTimestamps) # {} => commitTs > Max(ActiveReadTimestamps \cup CommitTimestamps)
+    \* Commit timestamp must be greater than the prepare timestamp.
+    \* For distributed transactions commit timestamps may be chosen older than active read timestamps, though.
+    /\ mtxnSnapshots[tid].prepareTs # Nil 
+    /\ commitTs > mtxnSnapshots[tid].prepareTs
     /\ mlog' = CommitTxnToLogWithDurable(tid, commitTs, durableTs)
     /\ mtxnSnapshots' = [mtxnSnapshots EXCEPT ![tid] = Nil]
     /\ txnStatus' = [txnStatus EXCEPT ![tid] = STATUS_OK]
@@ -138,7 +139,7 @@ PrepareTransaction(tid, prepareTs) ==
     \* and greater than any active read timestamp.
     /\ prepareTs > mtxnSnapshots[tid].ts
     /\ prepareTs > Max(ActiveReadTimestamps)
-    /\ mtxnSnapshots' = [mtxnSnapshots EXCEPT ![tid]["prepared"] = TRUE]
+    /\ mtxnSnapshots' = [mtxnSnapshots EXCEPT ![tid]["prepared"] = TRUE, !["prepareTs"] = prepareTs]
     /\ mlog' = PrepareTxnToLog(tid, prepareTs)
     /\ txnStatus' = [txnStatus EXCEPT ![tid] = STATUS_OK]
     /\ UNCHANGED <<mcommitIndex, mepoch, stableTs>>
