@@ -8,7 +8,7 @@ This directory contains formal specifications that model the high level behavior
 
 The main specification resides in [`MultiShardTxn.tla`](MultiShardTxn.tla), which models MongoDB's distributed, multi-document transaction protocol. 
 
-See also an experiment in modeling just the storage layer interface in [`MDBTest.tla`](MDBTest.tla) (explore the spec [here](https://will62794.github.io/spectacle/#!/home?specpath=https%3A%2F%2Fraw.githubusercontent.com%2Fmuratdem%2FMDBTLA%2Frefs%2Fheads%2Fmain%2FMultiShardTxn%2FMDBTest.tla&constants%5BWC%5D=%22majority%22&constants%5BRC%5D=%22snapshot%22&constants%5BKeys%5D=%7Bk1%2Ck2%7D&constants%5BNoValue%5D=%22NoValue%22&constants%5BMTxId%5D=%7Bt1%2Ct2%7D&constants%5BNil%5D=%22Nil%22)).
+See also an experiment in modeling just the storage layer interface in [`MDBTest.tla`](MDBTest.tla) (explore the spec [here](https://will62794.github.io/spectacle/#!/home?specpath=https%3A%2F%2Fraw.githubusercontent.com%2Fmuratdem%2FMDBTLA%2Frefs%2Fheads%2Fmain%2FMultiShardTxn%2FMDBTest.tla&constants%5BWC%5D=%22majority%22&constants%5BMaxTimestamp%5D=3&constants%5BRC%5D=%22snapshot%22&constants%5BKeys%5D=%7Bk1%2Ck2%7D&constants%5BNoValue%5D=%22NoValue%22&constants%5BMTxId%5D=%7Bt1%2Ct2%7D&constants%5BNil%5D=%22Nil%22)).
 
 ## Protocol Specification
 
