@@ -214,7 +214,8 @@ def gen_tla_json_graph(json_graph="states.json", seed=0, spec="MDBTest"):
             "Keys": "{k1,k2}",
             "MTxId": "{t1,t2}",
             "NoValue": "NoValue",
-            "MaxOpsPerTxn": "2"
+            "MaxOpsPerTxn": "2",
+            "MaxTimestamp": "3"
         }
     }
 
