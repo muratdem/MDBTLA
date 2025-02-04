@@ -109,7 +109,7 @@ def make_wt_action(pre_state, action_name, action_args, post_state):
 
     return lines
 
-def gen_wt_test_from_traces(traces, max_len=1000):
+def gen_wt_test_from_traces(traces, max_len=1000, compact=False):
     # print("\n-----\nWT Actions:")
 
     # Open a separate session for all transactions.
@@ -174,8 +174,9 @@ def gen_wt_test_from_traces(traces, max_len=1000):
                 txn_post_state = post_state['txnStatus'][tid]
             action_label = f"# [Action {i+1}]: {action_name}({action_params_str}) res:{txn_post_state}"
             post_state_label = "\n" + str("\n".join([tab(3) +  "# " + str(k) + " = " + str(post_state[k]) for k in post_state.keys()]))
-            action_labels_only.append(tab(2) + action_label)
-            action_labels.append(tab(2) + action_label + "\n" + tab(2) + post_state_label + "\n")
+            if not compact:
+                action_labels_only.append(tab(2) + action_label)
+                action_labels.append(tab(2) + action_label + "\n" + tab(2) + post_state_label + "\n")
             # print(action_label)
             # print(a)
             # print("")
@@ -247,6 +248,7 @@ if __name__ == '__main__':
     parser.add_argument('--ntests', type=int, default=50, help='Number of test traces to generate')
     parser.add_argument('--use_json_graph', action='store_true', help='Load and analyze JSON state graph')
     parser.add_argument('--coverage_pct', type=float, default=1.0, help='Percentage of states to cover')
+    parser.add_argument('--compact', action='store_true', help='Generate compact test cases', default=False)
     args = parser.parse_args()
     ntests = args.ntests
 
@@ -293,7 +295,7 @@ if __name__ == '__main__':
                     post_state
                 ])
             traces.append(trace)
-        gen_wt_test_from_traces(traces)
+        gen_wt_test_from_traces(traces, compact=args.compact)
         print(f"Number of states in full model: {len(G.nodes())}")
         print(f"Computed path covering with {len(covering_paths)} paths.")
         exit(0)
