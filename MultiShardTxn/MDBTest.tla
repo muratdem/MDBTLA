@@ -172,7 +172,7 @@ Init ==
     /\ txnStatus = [t \in MTxId |-> STATUS_OK]
     /\ stableTs = 1
 
-MaxTimestamp == 5
+CONSTANT MaxTimestamp
 Timestamps == 1..MaxTimestamp
 
 Next == 
