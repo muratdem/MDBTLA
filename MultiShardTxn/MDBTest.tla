@@ -139,7 +139,7 @@ PrepareTransaction(tid, prepareTs) ==
     \* and greater than any active read timestamp.
     /\ prepareTs > mtxnSnapshots[tid].ts
     /\ prepareTs > Max(ActiveReadTimestamps)
-    /\ mtxnSnapshots' = [mtxnSnapshots EXCEPT ![tid]["prepared"] = TRUE, !["prepareTs"] = prepareTs]
+    /\ mtxnSnapshots' = [mtxnSnapshots EXCEPT ![tid]["prepared"] = TRUE, ![tid]["prepareTs"] = prepareTs]
     /\ mlog' = PrepareTxnToLog(tid, prepareTs)
     /\ txnStatus' = [txnStatus EXCEPT ![tid] = STATUS_OK]
     /\ UNCHANGED <<mcommitIndex, mepoch, stableTs>>
