@@ -79,14 +79,14 @@ TransactionRemove(tid, k) ==
     /\ tid \notin PreparedTransactions
     /\ ~mtxnSnapshots[tid]["aborted"]
     /\ \/ /\ ~WriteConflictExists(tid, k)
-          /\ mtxnSnapshots[tid].data[k] # NoValue \* Key must exist.
+          /\ TxnRead(tid, k) # NoValue 
           \* Update the transaction's snapshot data.
           /\ mtxnSnapshots' = [mtxnSnapshots EXCEPT ![tid]["writeSet"] = @ \cup {k}, 
                                                     ![tid].data[k] = NoValue]
           /\ txnStatus' = [txnStatus EXCEPT ![tid] = STATUS_OK]
        \* If key does not exist in your snapshot then you can't remove it.
        \/ /\ ~WriteConflictExists(tid, k)
-          /\ mtxnSnapshots[tid].data[k] = NoValue
+          /\ TxnRead(tid, k) = NoValue
           /\ txnStatus' = [txnStatus EXCEPT ![tid] = STATUS_NOTFOUND]
           /\ UNCHANGED mtxnSnapshots
        \/ /\ WriteConflictExists(tid, k)
