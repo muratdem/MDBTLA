@@ -9,3 +9,6 @@ java -cp tla2tools-json.jar tlc2.TLC -cacheStatesIgnoreVars $ignore_vars -cacheS
 
 # rc=local with no prepare blocking or ww.
 java -cp tla2tools-json.jar tlc2.TLC -cacheStatesIgnoreVars $ignore_vars -cacheStates cache -deadlock -workers 10 -config MultiShardTxn_RC_no_prepare_block_or_ww.cfg MultiShardTxn.tla | tee logout_permissive_rc_no_prepare_block_or_ww.txt
+
+# Baseline
+java -cp tla2tools-json.jar tlc2.TLC ClientCentricTests.tla | tee logout_baseline.txt
