@@ -10,3 +10,4 @@ states*.dot
 states*.pdf
 states*.json
 __pycache__/
+statecache/

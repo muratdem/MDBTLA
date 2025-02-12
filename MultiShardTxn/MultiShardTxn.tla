@@ -192,6 +192,8 @@ Restart(s) ==
 \* cross-shard transaction.
 \* 
 
+ShardWriteConflictExists(s, tid, k) == ShardMDB(s)!WriteConflictExists(tid, k)
+
 ShardMDBTxnStart(s, tid, readTs, rc) == 
     \* Start the transaction on the MDB KV store.
     \* Save a snapshot of the current MongoDB instance at this shard for this transaction to use.
@@ -202,7 +204,7 @@ ShardMDBTxnStart(s, tid, readTs, rc) ==
 ShardMDBTxnWrite(s, tid, k) == 
     \* The write to this key does not overlap with any writes to the same key
     \* from other, concurrent transactions.
-    /\ ~ShardMDB(s)!WriteConflictExists(tid, k)
+    /\ ~ShardWriteConflictExists(s, tid, k)
     \* Update the transaction's snapshot data.
     /\ txnSnapshots' = [txnSnapshots EXCEPT ![s][tid].writeSet = @ \cup {k}, 
                                             ![s][tid].data[k] = tid]
