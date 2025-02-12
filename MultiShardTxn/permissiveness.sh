@@ -12,3 +12,8 @@ java -cp tla2tools-json.jar tlc2.TLC -cacheStatesIgnoreVars $ignore_vars -cacheS
 
 # Baseline
 java -cp tla2tools-json.jar tlc2.TLC ClientCentricTests.tla | tee logout_baseline.txt
+
+
+
+# Consider loading cached states for more precise schedule counting (?).
+# java -cp tla2tools-test.jar tlc2.TLC -cacheStatesIgnoreVars $ignore_vars -cacheStates load -cacheStatesIgnoreVarsInvListCounts 2  -deadlock -workers 10 -config MultiShardTxn_RC_no_prepare_block.cfg MultiShardTxn.tla | grep "op.*value" | sort | uniq | grep -v "<<>>" | wc -l
