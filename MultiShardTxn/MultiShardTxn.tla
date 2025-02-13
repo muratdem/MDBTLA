@@ -578,8 +578,6 @@ MoveKey(k, sfrom, sto) ==
     /\ catalog' = [catalog EXCEPT ![k] = sto]
     /\ UNCHANGED << rCatalog, shardTxns, shardTxnReqs, rtxn, epoch, txnSnapshots, ops, rParticipants, coordInfo, msgsPrepare, msgsVoteCommit, coordCommitVotes, msgsAbort, msgsCommit, rTxnReadTs, shardPreparedTxns, rInCommit, aborted, log, commitIndex, shardOps >>
 
-Timestamps == 0..5
-
 Next == 
     \* Router actions.
     \/ \E r \in Router, t \in TxId, ts \in Timestamps : RouterTxnStart(r, t, ts)
