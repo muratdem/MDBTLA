@@ -11,3 +11,6 @@ states*.pdf
 states*.json
 __pycache__/
 statecache/
+logout_permissive*
+logout_baseline*
+tla2tools-test.jar
