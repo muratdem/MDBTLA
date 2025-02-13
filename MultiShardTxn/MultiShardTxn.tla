@@ -7,23 +7,12 @@ EXTENDS Integers, Sequences, FiniteSets, Util, TLC
 CONSTANTS Keys, TxId
 
 CONSTANT Router, Shard
-CONSTANT Router
-CONSTANT Shard
-CONSTANT Router, Shard
 
 CONSTANT NoValue
-
-CONSTANT PrepareBlocksReads
 
 \* Global read concern setting for all transactions.
 CONSTANTS RC
 
-\* Set of all timestamps that can be used for starting a transaction.
-CONSTANT Timestamps
-
-CONSTANT PrepareBlocksReads
-\* Write concern setting currently has no impact on protocol behavior.
-CONSTANTS WC
 \* Set of all timestamps that can be used for starting a transaction.
 CONSTANT Timestamps
 
