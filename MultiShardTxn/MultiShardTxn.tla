@@ -383,20 +383,20 @@ RouterTxnCommitSingleWriteShard(r, tid) ==
     /\ rInCommit' = [rInCommit EXCEPT ![r][tid] = TRUE]
     /\ UNCHANGED << rCatalog, shardTxns,   aborted, shardTxnReqs, rtxn, log, commitIndex, epoch, txnSnapshots, ops, rParticipants, coordInfo, msgsVoteCommit, coordCommitVotes, catalog, msgsAbort, msgsPrepare, rTxnReadTs, shardPreparedTxns, shardOps >>
 
-\* 
-\* Router aborts the transaction, which it can do at any point.
-\* 
-\* In practice, a router may also abort if it hears about failure of a statement
-\* executed in the midst of an ongoing transaction (e.g. due to write conflict),
-\* but this covers the more general case i.e. where a router could potentially
-\* send abort at any time for any reason (e.g client sends explicit abort.)
-\* 
-RouterTxnAbort(r, tid) == 
-    /\ rParticipants[r][tid] # <<>>
-    \* Didn't already initiate commit.
-    /\ ~rInCommit[r][tid]
-    /\ msgsAbort' = msgsAbort \cup {[tid |-> tid, shard |-> s[1]] : s \in Range(rParticipants[r][tid])}
-    /\ UNCHANGED << rCatalog, shardTxns,   aborted, log, commitIndex, epoch, txnSnapshots, ops, shardTxnReqs, rtxn, coordInfo, msgsPrepare, msgsVoteCommit, coordCommitVotes, catalog, rParticipants, msgsCommit, rTxnReadTs, shardPreparedTxns, rInCommit, shardOps >>
+\* \* 
+\* \* Router aborts the transaction, which it can do at any point.
+\* \* 
+\* \* In practice, a router may also abort if it hears about failure of a statement
+\* \* executed in the midst of an ongoing transaction (e.g. due to write conflict),
+\* \* but this covers the more general case i.e. where a router could potentially
+\* \* send abort at any time for any reason (e.g client sends explicit abort.)
+\* \* 
+\* RouterTxnAbort(r, tid) == 
+\*     /\ rParticipants[r][tid] # <<>>
+\*     \* Didn't already initiate commit.
+\*     /\ ~rInCommit[r][tid]
+\*     /\ msgsAbort' = msgsAbort \cup {[tid |-> tid, shard |-> s[1]] : s \in Range(rParticipants[r][tid])}
+\*     /\ UNCHANGED << rCatalog, shardTxns,   aborted, log, commitIndex, epoch, txnSnapshots, ops, shardTxnReqs, rtxn, coordInfo, msgsPrepare, msgsVoteCommit, coordCommitVotes, catalog, rParticipants, msgsCommit, rTxnReadTs, shardPreparedTxns, rInCommit, shardOps >>
 
 
 \*****************************************
@@ -451,26 +451,26 @@ ShardTxnWrite(s, tid, k) ==
     /\ ShardMDBTxnWrite(s, tid, k)
     /\ UNCHANGED << rCatalog, shardTxns, log, commitIndex, aborted, epoch, coordInfo, msgsPrepare, msgsVoteCommit, coordCommitVotes, catalog, msgsAbort, msgsCommit, shardPreparedTxns, ops, varsRouter >>
 
-\* Shard processes a transaction write operation which encounters a write conflict, triggering an abort.
-ShardTxnWriteConflict(s, tid, k) == 
-    \* Transaction started on this shard and has new statements in the router log.
-    /\ tid \in shardTxns[s]
-    /\ shardTxnReqs[s][tid] # <<>>
-    /\ Head(shardTxnReqs[s][tid]).op = "write"
-    /\ Head(shardTxnReqs[s][tid]).k = k
-    \* Transaction is not prepared.
-    /\ tid \notin shardPreparedTxns[s]
-    \* The write to this key conflicts with another concurrent transaction on this shard.
-    /\ ShardMDB(s)!WriteConflictExists(tid, k)
-    /\ ShardMDBTxnAbort(s, tid)
-    \* Transaction gets aborted on this shard.
-    /\ aborted' = [aborted EXCEPT ![s][tid] = TRUE]
-    /\ shardTxns' = [shardTxns EXCEPT ![s] = shardTxns[s] \ {tid}]
-    \* Consume the transaction op.
-    /\ shardTxnReqs' = [shardTxnReqs EXCEPT ![s][tid] = Tail(shardTxnReqs[s][tid])]
-    \* Since it was aborted on this shard, update the transaction's op history.
-    /\ shardOps' = [shardOps EXCEPT ![s][tid] = <<>>]
-    /\ UNCHANGED << rCatalog, log, commitIndex, epoch, coordInfo, msgsPrepare, msgsVoteCommit, coordCommitVotes, catalog, msgsAbort, msgsCommit, shardPreparedTxns, ops, varsRouter >>
+\* \* Shard processes a transaction write operation which encounters a write conflict, triggering an abort.
+\* ShardTxnWriteConflict(s, tid, k) == 
+\*     \* Transaction started on this shard and has new statements in the router log.
+\*     /\ tid \in shardTxns[s]
+\*     /\ shardTxnReqs[s][tid] # <<>>
+\*     /\ Head(shardTxnReqs[s][tid]).op = "write"
+\*     /\ Head(shardTxnReqs[s][tid]).k = k
+\*     \* Transaction is not prepared.
+\*     /\ tid \notin shardPreparedTxns[s]
+\*     \* The write to this key conflicts with another concurrent transaction on this shard.
+\*     /\ ShardMDB(s)!WriteConflictExists(tid, k)
+\*     /\ ShardMDBTxnAbort(s, tid)
+\*     \* Transaction gets aborted on this shard.
+\*     /\ aborted' = [aborted EXCEPT ![s][tid] = TRUE]
+\*     /\ shardTxns' = [shardTxns EXCEPT ![s] = shardTxns[s] \ {tid}]
+\*     \* Consume the transaction op.
+\*     /\ shardTxnReqs' = [shardTxnReqs EXCEPT ![s][tid] = Tail(shardTxnReqs[s][tid])]
+\*     \* Since it was aborted on this shard, update the transaction's op history.
+\*     /\ shardOps' = [shardOps EXCEPT ![s][tid] = <<>>]
+\*     /\ UNCHANGED << rCatalog, log, commitIndex, epoch, coordInfo, msgsPrepare, msgsVoteCommit, coordCommitVotes, catalog, msgsAbort, msgsCommit, shardPreparedTxns, ops, varsRouter >>
 
 \*******************
 \* Shard 2PC actions.
@@ -553,13 +553,17 @@ ShardTxnCommit(s, tid) ==
                 ShardMDBTxnCommit(s, tid, commitTs)
     /\ UNCHANGED <<rCatalog, epoch, coordInfo, msgsPrepare, msgsVoteCommit, coordCommitVotes, catalog, msgsAbort, aborted, shardOps, varsRouter >>
 
-\* Shard receives an abort message for transaction, and aborts.
+\* 
+\* Shard spontaneously aborts a transaction.
+\* 
+\* We abstract all shard transaction aborts into this action, which might, in
+\* the real system represent a shard aborting due to a write conflict, or
+\* failover, or some other error case. This coalesces all possible shard abort
+\* cases into a single model, to ensure safety under any possible aborts during
+\* a transaction on a shard.
+\*
 ShardTxnAbort(s, tid) == 
     /\ tid \in shardTxns[s]
-    /\ \E m \in msgsAbort : 
-        /\ m.shard = s 
-        /\ m.tid = tid
-        /\ msgsAbort' = msgsAbort \ {m}
     /\ aborted' = [aborted EXCEPT ![s][tid] = TRUE]
     /\ shardTxns' = [shardTxns EXCEPT ![s] = shardTxns[s] \ {tid}]
     \* Since it was aborted on this shard, update the transaction's op history.
@@ -568,7 +572,7 @@ ShardTxnAbort(s, tid) ==
     \* If we abort, we by default clear out any incoming RPC requests.
     /\ shardTxnReqs' = [shardTxnReqs EXCEPT ![s][tid] = <<>>]
     /\ ShardMDBTxnAbort(s, tid)
-    /\ UNCHANGED << rCatalog, log, commitIndex, epoch, coordInfo, msgsPrepare, msgsVoteCommit, coordCommitVotes, catalog, msgsCommit, shardPreparedTxns, ops, varsRouter>>
+    /\ UNCHANGED << rCatalog, msgsAbort, log, commitIndex, epoch, coordInfo, msgsPrepare, msgsVoteCommit, coordCommitVotes, catalog, msgsCommit, shardPreparedTxns, ops, varsRouter>>
 
 
 \* Migrate a key from one shard to another.
@@ -587,12 +591,10 @@ Next ==
     \/ \E r \in Router, s \in Shard, t \in TxId: RouterTxnCommitSingleShard(r, s, t)
     \* TODO: Enable this single write shard optimization once modeled fully.
     \* \/ \E r \in Router, t \in TxId: RouterTxnCommitSingleWriteShard(r, t)
-    \/ \E r \in Router, t \in TxId : RouterTxnAbort(r, t)
     \* Shard transaction actions.
     \/ \E s \in Shard, tid \in TxId: ShardTxnStart(s, tid)
     \/ \E s \in Shard, tid \in TxId, k \in Keys: ShardTxnRead(s, tid, k)
     \/ \E s \in Shard, tid \in TxId, k \in Keys: ShardTxnWrite(s, tid, k)
-    \/ \E s \in Shard, tid \in TxId, k \in Keys: ShardTxnWriteConflict(s, tid, k)
     \* Shard 2PC actions.
     \/ \E s \in Shard, tid \in TxId, k \in Keys: ShardTxnPrepare(s, tid)
     \/ \E s \in Shard, tid \in TxId, k \in Keys: ShardTxnCoordinateCommit(s, tid)
@@ -684,620 +686,10 @@ Test ==
 \* then eventually all transactions get committed or aborted on that shard.
 AllRunningTransactionsTerminate == \A s \in Shard : (shardTxns[s] # {}) ~> (shardTxns[s] = {})
 
-
-
-\* Alias == [
-\*     log |-> log,
-\*     commitIndex |-> commitIndex,
-\*     readIndex |-> readIndex,
-\*     epoch |-> epoch
-\* ]
-
-
------------------------------------------
-
-\* Some unfinished liveness experiments.
-
-\* For all shards, if they scurrently have a running transaction at any point,
-\* then eventually all transactions get committed or aborted on that shard.
-\* \* Set of all sequences over S of max length len.
-\* BoundedSeq(S, n) == UNION {[1..i -> S] : i \in 0..n}
-\* Transaction == BoundedSeq(CC!Operation, MaxOpsPerTxn)
-\* BoundedSeq(S, n) == UNION {[1..i -> S] : i \in 0..n}
-\* Transaction == BoundedSeq(CC!Operation, MaxOpsPerTxn)
-
-\* Transaction == BoundedSeq(CC!Operation, MaxOpsPerTxn)
-
-AllTxns == [TxId -> Transaction]
-AllTxnsReadCommitted == {ts \in AllTxns : CC!ReadCommitted(InitialState, Range(ts))}
-AllTxnsSnapshot == {ts \in AllTxns : CC!SnapshotIsolation(InitialState, Range(ts))}
-AllTxnsSerializable == {ts \in AllTxns : CC!Serializability(InitialState, Range(ts))}
-\* ASSUME PrintT(Cardinality(AllTxns))
-\* \* Set of all sequences over S of max length len.
-\* BoundedSeq(S, n) == UNION {[1..i -> S] : i \in 0..n}
-\* Transaction == BoundedSeq(CC!Operation, MaxOpsPerTxn)
-\*     log |-> log,
-\*     commitIndex |-> commitIndex,
-\*     readIndex |-> readIndex,
-\*     epoch |-> epoch
-\* ]
-
-
------------------------------------------
-
-\* Some unfinished liveness experiments.
-
-\* For all shards, if they scurrently have a running transaction at any point,
-\* then eventually all transactions get committed or aborted on that shard.
-\* \* Set of all sequences over S of max length len.
-\* BoundedSeq(S, n) == UNION {[1..i -> S] : i \in 0..n}
-\* Transaction == BoundedSeq(CC!Operation, MaxOpsPerTxn)
-\* BoundedSeq(S, n) == UNION {[1..i -> S] : i \in 0..n}
-\* Transaction == BoundedSeq(CC!Operation, MaxOpsPerTxn)
-
-\* Transaction == BoundedSeq(CC!Operation, MaxOpsPerTxn)
-
-AllTxns == [TxId -> Transaction]
-AllTxnsReadCommitted == {ts \in AllTxns : CC!ReadCommitted(InitialState, Range(ts))}
-AllTxnsSnapshot == {ts \in AllTxns : CC!SnapshotIsolation(InitialState, Range(ts))}
-AllTxnsSerializable == {ts \in AllTxns : CC!Serializability(InitialState, Range(ts))}
-\* ASSUME PrintT(Cardinality(AllTxns))
 \* \* Set of all sequences over S of max length len.
 \* BoundedSeq(S, n) == UNION {[1..i -> S] : i \in 0..n}
 \* Transaction == BoundedSeq(CC!Operation, MaxOpsPerTxn)
 
-\*     commitIndex |-> commitIndex,
-\*     readIndex |-> readIndex,
-\*     epoch |-> epoch
-\* ]
-
-
------------------------------------------
-
-\* Some unfinished liveness experiments.
-
-\* For all shards, if they scurrently have a running transaction at any point,
-\* then eventually all transactions get committed or aborted on that shard.
-\* \* Set of all sequences over S of max length len.
-\* BoundedSeq(S, n) == UNION {[1..i -> S] : i \in 0..n}
-\* Transaction == BoundedSeq(CC!Operation, MaxOpsPerTxn)
-
-
-BaitLog == 
-    /\ TRUE
-    \* /\ \A s \in Shard, t \in TxId : aborted[s][t] = FALSE
-    \* /\ Cardinality(msgsPrepare) # 2
-    \* /\ \A s \in Shard, tid \in TxId : Len(shardOps[s][tid]) < 2
-    \* /\ ~(\A tid \in TxId : Len(ops[tid]) = 2 /\ \A i,j \in DOMAIN(ops[tid]) : i # j => ops[tid][i] # ops[tid][j])
-    /\ ~(\E t1,t2 \in TxId : 
-             /\ t1 # t2
-             /\ \E j \in DOMAIN(ops[t1]) : ops[t1][j]["op"] = "write"
-             /\ \E j \in DOMAIN(ops[t2]) : ops[t2][j]["op"] = "write")
-    \* /\ \A s \in Shard, tid \in TxId : Cardinality(coordCommitVotes[s][tid]) < 1
-    \* /\ \A s \in Shard, tid \in TxId : Len(shardOps[s][tid]) < 2
-    \* /\ ~(\A tid \in TxId : Len(ops[tid]) = 2 /\ \A i,j \in DOMAIN(ops[tid]) : i # j => ops[tid][i] # ops[tid][j])
-    /\ ~(\E t1,t2 \in TxId : 
-             /\ t1 # t2
-             /\ \E j \in DOMAIN(ops[t1]) : ops[t1][j]["op"] = "write"
-             /\ \E j \in DOMAIN(ops[t2]) : ops[t2][j]["op"] = "write")
-    \* /\ \A tid \in TxId : Len(ops[tid]) < 2
-    \* /\ coord
-    \* /\ \A s \in Shard, t \in TxId : Len(shardTxnReqs[s][t]) = 0
-    \* /\ commitIndex < 5
-    \* /\ Len(log) < 6
-
-    \* /\ ~(\A tid \in TxId : Len(ops[tid]) = 2 /\ \A i,j \in DOMAIN(ops[tid]) : i # j => ops[tid][i] # ops[tid][j])
-    /\ ~(\E t1,t2 \in TxId : 
-             /\ t1 # t2
-             /\ \E j \in DOMAIN(ops[t1]) : ops[t1][j]["op"] = "write"
-             /\ \E j \in DOMAIN(ops[t2]) : ops[t2][j]["op"] = "write")
-    \* /\ \A s \in Shard, tid \in TxId : Cardinality(coordCommitVotes[s][tid]) < 1
-    \* /\ \A s \in Shard, tid \in TxId : Len(shardOps[s][tid]) < 2
-    \* /\ ~(\A tid \in TxId : Len(ops[tid]) = 2 /\ \A i,j \in DOMAIN(ops[tid]) : i # j => ops[tid][i] # ops[tid][j])
-    /\ ~(\E t1,t2 \in TxId : 
-             /\ t1 # t2
-             /\ \E j \in DOMAIN(ops[t1]) : ops[t1][j]["op"] = "write"
-             /\ \E j \in DOMAIN(ops[t2]) : ops[t2][j]["op"] = "write")
-    \* /\ \A tid \in TxId : Len(ops[tid]) < 2
-    \* /\ coord
-    \* /\ \A s \in Shard, t \in TxId : Len(shardTxnReqs[s][t]) = 0
-    \* /\ commitIndex < 5
-Test == 
-    ~\E s \in Shard, tid \in TxId, k \in Keys : (txnSnapshots[s][tid] # NoValue /\ ShardMDB(s)!PrepareConflict(tid, k)) ~> (\A t \in TxId : Len(ops[t]) # <<>>)
------------------------------------------
-
-CONSTANT MaxOpsPerTxn
-
-KeysOwnedByShard(s) == { k \in Keys : catalog[k] = s }
-
-CatalogConstraint == 
-    \* Prevents cases where all keys are distributed to a single shard.
-    /\ \A s \in Shard : KeysOwnedByShard(s) # Keys
-
-InitCatalogConstraintKeysOnDifferentShards ==
-    \* Prevents cases where all keys are distributed to a single shard, if there is more than one shard.
-    /\ Init
-    /\ (Cardinality(Shard) > 1) => \A s \in Shard : Cardinality(KeysOwnedByShard(s)) < Cardinality(Keys)
-
-\* Don't execute more than a max number of statements per transaction.
-StateConstraint == 
-    /\ \A t \in TxId, r \in Router : rtxn[r][t] <= MaxOpsPerTxn
-Test == 
-    ~\E s \in Shard, tid \in TxId, k \in Keys : (txnSnapshots[s][tid] # NoValue /\ ShardMDB(s)!PrepareConflict(tid, k)) ~> (\A t \in TxId : Len(ops[t]) # <<>>)
-CONSTANT MaxOpsPerTxn
-
-KeysOwnedByShard(s) == { k \in Keys : catalog[k] = s }
-
-CatalogConstraint == 
-    \* Prevents cases where all keys are distributed to a single shard.
-    /\ \A s \in Shard : KeysOwnedByShard(s) # Keys
-
-InitCatalogConstraintKeysOnDifferentShards ==
-    \* Prevents cases where all keys are distributed to a single shard, if there is more than one shard.
-    /\ Init
-    /\ (Cardinality(Shard) > 1) => \A s \in Shard : Cardinality(KeysOwnedByShard(s)) < Cardinality(Keys)
-
-\* Don't execute more than a max number of statements per transaction.
-StateConstraint == 
-    /\ \A t \in TxId, r \in Router : rtxn[r][t] <= MaxOpsPerTxn
-Test == 
-    ~\E s \in Shard, tid \in TxId, k \in Keys : (txnSnapshots[s][tid] # NoValue /\ ShardMDB(s)!PrepareConflict(tid, k)) ~> (\A t \in TxId : Len(ops[t]) # <<>>)
-
-
-\* Alias == [
-\*     log |-> log,
-\*     commitIndex |-> commitIndex,
-\*     readIndex |-> readIndex,
-\*     epoch |-> epoch
-\* ]
-
-
------------------------------------------
-
-\* Some unfinished liveness experiments.
-
-\* For all shards, if they scurrently have a running transaction at any point,
-\* then eventually all transactions get committed or aborted on that shard.
-AllRunningTransactionsTerminate == \A s \in Shard : (shardTxns[s] # {}) ~> (shardTxns[s] = {})
-
-
-
-\* Alias == [
-\*     log |-> log,
-\*     commitIndex |-> commitIndex,
-\*     readIndex |-> readIndex,
-\*     epoch |-> epoch
-\* ]
-
-
------------------------------------------
-
-\* Some unfinished liveness experiments.
-
-\* For all shards, if they scurrently have a running transaction at any point,
-\* then eventually all transactions get committed or aborted on that shard.
-\* \* Set of all sequences over S of max length len.
-\* BoundedSeq(S, n) == UNION {[1..i -> S] : i \in 0..n}
-\* Transaction == BoundedSeq(CC!Operation, MaxOpsPerTxn)
-\* BoundedSeq(S, n) == UNION {[1..i -> S] : i \in 0..n}
-\* Transaction == BoundedSeq(CC!Operation, MaxOpsPerTxn)
-
-\* Transaction == BoundedSeq(CC!Operation, MaxOpsPerTxn)
-
-AllTxns == [TxId -> Transaction]
-AllTxnsReadCommitted == {ts \in AllTxns : CC!ReadCommitted(InitialState, Range(ts))}
-AllTxnsSnapshot == {ts \in AllTxns : CC!SnapshotIsolation(InitialState, Range(ts))}
-AllTxnsSerializable == {ts \in AllTxns : CC!Serializability(InitialState, Range(ts))}
-\* ASSUME PrintT(Cardinality(AllTxns))
-\* \* Set of all sequences over S of max length len.
-\* BoundedSeq(S, n) == UNION {[1..i -> S] : i \in 0..n}
-\* Transaction == BoundedSeq(CC!Operation, MaxOpsPerTxn)
-\*     log |-> log,
-\*     commitIndex |-> commitIndex,
-\*     readIndex |-> readIndex,
-\*     epoch |-> epoch
-\* ]
-
-
------------------------------------------
-
-\* Some unfinished liveness experiments.
-
-\* For all shards, if they scurrently have a running transaction at any point,
-\* then eventually all transactions get committed or aborted on that shard.
-\* \* Set of all sequences over S of max length len.
-\* BoundedSeq(S, n) == UNION {[1..i -> S] : i \in 0..n}
-\* Transaction == BoundedSeq(CC!Operation, MaxOpsPerTxn)
-\* BoundedSeq(S, n) == UNION {[1..i -> S] : i \in 0..n}
-\* Transaction == BoundedSeq(CC!Operation, MaxOpsPerTxn)
-
-\* Transaction == BoundedSeq(CC!Operation, MaxOpsPerTxn)
-
-AllTxns == [TxId -> Transaction]
-AllTxnsReadCommitted == {ts \in AllTxns : CC!ReadCommitted(InitialState, Range(ts))}
-AllTxnsSnapshot == {ts \in AllTxns : CC!SnapshotIsolation(InitialState, Range(ts))}
-AllTxnsSerializable == {ts \in AllTxns : CC!Serializability(InitialState, Range(ts))}
-\* ASSUME PrintT(Cardinality(AllTxns))
-\* \* Set of all sequences over S of max length len.
-\* BoundedSeq(S, n) == UNION {[1..i -> S] : i \in 0..n}
-\* Transaction == BoundedSeq(CC!Operation, MaxOpsPerTxn)
-
-\*     commitIndex |-> commitIndex,
-\*     readIndex |-> readIndex,
-\*     epoch |-> epoch
-\* ]
-
-
------------------------------------------
-
-\* Some unfinished liveness experiments.
-
-\* For all shards, if they scurrently have a running transaction at any point,
-\* then eventually all transactions get committed or aborted on that shard.
-\* \* Set of all sequences over S of max length len.
-\* BoundedSeq(S, n) == UNION {[1..i -> S] : i \in 0..n}
-\* Transaction == BoundedSeq(CC!Operation, MaxOpsPerTxn)
-\* BoundedSeq(S, n) == UNION {[1..i -> S] : i \in 0..n}
-\* Transaction == BoundedSeq(CC!Operation, MaxOpsPerTxn)
-
-\* Transaction == BoundedSeq(CC!Operation, MaxOpsPerTxn)
-
-AllTxns == [TxId -> Transaction]
-AllTxnsReadCommitted == {ts \in AllTxns : CC!ReadCommitted(InitialState, Range(ts))}
-AllTxnsSnapshot == {ts \in AllTxns : CC!SnapshotIsolation(InitialState, Range(ts))}
-AllTxnsSerializable == {ts \in AllTxns : CC!Serializability(InitialState, Range(ts))}
-\* ASSUME PrintT(Cardinality(AllTxns))
-\* \* Set of all sequences over S of max length len.
-\* BoundedSeq(S, n) == UNION {[1..i -> S] : i \in 0..n}
-\* Transaction == BoundedSeq(CC!Operation, MaxOpsPerTxn)
-AllTxns == [TxId -> Transaction]
-AllTxnsReadCommitted == {ts \in AllTxns : CC!ReadCommitted(InitialState, Range(ts))}
-AllTxnsSnapshot == {ts \in AllTxns : CC!SnapshotIsolation(InitialState, Range(ts))}
-AllTxnsSerializable == {ts \in AllTxns : CC!Serializability(InitialState, Range(ts))}
-\* ASSUME PrintT(Cardinality(AllTxns))
-\* ASSUME PrintT(Cardinality(AllTxnsReadCommitted))
-\* ASSUME PrintT(Cardinality(AllTxnsSnapshot))
-\* ASSUME PrintT(Cardinality(AllTxnsSerializable))
-\* AllTxns == [TxId -> Transaction]
-\* AllTxnsReadCommitted == {ts \in AllTxns : CC!ReadCommitted(InitialState, Range(ts))}
-\* AllTxnsSnapshot == {ts \in AllTxns : CC!SnapshotIsolation(InitialState, Range(ts))}
-\* AllTxnsSerializable == {ts \in AllTxns : CC!Serializability(InitialState, Range(ts))}
-AllTxnsSnapshot == {ts \in AllTxns : CC!SnapshotIsolation(InitialState, Range(ts))}
-AllTxnsSerializable == {ts \in AllTxns : CC!Serializability(InitialState, Range(ts))}
-\* ASSUME PrintT(Cardinality(AllTxns))
-\* \* Set of all sequences over S of max length len.
-\* BoundedSeq(S, n) == UNION {[1..i -> S] : i \in 0..n}
-\* Transaction == BoundedSeq(CC!Operation, MaxOpsPerTxn)
-AllTxns == [TxId -> Transaction]
-AllTxnsReadCommitted == {ts \in AllTxns : CC!ReadCommitted(InitialState, Range(ts))}
-AllTxnsSnapshot == {ts \in AllTxns : CC!SnapshotIsolation(InitialState, Range(ts))}
-AllTxnsSerializable == {ts \in AllTxns : CC!Serializability(InitialState, Range(ts))}
-\* ASSUME PrintT(Cardinality(AllTxns))
-\* ASSUME PrintT(Cardinality(AllTxnsReadCommitted))
-\* ASSUME PrintT(Cardinality(AllTxnsSnapshot))
-\* ASSUME PrintT(Cardinality(AllTxnsSerializable))
-\* AllTxns == [TxId -> Transaction]
-\* AllTxnsReadCommitted == {ts \in AllTxns : CC!ReadCommitted(InitialState, Range(ts))}
-\* AllTxnsSnapshot == {ts \in AllTxns : CC!SnapshotIsolation(InitialState, Range(ts))}
-\* AllTxnsSerializable == {ts \in AllTxns : CC!Serializability(InitialState, Range(ts))}
-
-
------------------------------------------
-
-\* Some unfinished liveness experiments.
-
-\* For all shards, if they scurrently have a running transaction at any point,
-\* then eventually all transactions get committed or aborted on that shard.
-\* \* Set of all sequences over S of max length len.
-\* BoundedSeq(S, n) == UNION {[1..i -> S] : i \in 0..n}
-\* Transaction == BoundedSeq(CC!Operation, MaxOpsPerTxn)
-\* BoundedSeq(S, n) == UNION {[1..i -> S] : i \in 0..n}
-\* Transaction == BoundedSeq(CC!Operation, MaxOpsPerTxn)
-
-\* Transaction == BoundedSeq(CC!Operation, MaxOpsPerTxn)
-
-AllTxns == [TxId -> Transaction]
-AllTxnsReadCommitted == {ts \in AllTxns : CC!ReadCommitted(InitialState, Range(ts))}
-AllTxnsSnapshot == {ts \in AllTxns : CC!SnapshotIsolation(InitialState, Range(ts))}
-AllTxnsSerializable == {ts \in AllTxns : CC!Serializability(InitialState, Range(ts))}
-\* ASSUME PrintT(Cardinality(AllTxns))
-\* \* Set of all sequences over S of max length len.
-\* BoundedSeq(S, n) == UNION {[1..i -> S] : i \in 0..n}
-\* Transaction == BoundedSeq(CC!Operation, MaxOpsPerTxn)
-AllTxns == [TxId -> Transaction]
-AllTxnsReadCommitted == {ts \in AllTxns : CC!ReadCommitted(InitialState, Range(ts))}
-AllTxnsSnapshot == {ts \in AllTxns : CC!SnapshotIsolation(InitialState, Range(ts))}
-AllTxnsSerializable == {ts \in AllTxns : CC!Serializability(InitialState, Range(ts))}
-\* ASSUME PrintT(Cardinality(AllTxns))
-\* ASSUME PrintT(Cardinality(AllTxnsReadCommitted))
-\* ASSUME PrintT(Cardinality(AllTxnsSnapshot))
-\* ASSUME PrintT(Cardinality(AllTxnsSerializable))
-\* AllTxns == [TxId -> Transaction]
-\* AllTxnsReadCommitted == {ts \in AllTxns : CC!ReadCommitted(InitialState, Range(ts))}
-\* AllTxnsSnapshot == {ts \in AllTxns : CC!SnapshotIsolation(InitialState, Range(ts))}
-\* AllTxnsSerializable == {ts \in AllTxns : CC!Serializability(InitialState, Range(ts))}
-AllTxnsSnapshot == {ts \in AllTxns : CC!SnapshotIsolation(InitialState, Range(ts))}
-AllTxnsSerializable == {ts \in AllTxns : CC!Serializability(InitialState, Range(ts))}
-\* ASSUME PrintT(Cardinality(AllTxns))
-\* \* Set of all sequences over S of max length len.
-\* BoundedSeq(S, n) == UNION {[1..i -> S] : i \in 0..n}
-\* Transaction == BoundedSeq(CC!Operation, MaxOpsPerTxn)
-AllTxns == [TxId -> Transaction]
-AllTxnsReadCommitted == {ts \in AllTxns : CC!ReadCommitted(InitialState, Range(ts))}
-AllTxnsSnapshot == {ts \in AllTxns : CC!SnapshotIsolation(InitialState, Range(ts))}
-AllTxnsSerializable == {ts \in AllTxns : CC!Serializability(InitialState, Range(ts))}
-\* ASSUME PrintT(Cardinality(AllTxns))
-\* ASSUME PrintT(Cardinality(AllTxnsReadCommitted))
-\* ASSUME PrintT(Cardinality(AllTxnsSnapshot))
-\* ASSUME PrintT(Cardinality(AllTxnsSerializable))
-\* AllTxns == [TxId -> Transaction]
-\* AllTxnsReadCommitted == {ts \in AllTxns : CC!ReadCommitted(InitialState, Range(ts))}
-\* AllTxnsSnapshot == {ts \in AllTxns : CC!SnapshotIsolation(InitialState, Range(ts))}
-\* AllTxnsSerializable == {ts \in AllTxns : CC!Serializability(InitialState, Range(ts))}
-    \* /\ Cardinality(msgsPrepare) # 2
-    \* /\ \A s \in Shard, tid \in TxId : Len(shardOps[s][tid]) < 2
-    \* /\ ~(\A tid \in TxId : Len(ops[tid]) = 2 /\ \A i,j \in DOMAIN(ops[tid]) : i # j => ops[tid][i] # ops[tid][j])
-    /\ ~(\E t1,t2 \in TxId : 
-             /\ t1 # t2
-             /\ \E j \in DOMAIN(ops[t1]) : ops[t1][j]["op"] = "write"
-             /\ \E j \in DOMAIN(ops[t2]) : ops[t2][j]["op"] = "write")
-    \* /\ \A s \in Shard, tid \in TxId : Cardinality(coordCommitVotes[s][tid]) < 1
-    \* /\ \A s \in Shard, tid \in TxId : Len(shardOps[s][tid]) < 2
-    \* /\ ~(\A tid \in TxId : Len(ops[tid]) = 2 /\ \A i,j \in DOMAIN(ops[tid]) : i # j => ops[tid][i] # ops[tid][j])
-    /\ ~(\E t1,t2 \in TxId : 
-             /\ t1 # t2
-             /\ \E j \in DOMAIN(ops[t1]) : ops[t1][j]["op"] = "write"
-             /\ \E j \in DOMAIN(ops[t2]) : ops[t2][j]["op"] = "write")
-    \* /\ \A tid \in TxId : Len(ops[tid]) < 2
-    \* /\ coord
-    \* /\ \A s \in Shard, t \in TxId : Len(shardTxnReqs[s][t]) = 0
-    \* /\ commitIndex < 5
-    \* /\ Len(log) < 6
-
-    \* /\ ~(\A tid \in TxId : Len(ops[tid]) = 2 /\ \A i,j \in DOMAIN(ops[tid]) : i # j => ops[tid][i] # ops[tid][j])
-    /\ ~(\E t1,t2 \in TxId : 
-             /\ t1 # t2
-             /\ \E j \in DOMAIN(ops[t1]) : ops[t1][j]["op"] = "write"
-             /\ \E j \in DOMAIN(ops[t2]) : ops[t2][j]["op"] = "write")
-    \* /\ \A s \in Shard, tid \in TxId : Cardinality(coordCommitVotes[s][tid]) < 1
-    \* /\ \A s \in Shard, tid \in TxId : Len(shardOps[s][tid]) < 2
-    \* /\ ~(\A tid \in TxId : Len(ops[tid]) = 2 /\ \A i,j \in DOMAIN(ops[tid]) : i # j => ops[tid][i] # ops[tid][j])
-    /\ ~(\E t1,t2 \in TxId : 
-             /\ t1 # t2
-             /\ \E j \in DOMAIN(ops[t1]) : ops[t1][j]["op"] = "write"
-             /\ \E j \in DOMAIN(ops[t2]) : ops[t2][j]["op"] = "write")
-    \* /\ \A tid \in TxId : Len(ops[tid]) < 2
-    \* /\ coord
-    \* /\ \A s \in Shard, t \in TxId : Len(shardTxnReqs[s][t]) = 0
-    \* /\ commitIndex < 5
-Test == 
-    ~\E s \in Shard, tid \in TxId, k \in Keys : (txnSnapshots[s][tid] # NoValue /\ ShardMDB(s)!PrepareConflict(tid, k)) ~> (\A t \in TxId : Len(ops[t]) # <<>>)
------------------------------------------
-
-CONSTANT MaxOpsPerTxn
-
-KeysOwnedByShard(s) == { k \in Keys : catalog[k] = s }
-
-CatalogConstraint == 
-    \* Prevents cases where all keys are distributed to a single shard.
-    /\ \A s \in Shard : KeysOwnedByShard(s) # Keys
-
-InitCatalogConstraintKeysOnDifferentShards ==
-    \* Prevents cases where all keys are distributed to a single shard, if there is more than one shard.
-    /\ Init
-    /\ (Cardinality(Shard) > 1) => \A s \in Shard : Cardinality(KeysOwnedByShard(s)) < Cardinality(Keys)
-
-\* Don't execute more than a max number of statements per transaction.
-StateConstraint == 
-    /\ \A t \in TxId, r \in Router : rtxn[r][t] <= MaxOpsPerTxn
-Test == 
-    ~\E s \in Shard, tid \in TxId, k \in Keys : (txnSnapshots[s][tid] # NoValue /\ ShardMDB(s)!PrepareConflict(tid, k)) ~> (\A t \in TxId : Len(ops[t]) # <<>>)
-CONSTANT MaxOpsPerTxn
-
-KeysOwnedByShard(s) == { k \in Keys : catalog[k] = s }
-
-CatalogConstraint == 
-    \* Prevents cases where all keys are distributed to a single shard.
-    /\ \A s \in Shard : KeysOwnedByShard(s) # Keys
-
-InitCatalogConstraintKeysOnDifferentShards ==
-    \* Prevents cases where all keys are distributed to a single shard, if there is more than one shard.
-    /\ Init
-    /\ (Cardinality(Shard) > 1) => \A s \in Shard : Cardinality(KeysOwnedByShard(s)) < Cardinality(Keys)
-
-\* Don't execute more than a max number of statements per transaction.
-StateConstraint == 
-    /\ \A t \in TxId, r \in Router : rtxn[r][t] <= MaxOpsPerTxn
-Test == 
-    ~\E s \in Shard, tid \in TxId, k \in Keys : (txnSnapshots[s][tid] # NoValue /\ ShardMDB(s)!PrepareConflict(tid, k)) ~> (\A t \in TxId : Len(ops[t]) # <<>>)
-
-
-\* Alias == [
-\*     log |-> log,
-\*     commitIndex |-> commitIndex,
-\*     readIndex |-> readIndex,
-\*     epoch |-> epoch
-\* ]
-
-
------------------------------------------
-
-\* Some unfinished liveness experiments.
-
-\* For all shards, if they scurrently have a running transaction at any point,
-\* then eventually all transactions get committed or aborted on that shard.
-AllRunningTransactionsTerminate == \A s \in Shard : (shardTxns[s] # {}) ~> (shardTxns[s] = {})
-
-
-
-\* Alias == [
-\*     log |-> log,
-\*     commitIndex |-> commitIndex,
-\*     readIndex |-> readIndex,
-\*     epoch |-> epoch
-\* ]
-
-
------------------------------------------
-
-\* Some unfinished liveness experiments.
-
-\* For all shards, if they scurrently have a running transaction at any point,
-\* then eventually all transactions get committed or aborted on that shard.
-\* \* Set of all sequences over S of max length len.
-\* BoundedSeq(S, n) == UNION {[1..i -> S] : i \in 0..n}
-\* Transaction == BoundedSeq(CC!Operation, MaxOpsPerTxn)
-\* BoundedSeq(S, n) == UNION {[1..i -> S] : i \in 0..n}
-\* Transaction == BoundedSeq(CC!Operation, MaxOpsPerTxn)
-
-\* Transaction == BoundedSeq(CC!Operation, MaxOpsPerTxn)
-
-AllTxns == [TxId -> Transaction]
-AllTxnsReadCommitted == {ts \in AllTxns : CC!ReadCommitted(InitialState, Range(ts))}
-AllTxnsSnapshot == {ts \in AllTxns : CC!SnapshotIsolation(InitialState, Range(ts))}
-AllTxnsSerializable == {ts \in AllTxns : CC!Serializability(InitialState, Range(ts))}
-\* ASSUME PrintT(Cardinality(AllTxns))
-\* \* Set of all sequences over S of max length len.
-\* BoundedSeq(S, n) == UNION {[1..i -> S] : i \in 0..n}
-\* Transaction == BoundedSeq(CC!Operation, MaxOpsPerTxn)
-\*     log |-> log,
-\*     commitIndex |-> commitIndex,
-\*     readIndex |-> readIndex,
-\*     epoch |-> epoch
-\* ]
-
-
------------------------------------------
-
-\* Some unfinished liveness experiments.
-
-\* For all shards, if they scurrently have a running transaction at any point,
-\* then eventually all transactions get committed or aborted on that shard.
-\* \* Set of all sequences over S of max length len.
-\* BoundedSeq(S, n) == UNION {[1..i -> S] : i \in 0..n}
-\* Transaction == BoundedSeq(CC!Operation, MaxOpsPerTxn)
-\* BoundedSeq(S, n) == UNION {[1..i -> S] : i \in 0..n}
-\* Transaction == BoundedSeq(CC!Operation, MaxOpsPerTxn)
-
-\* Transaction == BoundedSeq(CC!Operation, MaxOpsPerTxn)
-
-AllTxns == [TxId -> Transaction]
-AllTxnsReadCommitted == {ts \in AllTxns : CC!ReadCommitted(InitialState, Range(ts))}
-AllTxnsSnapshot == {ts \in AllTxns : CC!SnapshotIsolation(InitialState, Range(ts))}
-AllTxnsSerializable == {ts \in AllTxns : CC!Serializability(InitialState, Range(ts))}
-\* ASSUME PrintT(Cardinality(AllTxns))
-\* \* Set of all sequences over S of max length len.
-\* BoundedSeq(S, n) == UNION {[1..i -> S] : i \in 0..n}
-\* Transaction == BoundedSeq(CC!Operation, MaxOpsPerTxn)
-
-\*     commitIndex |-> commitIndex,
-\*     readIndex |-> readIndex,
-\*     epoch |-> epoch
-\* ]
-
-
------------------------------------------
-
-\* Some unfinished liveness experiments.
-
-\* For all shards, if they scurrently have a running transaction at any point,
-\* then eventually all transactions get committed or aborted on that shard.
-\* \* Set of all sequences over S of max length len.
-\* BoundedSeq(S, n) == UNION {[1..i -> S] : i \in 0..n}
-\* Transaction == BoundedSeq(CC!Operation, MaxOpsPerTxn)
-\* BoundedSeq(S, n) == UNION {[1..i -> S] : i \in 0..n}
-\* Transaction == BoundedSeq(CC!Operation, MaxOpsPerTxn)
-
-\* Transaction == BoundedSeq(CC!Operation, MaxOpsPerTxn)
-
-AllTxns == [TxId -> Transaction]
-AllTxnsReadCommitted == {ts \in AllTxns : CC!ReadCommitted(InitialState, Range(ts))}
-AllTxnsSnapshot == {ts \in AllTxns : CC!SnapshotIsolation(InitialState, Range(ts))}
-AllTxnsSerializable == {ts \in AllTxns : CC!Serializability(InitialState, Range(ts))}
-\* ASSUME PrintT(Cardinality(AllTxns))
-\* \* Set of all sequences over S of max length len.
-\* BoundedSeq(S, n) == UNION {[1..i -> S] : i \in 0..n}
-\* Transaction == BoundedSeq(CC!Operation, MaxOpsPerTxn)
-AllTxns == [TxId -> Transaction]
-AllTxnsReadCommitted == {ts \in AllTxns : CC!ReadCommitted(InitialState, Range(ts))}
-AllTxnsSnapshot == {ts \in AllTxns : CC!SnapshotIsolation(InitialState, Range(ts))}
-AllTxnsSerializable == {ts \in AllTxns : CC!Serializability(InitialState, Range(ts))}
-\* ASSUME PrintT(Cardinality(AllTxns))
-\* ASSUME PrintT(Cardinality(AllTxnsReadCommitted))
-\* ASSUME PrintT(Cardinality(AllTxnsSnapshot))
-\* ASSUME PrintT(Cardinality(AllTxnsSerializable))
-\* AllTxns == [TxId -> Transaction]
-\* AllTxnsReadCommitted == {ts \in AllTxns : CC!ReadCommitted(InitialState, Range(ts))}
-\* AllTxnsSnapshot == {ts \in AllTxns : CC!SnapshotIsolation(InitialState, Range(ts))}
-\* AllTxnsSerializable == {ts \in AllTxns : CC!Serializability(InitialState, Range(ts))}
-AllTxnsSnapshot == {ts \in AllTxns : CC!SnapshotIsolation(InitialState, Range(ts))}
-AllTxnsSerializable == {ts \in AllTxns : CC!Serializability(InitialState, Range(ts))}
-\* ASSUME PrintT(Cardinality(AllTxns))
-\* \* Set of all sequences over S of max length len.
-\* BoundedSeq(S, n) == UNION {[1..i -> S] : i \in 0..n}
-\* Transaction == BoundedSeq(CC!Operation, MaxOpsPerTxn)
-AllTxns == [TxId -> Transaction]
-AllTxnsReadCommitted == {ts \in AllTxns : CC!ReadCommitted(InitialState, Range(ts))}
-AllTxnsSnapshot == {ts \in AllTxns : CC!SnapshotIsolation(InitialState, Range(ts))}
-AllTxnsSerializable == {ts \in AllTxns : CC!Serializability(InitialState, Range(ts))}
-\* ASSUME PrintT(Cardinality(AllTxns))
-\* ASSUME PrintT(Cardinality(AllTxnsReadCommitted))
-\* ASSUME PrintT(Cardinality(AllTxnsSnapshot))
-\* ASSUME PrintT(Cardinality(AllTxnsSerializable))
-\* AllTxns == [TxId -> Transaction]
-\* AllTxnsReadCommitted == {ts \in AllTxns : CC!ReadCommitted(InitialState, Range(ts))}
-\* AllTxnsSnapshot == {ts \in AllTxns : CC!SnapshotIsolation(InitialState, Range(ts))}
-\* AllTxnsSerializable == {ts \in AllTxns : CC!Serializability(InitialState, Range(ts))}
-
-
------------------------------------------
-
-\* Some unfinished liveness experiments.
-
-\* For all shards, if they scurrently have a running transaction at any point,
-\* then eventually all transactions get committed or aborted on that shard.
-\* \* Set of all sequences over S of max length len.
-\* BoundedSeq(S, n) == UNION {[1..i -> S] : i \in 0..n}
-\* Transaction == BoundedSeq(CC!Operation, MaxOpsPerTxn)
-\* BoundedSeq(S, n) == UNION {[1..i -> S] : i \in 0..n}
-\* Transaction == BoundedSeq(CC!Operation, MaxOpsPerTxn)
-
-\* Transaction == BoundedSeq(CC!Operation, MaxOpsPerTxn)
-
-AllTxns == [TxId -> Transaction]
-AllTxnsReadCommitted == {ts \in AllTxns : CC!ReadCommitted(InitialState, Range(ts))}
-AllTxnsSnapshot == {ts \in AllTxns : CC!SnapshotIsolation(InitialState, Range(ts))}
-AllTxnsSerializable == {ts \in AllTxns : CC!Serializability(InitialState, Range(ts))}
-\* ASSUME PrintT(Cardinality(AllTxns))
-\* \* Set of all sequences over S of max length len.
-\* BoundedSeq(S, n) == UNION {[1..i -> S] : i \in 0..n}
-\* Transaction == BoundedSeq(CC!Operation, MaxOpsPerTxn)
-AllTxns == [TxId -> Transaction]
-AllTxnsReadCommitted == {ts \in AllTxns : CC!ReadCommitted(InitialState, Range(ts))}
-AllTxnsSnapshot == {ts \in AllTxns : CC!SnapshotIsolation(InitialState, Range(ts))}
-AllTxnsSerializable == {ts \in AllTxns : CC!Serializability(InitialState, Range(ts))}
-\* ASSUME PrintT(Cardinality(AllTxns))
-\* ASSUME PrintT(Cardinality(AllTxnsReadCommitted))
-\* ASSUME PrintT(Cardinality(AllTxnsSnapshot))
-\* ASSUME PrintT(Cardinality(AllTxnsSerializable))
-\* AllTxns == [TxId -> Transaction]
-\* AllTxnsReadCommitted == {ts \in AllTxns : CC!ReadCommitted(InitialState, Range(ts))}
-\* AllTxnsSnapshot == {ts \in AllTxns : CC!SnapshotIsolation(InitialState, Range(ts))}
-\* AllTxnsSerializable == {ts \in AllTxns : CC!Serializability(InitialState, Range(ts))}
-AllTxnsSnapshot == {ts \in AllTxns : CC!SnapshotIsolation(InitialState, Range(ts))}
-AllTxnsSerializable == {ts \in AllTxns : CC!Serializability(InitialState, Range(ts))}
-\* ASSUME PrintT(Cardinality(AllTxns))
-\* \* Set of all sequences over S of max length len.
-\* BoundedSeq(S, n) == UNION {[1..i -> S] : i \in 0..n}
-\* Transaction == BoundedSeq(CC!Operation, MaxOpsPerTxn)
-AllTxns == [TxId -> Transaction]
-AllTxnsReadCommitted == {ts \in AllTxns : CC!ReadCommitted(InitialState, Range(ts))}
-AllTxnsSnapshot == {ts \in AllTxns : CC!SnapshotIsolation(InitialState, Range(ts))}
-AllTxnsSerializable == {ts \in AllTxns : CC!Serializability(InitialState, Range(ts))}
-\* ASSUME PrintT(Cardinality(AllTxns))
-\* ASSUME PrintT(Cardinality(AllTxnsReadCommitted))
-\* ASSUME PrintT(Cardinality(AllTxnsSnapshot))
-\* ASSUME PrintT(Cardinality(AllTxnsSerializable))
 \* AllTxns == [TxId -> Transaction]
 \* AllTxnsReadCommitted == {ts \in AllTxns : CC!ReadCommitted(InitialState, Range(ts))}
 \* AllTxnsSnapshot == {ts \in AllTxns : CC!SnapshotIsolation(InitialState, Range(ts))}
