@@ -192,7 +192,8 @@ InitialState == [k \in KeysGen |-> NoValue]
 TxnOperation == {
     o \in CCGen!Operation : 
         \* Only reads can have a value of NoValue.
-        /\ o.op = "write" => o.value # NoValue
+        \* /\ o.op = "write" => o.value # NoValue
+        /\ TRUE
 }
 
 OpSeqs(nmin, nmax) == 
@@ -219,7 +220,8 @@ TxnSetsSerializable == {t \in TxnSetsAll : CCGen!Serializability(InitialState, R
 ASSUME PrintT("All") /\ PrintT(Cardinality(TxnSetsAll))
 ASSUME PrintT("ReadUncommitted") /\ PrintT(Cardinality(TxnSetsReadUncommitted))
 ASSUME PrintT("ReadCommitted") /\ PrintT(Cardinality(TxnSetsReadCommitted))
-ASSUME PrintT("RepeatableRead") /\ PrintT(Cardinality(TxnSetsRepeatableRead))
+ASSUME PrintT("ReadCommitted") /\ PrintT(TxnSetsReadCommitted)
+\* ASSUME PrintT("RepeatableRead") /\ PrintT(Cardinality(TxnSetsRepeatableRead))
 ASSUME PrintT("SnapshotIsolation") /\ PrintT(Cardinality(TxnSetsSnapshotIsolation))
 ASSUME PrintT("Serializable") /\ PrintT(Cardinality(TxnSetsSerializable))
 
@@ -235,6 +237,8 @@ VARIABLE txnSet
 Init == 
     /\ txnSet \in TxnSetsAll
     /\ CCGen!SnapshotIsolation(InitialState, Range(txnSet))
+    \* /\ CCGen!RepeatableRead(InitialState, Range(txnSet))
+    \* /\ PrintT(txnSet)
 
 Next == UNCHANGED <<txnSet>>
 
