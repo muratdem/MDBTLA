@@ -1,8 +1,7 @@
 ---- MODULE MDB ----
 EXTENDS Sequences, Naturals, Util
 
-CONSTANTS WC,  \* write concern
-          RC   \* read concern
+CONSTANTS RC   \* read concern
 
 CONSTANTS Keys, 
         \*   Values, 
