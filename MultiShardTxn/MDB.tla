@@ -439,7 +439,7 @@ CommitPreparedTransaction(n, tid, commitTs, durableTs) ==
     \* For distributed transactions commit timestamps may be chosen older than active read timestamps, though.
     \* /\ mtxnSnapshots[n][tid].prepareTs # Nil 
     \* /\ mtxnSnapshots[n][tid]["active"]
-    /\ commitTs > mtxnSnapshots[n][tid].prepareTs
+    /\ commitTs >= mtxnSnapshots[n][tid].prepareTs
     /\ mlog' = [mlog EXCEPT ![n] = CommitTxnToLogWithDurable(n, tid, commitTs, durableTs)]
     /\ mtxnSnapshots' = [mtxnSnapshots EXCEPT ![n][tid]["active"] = FALSE]
     /\ txnStatus' = [txnStatus EXCEPT ![n][tid] = STATUS_OK]
