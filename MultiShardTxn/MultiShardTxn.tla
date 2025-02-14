@@ -664,19 +664,20 @@ BaitLog ==
     \* /\ \A s \in Shard, tid \in TxId : Cardinality(coordCommitVotes[s][tid]) # 1
     \* /\ \A s \in Shard, tid \in TxId : Cardinality(coordCommitVotes[s][tid]) < 1
     \* /\ \A s \in Shard, tid \in TxId : Len(shardOps[s][tid]) < 2
-    \* /\ ~(\A tid \in TxId : Len(ops[tid]) = 2 /\ \A i,j \in DOMAIN(ops[tid]) : i # j => ops[tid][i] # ops[tid][j])
-    /\ ~(\E t1,t2 \in TxId : 
-             /\ t1 # t2
-             /\ \E j \in DOMAIN(ops[t1]) : ops[t1][j]["op"] = "write"
-             /\ \E j \in DOMAIN(ops[t2]) : ops[t2][j]["op"] = "write")
+    /\ ~(\A tid \in TxId : Len(ops[tid]) = 2)
+    \* /\ \A i,j \in DOMAIN(ops[tid]) : i # j => ops[tid][i] # ops[tid][j])
+    \* /\ ~(\E t1,t2 \in TxId : 
+            \*  /\ t1 # t2
+            \*  /\ \E j \in DOMAIN(ops[t1]) : ops[t1][j]["op"] = "write"
+            \*  /\ \E j \in DOMAIN(ops[t2]) : ops[t2][j]["op"] = "write")
     \* /\ \A tid \in TxId : Len(ops[tid]) < 2
     \* /\ coord
     \* /\ \A s \in Shard, t \in TxId : Len(shardTxnReqs[s][t]) = 0
     \* /\ commitIndex < 5
-    \* /\ Len(log) < 6
+    \* /\ \A s \in ShardLen(log) < 3
 
-Test == 
-    ~\E s \in Shard, tid \in TxId, k \in Keys : (txnSnapshots[s][tid] # NoValue /\ ShardMDB(s)!PrepareConflict(tid, k)) ~> (\A t \in TxId : Len(ops[t]) # <<>>)
+\* Test == 
+    \* ~\E s \in Shard, tid \in TxId, k \in Keys : (txnSnapshots[s][tid] # NoValue /\ ShardMDB(s)!PrepareConflict(tid, k)) ~> (\A t \in TxId : Len(ops[t]) # <<>>)
 
 
 \* Alias == [
