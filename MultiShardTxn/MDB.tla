@@ -154,10 +154,10 @@ SnapshotRead(n, key, ts) ==
 \* Snapshot of the full KV store at a given index/timestamp.
 SnapshotKV(n, ts, rc) == 
     \* Local reads just read at the latest timestamp in the log.
-    LET readTs == IF rc = "snapshot" THEN ts ELSE Len(mlog[n]) IN
+    LET txnReadTs == IF rc = "snapshot" THEN ts ELSE Len(mlog[n]) IN
     [
-        ts |-> readTs,
-        data |-> [k \in Keys |-> SnapshotRead(n, k, readTs).value],
+        ts |-> txnReadTs,
+        data |-> [k \in Keys |-> SnapshotRead(n, k, txnReadTs).value],
         prepared |-> FALSE,
         prepareTs |-> 0,
         aborted |-> FALSE,
