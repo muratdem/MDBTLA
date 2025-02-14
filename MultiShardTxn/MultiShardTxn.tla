@@ -442,9 +442,10 @@ ShardTxnRead(s, tid, k, v) ==
     /\ shardTxnReqs' = [shardTxnReqs EXCEPT ![s][tid] = Tail(shardTxnReqs[s][tid])]
     \* Read the value of the key from the snapshot store, record the op, and 
     \* advance to the next transaction statement.
-    \* TODO: Add explicit "read result" variable into storage model?
-    /\ shardOps' = [shardOps EXCEPT ![s][tid] = Append( shardOps[s][tid], rOp(k, ShardMDB(s)!TxnRead(s, tid, k)) )]
+    /\ shardOps' = [shardOps EXCEPT ![s][tid] = Append(shardOps[s][tid], rOp(k, v))]
     /\ ShardMDB(s)!TransactionRead(s, tid, k, v)
+    \* Ensures absence of prepare conflicts.
+    /\ ShardMDB(s)!TransactionPostStatusOK(s, tid)
     /\ UNCHANGED << rCatalog, shardTxns, aborted, coordInfo, msgsPrepare, msgsVoteCommit, coordCommitVotes, catalog, msgsAbort, msgsCommit, shardPreparedTxns, ops, varsRouter, log, commitIndex, epoch >>    
 
 \* Shard processes a transaction write operation.
