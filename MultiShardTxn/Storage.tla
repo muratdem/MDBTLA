@@ -56,15 +56,6 @@ Logs == Seq(LogEntries)
 Max(S) == CHOOSE x \in S : \A y \in S : x >= y
 
 
----------------------------------------------------------------------
-\* CommitIndex and mepoch express a high-level view of
-\* underlying processes like replication and failure recovery:
-\* - the mcommitIndex indicates a position in the mlog (or 0 for no position)
-\*   before which data is durable.
-\* - the mepoch increments strictly monotonically whenever mlog is non-deterministically
-\*   truncated in the range (mcommitIndex+1)..Len(mlog)), modeling loss of uncommitted data
-\*   due to node failures
-
 VARIABLE mlog
 VARIABLE mcommitIndex
 
