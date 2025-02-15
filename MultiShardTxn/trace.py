@@ -195,8 +195,8 @@ def gen_wt_test_from_traces(traces, max_len=1000, compact=False):
 
 def gen_tla_model_trace(json_trace="trace.json", seed=0):
     tlc = "java -cp /usr/local/bin/tla2tools-v1.8.jar tlc2.TLC -noGenerateSpecTE"
-    spec = "MDBTest"
-    cmd = f"{tlc} -seed {seed} -dumpTrace json {json_trace} -simulate -workers 1 -cleanup -deadlock {spec}.tla"
+    specname = "Storage"
+    cmd = f"{tlc} -seed {seed} -dumpTrace json {json_trace} -simulate -workers 1 -cleanup -deadlock {specname}.tla"
     # print(cmd)
     os.system(cmd)
 
@@ -207,13 +207,14 @@ def gen_tla_json_graph(json_graph="states.json", seed=0, spec="MDBTest"):
         "init": "Init",
         "next": "Next",
         # "symmetry": "Symmetry",
-        "constraint": "StateConstraint",
+        # "constraint": "StateConstraint",
         "constants": {
             "RC": "\"snapshot\"",
             "WC": "\"majority\"",
             "Nil": "Nil",
             "Keys": "{k1,k2}",
             "MTxId": "{t1,t2}",
+            "Node": "{n}",
             "NoValue": "NoValue",
             "MaxOpsPerTxn": "2",
             "MaxTimestamp": "3"
@@ -221,7 +222,9 @@ def gen_tla_json_graph(json_graph="states.json", seed=0, spec="MDBTest"):
     }
 
     # Create TLC config file from JSON config.
-    with open("MDBTest_gen.cfg", "w") as f:
+    specname = "Storage"
+    model_fname = f"{specname}_gen.cfg"
+    with open(model_fname, "w") as f:
         f.write("INIT " + config["init"] + "\n")
         f.write("NEXT " + config["next"] + "\n")
         for k, v in config["constants"].items():
@@ -237,7 +240,7 @@ def gen_tla_json_graph(json_graph="states.json", seed=0, spec="MDBTest"):
 
     tlc = "java -cp tla2tools-json.jar tlc2.TLC -noGenerateSpecTE"
     fp = 10 # use a constant FP.
-    cmd = f"{tlc} -seed {seed} -dump json {json_graph} -fp {fp} -workers 4 -deadlock -config MDBTest_gen.cfg {spec}.tla"
+    cmd = f"{tlc} -seed {seed} -dump json {json_graph} -fp {fp} -workers 4 -deadlock -config {model_fname} {specname}.tla"
     print(cmd)
     os.system(cmd)
 
