@@ -1,5 +1,5 @@
 ---- MODULE Storage ----
-EXTENDS Sequences, Naturals, Util
+EXTENDS Sequences, Naturals, Util, TLC
 
 
 \* 
@@ -233,22 +233,19 @@ SnapshotUpdatedKeys(n, tid) == {
         /\ k \in mtxnSnapshots[n][tid]["writeSet"]
 }
 
+CommitLogEntry(n, tid, commitTs) == [
+    data |-> [key \in SnapshotUpdatedKeys(n, tid) |-> mtxnSnapshots[n][tid].data[key]],
+    ts |-> commitTs, 
+    tid |-> tid
+]
+
 CommitTxnToLog(n, tid, commitTs) == 
     \* Even for read only transactions, we write a no-op to the log.
-    Append(mlog[n], [
-        data |-> [key \in SnapshotUpdatedKeys(n, tid) |-> mtxnSnapshots[n][tid].data[key]], 
-        ts |-> commitTs, 
-        tid |-> tid
-    ])
+    Append(mlog[n], CommitLogEntry(n, tid, commitTs))
 
 CommitTxnToLogWithDurable(n, tid, commitTs, durableTs) == 
     \* Even for read only transactions, we write a no-op to the log.
-    Append(mlog[n], [
-        data |-> [key \in SnapshotUpdatedKeys(n, tid) |-> tid],
-        ts |-> commitTs, 
-        durableTs |-> durableTs,
-        tid |-> tid
-    ])
+    Append(mlog[n], CommitLogEntry(n, tid, commitTs) @@ [durableTs |-> durableTs])
 
 
 PrepareTxnToLog(n, tid, prepareTs) ==
