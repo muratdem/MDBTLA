@@ -444,8 +444,8 @@ ShardTxnRead(s, tid, k, v) ==
     \* advance to the next transaction statement.
     /\ shardOps' = [shardOps EXCEPT ![s][tid] = Append(shardOps[s][tid], rOp(k, v))]
     /\ ShardMDB(s)!TransactionRead(s, tid, k, v)
-    \* Ensures absence of prepare conflicts from this read operation.
-    /\ txnStatus[s][tid] # ShardMDB(s)!STATUS_PREPARE_CONFLICT
+    \* Disallows read operations that would cause a prepare conflict.
+    /\ ShardMDB(s)!TransactionPostOpStatus(s, tid) # ShardMDB(s)!STATUS_PREPARE_CONFLICT
     /\ UNCHANGED << rCatalog, shardTxns, aborted, coordInfo, msgsPrepare, msgsVoteCommit, coordCommitVotes, catalog, msgsAbort, msgsCommit, shardPreparedTxns, ops, varsRouter, log, commitIndex, epoch >>    
 
 \* Shard processes a transaction write operation.
