@@ -45,8 +45,9 @@ def make_wt_action(pre_state, action_name, action_args, post_state):
     if "tid" in action_args:
         tid = action_args['tid']
         err_code = 0
+        # print(post_state)
         if post_state is not None:
-            err_code = post_state[1]['txnStatus'][tid]
+            err_code = post_state[1]['txnStatus']["n"][tid]
     wt_action_name = action_name.lower().replace("mdbtxn", "transaction_")
     txn_cursor = f"self.cursor_{tid}"
     # print(err_code)
@@ -171,7 +172,7 @@ def gen_wt_test_from_traces(traces, max_len=1000, compact=False):
             tid = None
             if "tid" in action_ctx:
                 tid = action_ctx['tid']
-                txn_post_state = post_state['txnStatus'][tid]
+                txn_post_state = post_state['txnStatus']["n"][tid]
             action_label = f"# [Action {i+1}]: {action_name}({action_params_str}) res:{txn_post_state}"
             post_state_label = "\n" + str("\n".join([tab(3) +  "# " + str(k) + " = " + str(post_state[k]) for k in post_state.keys()]))
             if not compact:
