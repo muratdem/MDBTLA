@@ -1,5 +1,21 @@
----- MODULE MDB ----
+---- MODULE Storage ----
 EXTENDS Sequences, Naturals, Util
+
+
+\* 
+\* Abstract model of single MongoDB node using WiredTiger storage instance.
+\* 
+\* This should more or less be the abstract transaction interface each shard
+\* needs to consider when executing transactions that are part of distributed,
+\* cross-shard transaction.
+\* 
+\* Status of each transaction operation can be "returned"/checked by a client
+\* by checking the value of the 'txnStatus' variable after the execution of
+\* an action/transition. This is a simple way to emulate the notion of
+\* return/status codes in a standard programming-oriented API.
+\* 
+
+
 
 CONSTANT Node
 
@@ -326,19 +342,6 @@ STATUS_OK == "OK"
 STATUS_ROLLBACK == "WT_ROLLBACK"
 STATUS_NOTFOUND == "WT_NOTFOUND"
 STATUS_PREPARE_CONFLICT == "WT_PREPARE_CONFLICT"
-
-\* 
-\* MongoDB WiredTiger/storage instance operations.
-\* 
-\* This should more or less be the abstract transaction interface each shard
-\* needs to consider when executing transactions that are part of distributed,
-\* cross-shard transaction.
-\* 
-\* Status of each transaction operation can be "returned"/checked by a client
-\* by checking the value of the 'txnStatus' variable after the execution of
-\* an action/transition. This is a simple way to emulate the notion of
-\* return/status codes in a standard programming-oriented API.
-\* 
 
 \* Checks the status of a transaction is OK after it has executed some enabled action.
 TransactionPostOpStatus(n, tid) == txnStatus'[n][tid]

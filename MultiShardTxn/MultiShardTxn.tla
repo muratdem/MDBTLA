@@ -108,7 +108,7 @@ varsNetwork == << msgsPrepare, msgsVoteCommit, msgsAbort, msgsCommit >>
 
 \* Instance of a MongoDB replica set log for a given shard, that 
 \* supports abstracted snapshot KV store.
-ShardMDB(s) == INSTANCE MDB WITH 
+ShardMDB(s) == INSTANCE Storage WITH 
                     mlog <- log, 
                     mcommitIndex <- commitIndex, 
                     mepoch <- epoch, 
