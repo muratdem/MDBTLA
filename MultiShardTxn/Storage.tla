@@ -491,10 +491,12 @@ Next ==
     \/ \E n \in Node : \E tid \in MTxId, commitTs \in Timestamps : CommitTransaction(n, tid, commitTs)
     \/ \E n \in Node : \E tid \in MTxId, commitTs, durableTs \in Timestamps : CommitPreparedTransaction(n, tid, commitTs, durableTs)
     \/ \E n \in Node : \E tid \in MTxId, prepareTs \in Timestamps : PrepareTransaction(n, tid, prepareTs)
-    \* \/ \E tid \in MTxId : AbortTransaction(tid)
+    \/ \E n \in Node : \E tid \in MTxId : AbortTransaction(n, tid)
     \* \/ \E ts \in Timestamps : SetStableTimestamp(ts)
     \* \/ RollbackToStable
     \* TODO Also consider adding model actions to read/query various timestamps (e.g. all_durable, oldest, etc.)
 
+
+Symmetry == Permutations(MTxId) \cup Permutations(Keys)
 
 ===============================================================================
