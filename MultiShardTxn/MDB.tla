@@ -341,7 +341,7 @@ STATUS_PREPARE_CONFLICT == "WT_PREPARE_CONFLICT"
 \* 
 
 \* Checks the status of a transaction is OK after it has executed some enabled action.
-TransactionPostStatusOK(n, tid) == txnStatus'[n][tid] = STATUS_OK
+TransactionPostOpStatus(n, tid) == txnStatus'[n][tid]
 
 StartTransaction(n, tid, readTs, rc) == 
     \* Start the transaction on the MDB KV store.
