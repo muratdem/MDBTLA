@@ -236,7 +236,7 @@ SnapshotUpdatedKeys(n, tid) == {
 CommitTxnToLog(n, tid, commitTs) == 
     \* Even for read only transactions, we write a no-op to the log.
     Append(mlog[n], [
-        data |-> [key \in SnapshotUpdatedKeys(n, tid) |-> tid], 
+        data |-> [key \in SnapshotUpdatedKeys(n, tid) |-> mtxnSnapshots[n][tid].data[key]], 
         ts |-> commitTs, 
         tid |-> tid
     ])
