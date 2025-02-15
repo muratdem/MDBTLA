@@ -25,6 +25,8 @@ CONSTANTS Keys,
           MTxId,
           NoValue
 
+CONSTANT Timestamps
+
 WCVALUES == {"one", 
              "majority"}
 
@@ -479,9 +481,6 @@ Init ==
     /\ mtxnSnapshots = [n \in Node |-> [t \in MTxId |-> [active |-> FALSE]]]
     /\ txnStatus = [n \in Node |-> [t \in MTxId |-> STATUS_OK]]
     /\ stableTs = [n \in Node |-> 1]
-
-CONSTANT MaxTimestamp
-Timestamps == 1..MaxTimestamp
 
 Next == 
     \/ \E n \in Node : \E tid \in MTxId, readTs \in Timestamps : StartTransaction(n, tid, readTs, RC)

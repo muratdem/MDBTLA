@@ -218,7 +218,7 @@ def gen_tla_json_graph(json_graph="states.json", seed=0, spec="MDBTest"):
             "Node": "{n}",
             "NoValue": "NoValue",
             "MaxOpsPerTxn": "2",
-            "MaxTimestamp": "2"
+            "Timestamps": "{1,2,3}"
         }
     }
 

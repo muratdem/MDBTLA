@@ -123,7 +123,7 @@ ShardMDB(s) == INSTANCE Storage WITH
                     MTxId <- TxId,
                     NoValue <- NoValue,
                     Node <- Shard,
-                    MaxTimestamp <- 3
+                    Timestamps <- Timestamps
 
 Ops == {"read", "write", "coordCommit"}
 Entry == [k: Keys, op: Ops]
