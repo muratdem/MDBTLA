@@ -35,8 +35,6 @@ RCVALUES == {"linearizable",
 
 LogIndices == Nat \ {0}
 
-Epochs == Nat \ {0}
-
 \* Make values the same as transaction IDs.
 Values == MTxId
 
@@ -69,17 +67,15 @@ Max(S) == CHOOSE x \in S : \A y \in S : x >= y
 
 VARIABLE mlog
 VARIABLE mcommitIndex
-VARIABLE mepoch
 
 \* Stores snapshots for running transactions on the underlying MongoDB instance.
 VARIABLE mtxnSnapshots
 
-mvars == <<mlog, mcommitIndex, mepoch, mtxnSnapshots>>
+mvars == <<mlog, mcommitIndex, mtxnSnapshots>>
 
 TypesOK ==
     /\ mlog \in Logs
     /\ mcommitIndex \in Nat
-    /\ mepoch \in Epochs
 
 \* This operator initiates a write, adding it to the mlog.
 WriteInit(key, value) ==
@@ -297,12 +293,11 @@ PrepareConflict(n, tid, k) ==
 \* Expand the prefix of the mlog that can no longer be lost.
 IncreaseCommitIndex ==
     /\ mcommitIndex' \in mcommitIndex..Len(mlog)
-    /\ UNCHANGED <<mlog, mepoch>>
+    /\ UNCHANGED <<mlog>>
 
 \* Any data that is not part of the checkpointed mlog prefix may be lost at any time. 
 TruncatedLog == \E i \in (mcommitIndex+1)..Len(mlog) :
     /\ mlog' = SubSeq(mlog, 1, i - 1)
-    /\ mepoch' = mepoch + 1
     /\ UNCHANGED <<mcommitIndex>>
   
 
@@ -313,7 +308,6 @@ TruncatedLog == \E i \in (mcommitIndex+1)..Len(mlog) :
 \* Explicit initialization for each state variable.
 Init_mlog == <<>>
 Init_mcommitIndex == 0
-Init_mepoch == 1
 Init_mtxnSnapshots == [t \in MTxId |-> [active |-> FALSE]]
 
 \* MInit ==
@@ -354,7 +348,7 @@ StartTransaction(n, tid, readTs, rc) ==
     /\ ~\E i \in DOMAIN (mlog[n]) : mlog[n][i].tid = tid
     /\ mtxnSnapshots' = [mtxnSnapshots EXCEPT ![n][tid] = SnapshotKV(n, readTs, rc)]
     /\ txnStatus' = [txnStatus EXCEPT ![n][tid] = STATUS_OK]
-    /\ UNCHANGED <<mlog, mcommitIndex, mepoch, stableTs>>
+    /\ UNCHANGED <<mlog, mcommitIndex, stableTs>>
    
 \* Writes to the local KV store of a shard.
 TransactionWrite(n, tid, k, v) == 
@@ -374,7 +368,7 @@ TransactionWrite(n, tid, k, v) ==
           \* If there is a write conflict, the transaction must roll back (i.e. it is aborted).
           /\ txnStatus' = [txnStatus EXCEPT ![n][tid] = STATUS_ROLLBACK]
           /\ mtxnSnapshots' = [mtxnSnapshots EXCEPT ![n][tid]["aborted"] = TRUE]
-    /\ UNCHANGED <<mlog, mcommitIndex, mepoch, stableTs>>
+    /\ UNCHANGED <<mlog, mcommitIndex, stableTs>>
 
 \* Reads from the local KV store of a shard.
 TransactionRead(n, tid, k, v) ==
@@ -396,7 +390,7 @@ TransactionRead(n, tid, k, v) ==
        \/ /\ PrepareConflict(n, tid, k)
           /\ txnStatus' = [txnStatus EXCEPT ![n][tid] = STATUS_PREPARE_CONFLICT]
           /\ UNCHANGED mtxnSnapshots
-    /\ UNCHANGED <<mlog, mcommitIndex, mepoch, stableTs>>
+    /\ UNCHANGED <<mlog, mcommitIndex, stableTs>>
 
 \* Delete a key.
 TransactionRemove(n, tid, k) ==
@@ -418,7 +412,7 @@ TransactionRemove(n, tid, k) ==
           \* If there is a write conflict, the transaction must roll back.
           /\ txnStatus' = [txnStatus EXCEPT ![n][tid] = STATUS_ROLLBACK]
           /\ mtxnSnapshots' = [mtxnSnapshots EXCEPT ![n][tid]["aborted"] = TRUE]
-    /\ UNCHANGED <<mlog, mcommitIndex, mepoch, stableTs>>
+    /\ UNCHANGED <<mlog, mcommitIndex, stableTs>>
 
 CommitTimestamps(n) == {mlog[n][i].ts : i \in DOMAIN mlog[n]}
 
@@ -435,7 +429,7 @@ CommitTransaction(n, tid, commitTs) ==
     /\ mlog' = [mlog EXCEPT ![n] = CommitTxnToLog(n, tid, commitTs)]
     /\ mtxnSnapshots' = [mtxnSnapshots EXCEPT ![n][tid]["active"] = FALSE]
     /\ txnStatus' = [txnStatus EXCEPT ![n][tid] = STATUS_OK]
-    /\ UNCHANGED <<mepoch, mcommitIndex, stableTs>>
+    /\ UNCHANGED <<mcommitIndex, stableTs>>
 
 CommitPreparedTransaction(n, tid, commitTs, durableTs) == 
     \* Commit the transaction on the MDB KV store.
@@ -452,7 +446,7 @@ CommitPreparedTransaction(n, tid, commitTs, durableTs) ==
     /\ mlog' = [mlog EXCEPT ![n] = CommitTxnToLogWithDurable(n, tid, commitTs, durableTs)]
     /\ mtxnSnapshots' = [mtxnSnapshots EXCEPT ![n][tid]["active"] = FALSE]
     /\ txnStatus' = [txnStatus EXCEPT ![n][tid] = STATUS_OK]
-    /\ UNCHANGED <<mepoch, mcommitIndex, stableTs>>
+    /\ UNCHANGED <<mcommitIndex, stableTs>>
 
 PrepareTransaction(n, tid, prepareTs) == 
     \* TODO: Eventually make this more permissive and explictly check errors on
@@ -468,32 +462,31 @@ PrepareTransaction(n, tid, prepareTs) ==
     /\ mtxnSnapshots' = [mtxnSnapshots EXCEPT ![n][tid]["prepared"] = TRUE, ![n][tid]["prepareTs"] = prepareTs]
     /\ mlog' = [mlog EXCEPT ![n] = PrepareTxnToLog(n,tid, prepareTs)]
     /\ txnStatus' = [txnStatus EXCEPT ![n][tid] = STATUS_OK]
-    /\ UNCHANGED <<mcommitIndex, mepoch, stableTs>>
+    /\ UNCHANGED <<mcommitIndex, stableTs>>
 
 AbortTransaction(n, tid) == 
     /\ tid \in ActiveTransactions(n)
     /\ mtxnSnapshots' = [mtxnSnapshots EXCEPT ![n][tid]["active"] = FALSE, ![n][tid]["aborted"] = TRUE]
     /\ txnStatus' = [txnStatus EXCEPT ![n][tid] = STATUS_OK]
-    /\ UNCHANGED <<mlog, mcommitIndex, mepoch, stableTs>>
+    /\ UNCHANGED <<mlog, mcommitIndex, stableTs>>
 
 SetStableTimestamp(ts) == 
     /\ ts >= stableTs
     /\ stableTs' = ts
-    /\ UNCHANGED <<mlog, mcommitIndex, mepoch, mtxnSnapshots, txnStatus>>
+    /\ UNCHANGED <<mlog, mcommitIndex, mtxnSnapshots, txnStatus>>
 
 RollbackToStable(n) == 
     \* Mustn't initiate a RTS call if there are any open transactions.
     /\ ActiveTransactions(n) = {}
     /\ stableTs' = stableTs
     /\ mcommitIndex' = 5
-    /\ UNCHANGED <<mlog, mepoch, mtxnSnapshots, txnStatus>>
+    /\ UNCHANGED <<mlog, mtxnSnapshots, txnStatus>>
 
-vars == <<mlog, mcommitIndex, mepoch, mtxnSnapshots, txnStatus, stableTs>>
+vars == <<mlog, mcommitIndex, mtxnSnapshots, txnStatus, stableTs>>
 
 Init == 
     /\ mlog = [n \in Node |-> <<>>]
     /\ mcommitIndex = [n \in Node |-> 0]
-    /\ mepoch = [n \in Node |-> 1]
     /\ mtxnSnapshots = [n \in Node |-> [t \in MTxId |-> [active |-> FALSE]]]
     /\ txnStatus = [n \in Node |-> [t \in MTxId |-> STATUS_OK]]
     /\ stableTs = [n \in Node |-> 1]
