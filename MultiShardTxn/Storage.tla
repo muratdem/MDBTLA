@@ -1,5 +1,5 @@
 ---- MODULE Storage ----
-EXTENDS Sequences, Naturals, Util, TLC
+EXTENDS Sequences, Naturals, Integers, Util, TLC
 
 
 \* 
@@ -467,16 +467,18 @@ AbortTransaction(n, tid) ==
     /\ UNCHANGED <<mlog, mcommitIndex, stableTs>>
 
 SetStableTimestamp(n, ts) == 
-    /\ ts >= stableTs[n]
+    /\ ts > stableTs[n]
     /\ stableTs' = [stableTs EXCEPT ![n] = ts]
     /\ UNCHANGED <<mlog, mcommitIndex, mtxnSnapshots, txnStatus>>
 
 RollbackToStable(n) == 
     \* Mustn't initiate a RTS call if there are any open transactions.
     /\ ActiveTransactions(n) = {}
+    /\ stableTs[n] > 0 \* Stable timestamp has been set.
+    \* Truncate all log operations at timestamps in front of the stable timestamp.
+    /\ mlog' = [mlog EXCEPT ![n] = SelectSeq(mlog[n], LAMBDA op : op.ts <= stableTs[n])]
     /\ stableTs' = stableTs
-    /\ mcommitIndex' = 5
-    /\ UNCHANGED <<mlog, mtxnSnapshots, txnStatus>>
+    /\ UNCHANGED <<mtxnSnapshots, txnStatus, mcommitIndex>>
 
 vars == <<mlog, mcommitIndex, mtxnSnapshots, txnStatus, stableTs>>
 
@@ -485,7 +487,7 @@ Init ==
     /\ mcommitIndex = [n \in Node |-> 0]
     /\ mtxnSnapshots = [n \in Node |-> [t \in MTxId |-> [active |-> FALSE, committed |-> FALSE, aborted |-> FALSE]]]
     /\ txnStatus = [n \in Node |-> [t \in MTxId |-> STATUS_OK]]
-    /\ stableTs = [n \in Node |-> 1]
+    /\ stableTs = [n \in Node |-> -1]
 
 Next == 
     \/ \E n \in Node : \E tid \in MTxId, readTs \in Timestamps : StartTransaction(n, tid, readTs, RC)
@@ -496,8 +498,8 @@ Next ==
     \/ \E n \in Node : \E tid \in MTxId, commitTs, durableTs \in Timestamps : CommitPreparedTransaction(n, tid, commitTs, durableTs)
     \/ \E n \in Node : \E tid \in MTxId, prepareTs \in Timestamps : PrepareTransaction(n, tid, prepareTs)
     \/ \E n \in Node : \E tid \in MTxId : AbortTransaction(n, tid)
-    \* \/ \E ts \in Timestamps : SetStableTimestamp(ts)
-    \* \/ RollbackToStable
+    \/ \E n \in Node : \E ts \in Timestamps : SetStableTimestamp(n, ts)
+    \/ \E n \in Node : RollbackToStable(n)
     \* TODO Also consider adding model actions to read/query various timestamps (e.g. all_durable, oldest, etc.)
 
 
