@@ -201,7 +201,7 @@ def gen_tla_model_trace(json_trace="trace.json", seed=0):
     # print(cmd)
     os.system(cmd)
 
-def gen_tla_json_graph(json_graph="states.json", seed=0, spec="MDBTest"):
+def gen_tla_json_graph(json_graph="states.json", seed=0, specname="Storage"):
 
     # For now don't use symmetry when doing trace generation.
     config = {
@@ -263,7 +263,11 @@ if __name__ == '__main__':
         # 
         # java -cp tla2tools-json.jar tlc2.TLC -dump json states.json -workers 10 -deadlock MDBTest
         # 
+        gen_tla_json_graph("states.json", specname="Storage")
+        print("--> Generated JSON state graph.")
         gen_tla_json_graph("states.json", spec="MDBTest")
+        gen_tla_json_graph("states.json", specname="Storage")
+        print("--> Generated JSON state graph.")
 
         G, node_map, edge_actions = cover.parse_json_state_graph("states.json")
         COVERAGE_PCT = args.coverage_pct
