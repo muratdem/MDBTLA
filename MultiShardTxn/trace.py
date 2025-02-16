@@ -223,7 +223,6 @@ def gen_tla_json_graph(json_graph="states.json", seed=0, specname="Storage"):
     }
 
     # Create TLC config file from JSON config.
-    specname = "Storage"
     model_fname = f"{specname}_gen.cfg"
     with open(model_fname, "w") as f:
         f.write("INIT " + config["init"] + "\n")
@@ -263,9 +262,6 @@ if __name__ == '__main__':
         # 
         # java -cp tla2tools-json.jar tlc2.TLC -dump json states.json -workers 10 -deadlock MDBTest
         # 
-        gen_tla_json_graph("states.json", specname="Storage")
-        print("--> Generated JSON state graph.")
-        gen_tla_json_graph("states.json", spec="MDBTest")
         gen_tla_json_graph("states.json", specname="Storage")
         print("--> Generated JSON state graph.")
 
