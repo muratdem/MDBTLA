@@ -201,7 +201,7 @@ def gen_tla_model_trace(json_trace="trace.json", seed=0):
     # print(cmd)
     os.system(cmd)
 
-def gen_tla_json_graph(json_graph="states.json", seed=0, specname="Storage"):
+def gen_tla_json_graph(json_graph="states.json", seed=0, specname="Storage", constants={}):
 
     # For now don't use symmetry when doing trace generation.
     config = {
@@ -226,6 +226,10 @@ def gen_tla_json_graph(json_graph="states.json", seed=0, specname="Storage"):
             "RollbackToStable": "FALSE"
         }
     }
+
+    # Optionally passed in constant overrides.
+    for c in constants:
+        config["constants"][c] = constants[c]
 
     # Create TLC config file from JSON config.
     model_fname = f"{specname}_gen.cfg"
@@ -260,8 +264,17 @@ if __name__ == '__main__':
     parser.add_argument('--use_json_graph', action='store_true', help='Load and analyze JSON state graph')
     parser.add_argument('--coverage_pct', type=float, default=1.0, help='Percentage of states to cover')
     parser.add_argument('--compact', action='store_true', help='Generate compact test cases', default=False)
+    parser.add_argument('--constants', type=str, default="", help='Constant overrides', nargs='+')
     args = parser.parse_args()
     ntests = args.ntests
+
+    constants = {}
+    for i in range(0, len(args.constants), 2):
+        k = args.constants[i]
+        v = args.constants[i+1]
+        constants[k] = v
+    if len(constants.keys()) > 0:
+        print("Using passed in constants:", constants)
 
     if args.use_json_graph:
 
@@ -270,7 +283,7 @@ if __name__ == '__main__':
         # 
         # java -cp tla2tools-json.jar tlc2.TLC -dump json states.json -workers 10 -deadlock MDBTest
         # 
-        gen_tla_json_graph("states.json", specname="Storage")
+        gen_tla_json_graph("states.json", specname="Storage", constants=constants)
         print("--> Generated JSON state graph.")
 
         G, node_map, edge_actions = cover.parse_json_state_graph("states.json")
