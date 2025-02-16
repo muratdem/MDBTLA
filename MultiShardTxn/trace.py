@@ -219,6 +219,11 @@ def gen_tla_json_graph(json_graph="states.json", seed=0, specname="Storage"):
             "NoValue": "NoValue",
             "MaxOpsPerTxn": "2",
             "Timestamps": "{1,2,3}"
+        },
+        # Disable these actions for now.
+        "overrides": {
+            "SetStableTimestamp": "FALSE",
+            "RollbackToStable": "FALSE"
         }
     }
 
@@ -232,6 +237,9 @@ def gen_tla_json_graph(json_graph="states.json", seed=0, specname="Storage"):
         if "constraint" in config:
             f.write("CONSTRAINT " + config["constraint"] + "\n")
         # f.write("INVARIANT " + config["invariant"] + "\n")
+        if "overrides" in config:
+            for k, v in config["overrides"].items():
+                f.write(f"{k} <- {v}\n")
         if "symmetry" in config:
             f.write("SYMMETRY " + config["symmetry"] + "\n")
 
