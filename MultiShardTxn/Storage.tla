@@ -166,6 +166,7 @@ SnapshotKV(n, ts, rc) ==
         prepared |-> FALSE,
         prepareTs |-> 0,
         aborted |-> FALSE,
+        committed |-> FALSE,
         readSet |-> {},
         writeSet |-> {},
         active |-> TRUE
@@ -334,6 +335,9 @@ StartTransaction(n, tid, readTs, rc) ==
     \* Start the transaction on the MDB KV store.
     \* Save a snapshot of the current MongoDB instance at this shard for this transaction to use.
     /\ tid \notin ActiveTransactions(n)
+    \* Only run transactions for a given transactionid once.
+    /\ ~mtxnSnapshots[n][tid]["committed"]
+    /\ ~mtxnSnapshots[n][tid]["aborted"]
     \* Don't re-use transaction ids.
     /\ ~\E i \in DOMAIN (mlog[n]) : mlog[n][i].tid = tid
     /\ mtxnSnapshots' = [mtxnSnapshots EXCEPT ![n][tid] = SnapshotKV(n, readTs, rc)]
@@ -418,7 +422,7 @@ CommitTransaction(n, tid, commitTs) ==
     /\ (ActiveReadTimestamps(n) \cup CommitTimestamps(n)) # {} => commitTs > Max(ActiveReadTimestamps(n) \cup CommitTimestamps(n))
     \* Commit the transaction on the KV store and write all updated keys back to the log.
     /\ mlog' = [mlog EXCEPT ![n] = CommitTxnToLog(n, tid, commitTs)]
-    /\ mtxnSnapshots' = [mtxnSnapshots EXCEPT ![n][tid]["active"] = FALSE]
+    /\ mtxnSnapshots' = [mtxnSnapshots EXCEPT ![n][tid]["active"] = FALSE, ![n][tid]["committed"] = TRUE]
     /\ txnStatus' = [txnStatus EXCEPT ![n][tid] = STATUS_OK]
     /\ UNCHANGED <<mcommitIndex, stableTs>>
 
@@ -436,7 +440,7 @@ CommitPreparedTransaction(n, tid, commitTs, durableTs) ==
     \* /\ mtxnSnapshots[n][tid]["active"]
     /\ commitTs >= mtxnSnapshots[n][tid].prepareTs
     /\ mlog' = [mlog EXCEPT ![n] = CommitTxnToLogWithDurable(n, tid, commitTs, durableTs)]
-    /\ mtxnSnapshots' = [mtxnSnapshots EXCEPT ![n][tid]["active"] = FALSE]
+    /\ mtxnSnapshots' = [mtxnSnapshots EXCEPT ![n][tid]["active"] = FALSE, ![n][tid]["committed"] = TRUE]
     /\ txnStatus' = [txnStatus EXCEPT ![n][tid] = STATUS_OK]
     /\ UNCHANGED <<mcommitIndex, stableTs>>
 
