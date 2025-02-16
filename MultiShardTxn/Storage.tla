@@ -483,7 +483,7 @@ vars == <<mlog, mcommitIndex, mtxnSnapshots, txnStatus, stableTs>>
 Init == 
     /\ mlog = [n \in Node |-> <<>>]
     /\ mcommitIndex = [n \in Node |-> 0]
-    /\ mtxnSnapshots = [n \in Node |-> [t \in MTxId |-> [active |-> FALSE]]]
+    /\ mtxnSnapshots = [n \in Node |-> [t \in MTxId |-> [active |-> FALSE, committed |-> FALSE, aborted |-> FALSE]]]
     /\ txnStatus = [n \in Node |-> [t \in MTxId |-> STATUS_OK]]
     /\ stableTs = [n \in Node |-> 1]
 
