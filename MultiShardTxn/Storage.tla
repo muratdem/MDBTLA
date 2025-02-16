@@ -426,6 +426,7 @@ CommitPreparedTransaction(n, tid, commitTs, durableTs) ==
     \* Commit the transaction on the MDB KV store.
     \* Write all updated keys back to the shard oplog.
     /\ commitTs = durableTs \* for now force these equal.
+    /\ commitTs > stableTs[n] 
     /\ tid \in ActiveTransactions(n)
     /\ tid \in PreparedTransactions(n)
     /\ ~mtxnSnapshots[n][tid]["aborted"]
