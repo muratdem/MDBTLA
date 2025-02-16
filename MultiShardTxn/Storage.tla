@@ -462,9 +462,9 @@ AbortTransaction(n, tid) ==
     /\ txnStatus' = [txnStatus EXCEPT ![n][tid] = STATUS_OK]
     /\ UNCHANGED <<mlog, mcommitIndex, stableTs>>
 
-SetStableTimestamp(ts) == 
-    /\ ts >= stableTs
-    /\ stableTs' = ts
+SetStableTimestamp(n, ts) == 
+    /\ ts >= stableTs[n]
+    /\ stableTs' = [stableTs EXCEPT ![n] = ts]
     /\ UNCHANGED <<mlog, mcommitIndex, mtxnSnapshots, txnStatus>>
 
 RollbackToStable(n) == 
