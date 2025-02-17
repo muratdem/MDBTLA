@@ -451,10 +451,8 @@ PrepareTransaction(n, tid, prepareTs) ==
     /\ tid \in ActiveTransactions(n)
     /\ ~mtxnSnapshots[n][tid]["prepared"]
     /\ ~mtxnSnapshots[n][tid]["aborted"]
-    \* Prepare timestamp must be greater than our own read timestamp,
-    \* and greater than any active read timestamp.
-    /\ prepareTs > mtxnSnapshots[n][tid].ts
-    /\ prepareTs > Max(ActiveReadTimestamps(n))
+    \* Prepare timestamp mustn't be less than any active read timestamp (includes our own).
+    /\ prepareTs >= Max(ActiveReadTimestamps(n))
     /\ mtxnSnapshots' = [mtxnSnapshots EXCEPT ![n][tid]["prepared"] = TRUE, ![n][tid]["prepareTs"] = prepareTs]
     /\ mlog' = [mlog EXCEPT ![n] = PrepareTxnToLog(n,tid, prepareTs)]
     /\ txnStatus' = [txnStatus EXCEPT ![n][tid] = STATUS_OK]
