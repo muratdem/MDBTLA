@@ -1,7 +1,6 @@
 ---- MODULE Storage ----
 EXTENDS Sequences, Naturals, Integers, Util, TLC
 
-
 \* 
 \* Abstract model of single MongoDB node using WiredTiger storage instance.
 \* 
@@ -15,8 +14,6 @@ EXTENDS Sequences, Naturals, Integers, Util, TLC
 \* return/status codes in a standard programming-oriented API.
 \* 
 
-
-
 CONSTANT Node
 
 CONSTANTS RC   \* read concern
@@ -26,6 +23,29 @@ CONSTANTS Keys,
           NoValue
 
 CONSTANT Timestamps
+
+VARIABLE mlog
+
+VARIABLE mcommitIndex
+
+\* Stores snapshots for running transactions on the underlying MongoDB instance.
+VARIABLE mtxnSnapshots
+
+\* Stores latest operation status for each operation of a transaction (e.g.
+\* records error codes, etc.)
+VARIABLE txnStatus
+
+\* Tracks the global "stable timestamp" within the storage layer.
+VARIABLE stableTs
+
+vars == <<mlog, mcommitIndex, mtxnSnapshots, txnStatus, stableTs>>
+
+
+\* Status codes for transaction operations.
+STATUS_OK == "OK"
+STATUS_ROLLBACK == "WT_ROLLBACK"
+STATUS_NOTFOUND == "WT_NOTFOUND"
+STATUS_PREPARE_CONFLICT == "WT_PREPARE_CONFLICT"
 
 WCVALUES == {"one", 
              "majority"}
@@ -56,75 +76,6 @@ LogEntries ==
 Logs == Seq(LogEntries)
 
 Max(S) == CHOOSE x \in S : \A y \in S : x >= y
-
-
-VARIABLE mlog
-VARIABLE mcommitIndex
-
-\* Stores snapshots for running transactions on the underlying MongoDB instance.
-VARIABLE mtxnSnapshots
-
-mvars == <<mlog, mcommitIndex, mtxnSnapshots>>
-
-TypesOK ==
-    /\ mlog \in Logs
-    /\ mcommitIndex \in Nat
-
-\* This operator initiates a write, adding it to the mlog.
-WriteInit(key, value) ==
-    /\ mlog' = Append(mlog, [
-            key |-> key,
-            value |-> value
-       ])
-
-
-\* For a given key, a read can be entirely defined by a value and a flag:
-\* - point is a point in the mlog to which the read should be applied.
-\*   for mlog entries at or "before" (index <=) point, the latest
-\*   value associated with key will be included in the result.
-\*   If the mlog at or before point does not mention the given key at all,
-\*   then the result set will include NotFoundReadResult.
-\*   An empty set as a result means the read is not possible; any valid read, even
-\*   one that returns a "not found" result, will have at least one element in
-\*   its set.
-\* - allowDirty controls a secondary behavior: for elements of the mlog
-\*   whose index > point, if allowDirty = TRUE then they will also
-\*   be included in the result set. If allowDirty = FALSE, then only
-\*   the single latest value whose index <= point will be in the result set.
-GeneralRead(key, index, allowDirty) ==
-    LET maxCandidateIndices == { i \in DOMAIN mlog :
-            /\ mlog[i].key = key
-            /\ i <= index }
-        allIndices == { i \in DOMAIN mlog :
-            /\ allowDirty
-            /\ mlog[i].key = key
-            /\ i > index }
-    IN  { [mlogIndex |-> i, value |-> mlog[i].value]
-          : i \in allIndices \cup (
-            IF   maxCandidateIndices # {}
-            THEN {Max(maxCandidateIndices)}
-            ELSE {}) } \cup 
-        (IF   maxCandidateIndices = {}
-         THEN {NotFoundReadResult}
-         ELSE {})
-
-Read(key) == CASE
-            \* linearizable reads from mcommitIndex and forbids dirty reads
-            RC = "linearizable" -> GeneralRead(key, mcommitIndex, FALSE)
-
-        \*     \* available reads from readIndex, because the node we reach may be behind mcommitIndex; 
-        \*     \* it also allows dirty reads
-        \*  [] RC = "available"    -> GeneralRead(key, readIndex, TRUE)
-
-\* causal hlc read at or more recent than what we received last from a read/write
-ReadAtTime(token, key) ==
-        IF   TRUE
-             \* \/ mepoch = token.mepoch  \* invalidate token on mepoch change
-             \* \/ token = [checkpoint |-> 0,mepoch |-> 0] \* NoSessionToken hack !!
-        THEN LET sessionIndex ==  token.checkpoint \* Max({token.checkpoint, readIndex})
-             IN  GeneralRead(key, sessionIndex, TRUE)
-        ELSE {}
-
 
 --------------------------------------------------------
 
@@ -173,7 +124,7 @@ SnapshotKV(n, ts, rc) ==
     ]
     
 
-
+\* Not currently used but could be considered in future.
 WriteReadConflictExists(n, tid, k) ==
     \* Exists another running transaction on the same snapshot
     \* that has written to the same key.
@@ -185,7 +136,7 @@ WriteReadConflictExists(n, tid, k) ==
            /\ mtxnSnapshots[tOther].ts = mtxnSnapshots[tOther].ts
            /\ k \in mtxnSnapshots[tOther].readSet
 
-\* Alternate equivalent definition of the above.
+\* Does a write conflict exist for this transaction's write to a given key.
 WriteConflictExists(n, tid, k) ==
     \* Exists another running transaction on the same snapshot
     \* that has written to the same key.
@@ -193,8 +144,6 @@ WriteConflictExists(n, tid, k) ==
         \* Transaction is running concurrently. 
         \/ /\ tid \in ActiveTransactions(n)
            /\ tOther \in ActiveTransactions(n)
-           \* The other transaction wrote to this value.
-        \*    /\ mtxnSnapshots[n][tOther].data[k] = tOther
            /\ k \in mtxnSnapshots[n][tOther].writeSet
         \* If there exists another transaction that has written to this key and
         \* committed at a timestamp newer than your snapshot, this also should
@@ -205,11 +154,10 @@ WriteConflictExists(n, tid, k) ==
             /\ mlog[n][ind].ts >= mtxnSnapshots[n][tid].ts
             /\ k \in (DOMAIN mlog[n][ind].data)
 
-\* CleanSnapshots == [t \in MTxId |-> Nil]
 
-\* If a prepared transaction has committed behind our snapshot read timestamp
-\* while we were running, then we must observe the effects of its writes.
 TxnRead(n, tid, k) == 
+    \* If a prepared transaction has committed behind our snapshot read timestamp
+    \* while we were running, then we must observe the effects of its writes.
     IF  \E tOther \in MTxId \ {tid}:
         \E pmind \in DOMAIN mlog[n] :
         \E cmind \in DOMAIN mlog[n] :
@@ -273,60 +221,7 @@ PrepareConflict(n, tid, k) ==
             /\ mlog[n][pind].tid = tother 
             /\ mlog[n][pind].ts <= mtxnSnapshots[n][tid].ts 
 
-
-
-
-
-
-
 ---------------------------------------------------------------------
-
-\* Expand the prefix of the mlog that can no longer be lost.
-IncreaseCommitIndex ==
-    /\ mcommitIndex' \in mcommitIndex..Len(mlog)
-    /\ UNCHANGED <<mlog>>
-
-\* Any data that is not part of the checkpointed mlog prefix may be lost at any time. 
-TruncatedLog == \E i \in (mcommitIndex+1)..Len(mlog) :
-    /\ mlog' = SubSeq(mlog, 1, i - 1)
-    /\ UNCHANGED <<mcommitIndex>>
-  
-
-\* StartTxn(tid, readTs) ==
-\*     /\ mtxnSnapshots' = [mtxnSnapshots EXCEPT ![tid] = SnapshotKV(readTs, "snapshot")]
-\*     /\ UNCHANGED <<mlog, mcommitIndex, mepoch>>
-
-\* Explicit initialization for each state variable.
-Init_mlog == <<>>
-Init_mcommitIndex == 0
-Init_mtxnSnapshots == [t \in MTxId |-> [active |-> FALSE]]
-
-\* MInit ==
-    \* /\ mlog = [n \in Nodes |-> <<>>]
-    \* /\ mcommitIndex = [n \in Nodes |-> 0]
-    \* /\ mepoch = [n \in Nodes |-> 1]
-    \* /\ mtxnSnapshots = [n \in Nodes |-> [t \in MTxId |-> Nil]]
-
-\* \* This relation models all possible mlog actions, without performing any write.
-\* MNext ==
-    \* \/ \E n \in Nodes : \E t \in MTxId, ts \in {0,1,2} : TxnStart(n, t, ts, "snapshot")
-    \* \/ \E n \in Nodes : \E t \in MTxId, k \in Keys : TxnWrite(n, t, k)
-
-
-
-
-
-\* Stores latest operation status for each operation of a transaction (e.g.
-\* records error codes, etc.)
-VARIABLE txnStatus
-
-\* Tracks the global "stable timestamp" within the storage layer.
-VARIABLE stableTs
-
-STATUS_OK == "OK"
-STATUS_ROLLBACK == "WT_ROLLBACK"
-STATUS_NOTFOUND == "WT_NOTFOUND"
-STATUS_PREPARE_CONFLICT == "WT_PREPARE_CONFLICT"
 
 \* Checks the status of a transaction is OK after it has executed some enabled action.
 TransactionPostOpStatus(n, tid) == txnStatus'[n][tid]
@@ -366,7 +261,6 @@ TransactionWrite(n, tid, k, v) ==
 
 \* Reads from the local KV store of a shard.
 TransactionRead(n, tid, k, v) ==
-    \* Non-snapshot read aren't actually required to block on prepare conflicts (see https://jira.mongodb.org/browse/SERVER-36382). 
     /\ tid \in ActiveTransactions(n)    
     /\ tid \notin PreparedTransactions(n)
     /\ ~mtxnSnapshots[n][tid]["aborted"]
@@ -478,7 +372,10 @@ RollbackToStable(n) ==
     /\ stableTs' = stableTs
     /\ UNCHANGED <<mtxnSnapshots, txnStatus, mcommitIndex>>
 
-vars == <<mlog, mcommitIndex, mtxnSnapshots, txnStatus, stableTs>>
+\* Explicit initialization for each state variable.
+Init_mlog == <<>>
+Init_mcommitIndex == 0
+Init_mtxnSnapshots == [t \in MTxId |-> [active |-> FALSE, committed |-> FALSE, aborted |-> FALSE]]
 
 Init == 
     /\ mlog = [n \in Node |-> <<>>]
@@ -500,6 +397,8 @@ Next ==
     \/ \E n \in Node : RollbackToStable(n)
     \* TODO Also consider adding model actions to read/query various timestamps (e.g. all_durable, oldest, etc.)
 
+
+---------------------------------------------------------------------
 
 Symmetry == Permutations(MTxId) \cup Permutations(Keys)
 
