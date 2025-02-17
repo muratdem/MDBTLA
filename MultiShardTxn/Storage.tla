@@ -328,10 +328,9 @@ CommitPreparedTransaction(n, tid, commitTs, durableTs) ==
     /\ tid \in ActiveTransactions(n)
     /\ tid \in PreparedTransactions(n)
     /\ ~mtxnSnapshots[n][tid]["aborted"]
-    \* Commit timestamp must be greater than the prepare timestamp.
-    \* For distributed transactions commit timestamps may be chosen older than active read timestamps, though.
-    \* /\ mtxnSnapshots[n][tid].prepareTs # Nil 
-    \* /\ mtxnSnapshots[n][tid]["active"]
+    \* Commit timestamp must be at least as new as the prepare timestamp. Note
+    \* that for prepared (i.e. distributed) transactions, though, commit
+    \* timestamps may be chosen older than active read timestamps.
     /\ commitTs >= mtxnSnapshots[n][tid].prepareTs
     /\ mlog' = [mlog EXCEPT ![n] = CommitTxnToLogWithDurable(n, tid, commitTs, durableTs)]
     /\ mtxnSnapshots' = [mtxnSnapshots EXCEPT ![n][tid]["active"] = FALSE, ![n][tid]["committed"] = TRUE]
@@ -363,6 +362,7 @@ SetStableTimestamp(n, ts) ==
     /\ stableTs' = [stableTs EXCEPT ![n] = ts]
     /\ UNCHANGED <<mlog, mcommitIndex, mtxnSnapshots, txnStatus>>
 
+\* Roll back storage state to the stable timestamp.
 RollbackToStable(n) == 
     \* Mustn't initiate a RTS call if there are any open transactions.
     /\ ActiveTransactions(n) = {}
