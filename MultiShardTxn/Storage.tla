@@ -202,7 +202,7 @@ WriteConflictExists(n, tid, k) ==
         \* overlapped with you (in timestamp order).
         \/ \E ind \in DOMAIN mlog[n] :
             /\ "data" \in DOMAIN mlog[n][ind]
-            /\ mlog[n][ind].ts > mtxnSnapshots[n][tid].ts
+            /\ mlog[n][ind].ts >= mtxnSnapshots[n][tid].ts
             /\ k \in (DOMAIN mlog[n][ind].data)
 
 \* CleanSnapshots == [t \in MTxId |-> Nil]
