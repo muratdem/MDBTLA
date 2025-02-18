@@ -146,10 +146,9 @@ def gen_wt_test_from_traces(traces, max_len=1000, compact=False):
 
         f.write(WT_TEST_FN_TEMPLATE.replace("test_trace_1", f"test_trace_{i}"))
 
-        for t in txns:
-            out = tab(2) + f"sess_{t} = conn.open_session()\n"
-            # print(out)
-            f.write(out)
+        f.write(tab(2))
+        txns_sessions = [f"sess_{t} = conn.open_session()" for t in txns]
+        f.write(";".join(txns_sessions))
         # print("")
         f.write("\n")
         action_labels = []
@@ -187,10 +186,11 @@ def gen_wt_test_from_traces(traces, max_len=1000, compact=False):
                 test_lines.append(tab(2) + l + "\n")
             test_lines.append("\n")
         f.write("\n")
-        f.write("\n".join(action_labels_only))
-        f.write("\n\n")
-        f.write("\n".join(action_labels))
-        f.write("\n\n\n")
+        if not compact:
+            f.write("\n".join(action_labels_only))
+            f.write("\n\n")
+            f.write("\n".join(action_labels))
+            f.write("\n\n\n")
         f.writelines(test_lines)
     f.close()
 
