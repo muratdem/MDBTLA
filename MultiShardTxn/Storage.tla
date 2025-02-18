@@ -214,13 +214,11 @@ TxnCanStart(n, tid, readTs) ==
 PrepareConflict(n, tid, k) ==
     \* Is there another transaction prepared at T <= readTs that has modified this key?
     \E tother \in MTxId :
+        /\ tother # tid
         /\ tother \in ActiveTransactions(n)
         /\ mtxnSnapshots[n][tother].prepared
         /\ k \in SnapshotUpdatedKeys(n, tother)
-        /\ \E pind \in DOMAIN mlog[n] : 
-            /\ "prepare" \in DOMAIN mlog[n][pind] 
-            /\ mlog[n][pind].tid = tother 
-            /\ mlog[n][pind].ts <= mtxnSnapshots[n][tid].ts 
+        /\ mtxnSnapshots[n][tother].prepareTs <= mtxnSnapshots[n][tid].ts
 
 ---------------------------------------------------------------------
 
