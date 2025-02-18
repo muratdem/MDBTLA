@@ -108,7 +108,7 @@ SnapshotRead(n, key, ts) ==
             ELSE [mlogIndex |-> Max(snapshotKeyWrites), value |-> mlog[n][Max(snapshotKeyWrites)].data[key]]
 
 \* Snapshot of the full KV store at a given index/timestamp.
-SnapshotKV(n, ts, rc) == 
+SnapshotKV(n, ts, rc, ignorePrepare) == 
     \* Local reads just read at the latest timestamp in the log.
     LET txnReadTs == IF rc = "snapshot" THEN ts ELSE Len(mlog[n]) IN
     [
@@ -120,7 +120,8 @@ SnapshotKV(n, ts, rc) ==
         committed |-> FALSE,
         readSet |-> {},
         writeSet |-> {},
-        active |-> TRUE
+        active |-> TRUE,
+        ignorePrepare |-> ignorePrepare
     ]
     
 
@@ -226,7 +227,7 @@ PrepareConflict(n, tid, k) ==
 \* Checks the status of a transaction is OK after it has executed some enabled action.
 TransactionPostOpStatus(n, tid) == txnStatus'[n][tid]
 
-StartTransaction(n, tid, readTs, rc) == 
+StartTransaction(n, tid, readTs, rc, ignorePrepare) == 
     \* Start the transaction on the MDB KV store.
     \* Save a snapshot of the current MongoDB instance at this shard for this transaction to use.
     /\ tid \notin ActiveTransactions(n)
@@ -235,7 +236,7 @@ StartTransaction(n, tid, readTs, rc) ==
     /\ ~mtxnSnapshots[n][tid]["aborted"]
     \* Don't re-use transaction ids.
     /\ ~\E i \in DOMAIN (mlog[n]) : mlog[n][i].tid = tid
-    /\ mtxnSnapshots' = [mtxnSnapshots EXCEPT ![n][tid] = SnapshotKV(n, readTs, rc)]
+    /\ mtxnSnapshots' = [mtxnSnapshots EXCEPT ![n][tid] = SnapshotKV(n, readTs, rc, ignorePrepare)]
     /\ txnStatus' = [txnStatus EXCEPT ![n][tid] = STATUS_OK]
     /\ UNCHANGED <<mlog, mcommitIndex, stableTs>>
    
@@ -246,6 +247,8 @@ TransactionWrite(n, tid, k, v) ==
     /\ tid \in ActiveTransactions(n)
     /\ tid \notin PreparedTransactions(n)
     /\ ~mtxnSnapshots[n][tid]["aborted"]
+    \* Transactions that ignore prepare cannot perform updates.
+    /\ ~mtxnSnapshots[n][tid]["ignorePrepare"]
     \* Transactions always write their own ID as the value, to uniquely identify their writes.
     /\ v = tid
     /\ \/ /\ ~WriteConflictExists(n, tid, k)
@@ -286,6 +289,7 @@ TransactionRemove(n, tid, k) ==
     /\ tid \in ActiveTransactions(n)
     /\ tid \notin PreparedTransactions(n)
     /\ ~mtxnSnapshots[n][tid]["aborted"]
+    /\ ~mtxnSnapshots[n][tid]["ignorePrepare"]
     /\ \/ /\ ~WriteConflictExists(n, tid, k)
           /\ TxnRead(n, tid, k) # NoValue 
           \* Update the transaction's snapshot data.
@@ -385,7 +389,7 @@ Init ==
     /\ stableTs = [n \in Node |-> -1]
 
 Next == 
-    \/ \E n \in Node : \E tid \in MTxId, readTs \in Timestamps : StartTransaction(n, tid, readTs, RC)
+    \/ \E n \in Node : \E tid \in MTxId, readTs \in Timestamps, ignorePrepare \in {TRUE, FALSE} : StartTransaction(n, tid, readTs, RC, ignorePrepare)
     \/ \E n \in Node : \E tid \in MTxId, k \in Keys, v \in Values : TransactionWrite(n, tid, k, v)
     \/ \E n \in Node : \E tid \in MTxId, k \in Keys, v \in (Values \cup {NoValue}) : TransactionRead(n, tid, k, v)
     \/ \E n \in Node : \E tid \in MTxId, k \in Keys : TransactionRemove(n, tid, k)

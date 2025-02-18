@@ -52,8 +52,11 @@ def make_wt_action(pre_state, action_name, action_args, post_state):
     txn_cursor = f"self.cursor_{tid}"
     # print(err_code)
     txn_session = f"sess_{tid}"
+    ignore_prepare = "false"
+    if "ignorePrepare" in action_args and action_args['ignorePrepare'] == "TRUE":
+        ignore_prepare = "true"
     if action_name == "StartTransaction":
-        wt_action_name = f"{txn_session}.begin_transaction('read_timestamp=' + self.timestamp_str({action_args['readTs']}));{txn_cursor} = {txn_session}.open_cursor(self.uri, None)"
+        wt_action_name = f"{txn_session}.begin_transaction('ignore_prepare={ignore_prepare},read_timestamp=' + self.timestamp_str({action_args['readTs']}));{txn_cursor} = {txn_session}.open_cursor(self.uri, None)"
     if action_name == "TransactionWrite":
         wt_action_name = f"{txn_cursor}.set_key(\"{action_args['k']}\");{txn_cursor}.set_value(\"{action_args['v']}\");{txn_cursor}.insert()"
     if action_name == "TransactionRead":
