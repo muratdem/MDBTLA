@@ -389,7 +389,7 @@ Init ==
     /\ stableTs = [n \in Node |-> -1]
 
 Next == 
-    \/ \E n \in Node : \E tid \in MTxId, readTs \in Timestamps, ignorePrepare \in {TRUE, FALSE} : StartTransaction(n, tid, readTs, RC, ignorePrepare)
+    \/ \E n \in Node : \E tid \in MTxId, readTs \in Timestamps, ignorePrepare \in {FALSE} : StartTransaction(n, tid, readTs, RC, ignorePrepare)
     \/ \E n \in Node : \E tid \in MTxId, k \in Keys, v \in Values : TransactionWrite(n, tid, k, v)
     \/ \E n \in Node : \E tid \in MTxId, k \in Keys, v \in (Values \cup {NoValue}) : TransactionRead(n, tid, k, v)
     \/ \E n \in Node : \E tid \in MTxId, k \in Keys : TransactionRemove(n, tid, k)
