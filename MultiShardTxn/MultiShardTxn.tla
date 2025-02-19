@@ -16,7 +16,7 @@ CONSTANTS RC
 \* Set of all timestamps that can be used for starting a transaction.
 CONSTANT Timestamps
 
-CONSTANT PrepareBlocksReads
+CONSTANT IgnorePrepareBlocking
 
 \* Instantiating ClientCentric enables us to check transaction isolation guarantees
 \* https://muratbuffalo.blogspot.com/2022/07/automated-validation-of-state-based.html         
@@ -360,7 +360,7 @@ ShardTxnStart(s, tid) ==
     \* having started on this shard, so transaction statements can now be processed.
     /\ shardTxns' = [shardTxns EXCEPT ![s] = shardTxns[s] \union {tid}]
     /\ coordInfo' = [coordInfo EXCEPT ![s][tid] = [self |-> Head(shardTxnReqs[s][tid]).coord, participants |-> <<s>>, committing |-> FALSE]]
-    /\ ShardMDB(s)!StartTransaction(s, tid, Head(shardTxnReqs[s][tid]).readTs, Head(shardTxnReqs[s][tid]).rc)
+    /\ ShardMDB(s)!StartTransaction(s, tid, Head(shardTxnReqs[s][tid]).readTs, Head(shardTxnReqs[s][tid]).rc, IgnorePrepareBlocking)
     /\ UNCHANGED << rCatalog, shardTxnReqs,  aborted,  log, commitIndex, ops, msgsPrepare, msgsVoteCommit, coordCommitVotes, catalog, msgsAbort, msgsCommit, shardPreparedTxns, shardOps, varsRouter >>   
 
 \* Shard processes a transaction read operation.
