@@ -206,6 +206,13 @@ def gen_tla_model_trace(json_trace="trace.json", seed=0):
 
 def gen_tla_json_graph(json_graph="states.json", seed=0, specname="Storage", constants={}):
 
+    # Optionally disabled actions.
+    disabled_actions = [
+        "SetStableTimestamp",
+        "RollbackToStable",
+        "AbortTransaction"
+    ]
+
     # For now don't use symmetry when doing trace generation.
     config = {
         "init": "Init",
@@ -223,12 +230,11 @@ def gen_tla_json_graph(json_graph="states.json", seed=0, specname="Storage", con
             "MaxOpsPerTxn": "2",
             "Timestamps": "{1,2,3}"
         },
-        # Disable these actions for now.
-        "overrides": {
-            "SetStableTimestamp": "FALSE",
-            "RollbackToStable": "FALSE"
-        }
+        "overrides": {}
     }
+
+    for a in disabled_actions:
+        config["overrides"][a] = "FALSE"
 
     # Optionally passed in constant overrides.
     for c in constants:
