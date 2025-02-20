@@ -114,7 +114,7 @@ varsNetwork == << msgsPrepare, msgsVoteCommit, msgsAbort, msgsCommit >>
 
 \* Instance of a MongoDB replica set log for a given shard, that 
 \* supports abstracted snapshot KV store.
-ShardMDB(s) == INSTANCE Storage WITH 
+Storage(s) == INSTANCE Storage WITH 
                     mlog <- log, 
                     mcommitIndex <- commitIndex, 
                     mtxnSnapshots <- txnSnapshots,
@@ -163,10 +163,10 @@ Init ==
     /\ msgsAbort = {}
     /\ msgsCommit = {}
     \* MongoDB replica set log state.
-    /\ log = [s \in Shard |-> ShardMDB(s)!Init_mlog]
-    /\ commitIndex = [s \in Shard |-> ShardMDB(s)!Init_mcommitIndex]
-    /\ txnSnapshots = [s \in Shard |-> ShardMDB(s)!Init_mtxnSnapshots]
-    /\ txnStatus = [s \in Shard |-> [t \in TxId |-> ShardMDB(s)!STATUS_OK]]
+    /\ log = [s \in Shard |-> Storage(s)!Init_mlog]
+    /\ commitIndex = [s \in Shard |-> Storage(s)!Init_mcommitIndex]
+    /\ txnSnapshots = [s \in Shard |-> Storage(s)!Init_mtxnSnapshots]
+    /\ txnStatus = [s \in Shard |-> [t \in TxId |-> Storage(s)!STATUS_OK]]
     /\ stableTs = [s \in Shard |-> 0]
 
 \* 
@@ -360,7 +360,7 @@ ShardTxnStart(s, tid) ==
     \* having started on this shard, so transaction statements can now be processed.
     /\ shardTxns' = [shardTxns EXCEPT ![s] = shardTxns[s] \union {tid}]
     /\ coordInfo' = [coordInfo EXCEPT ![s][tid] = [self |-> Head(shardTxnReqs[s][tid]).coord, participants |-> <<s>>, committing |-> FALSE]]
-    /\ ShardMDB(s)!StartTransaction(s, tid, Head(shardTxnReqs[s][tid]).readTs, Head(shardTxnReqs[s][tid]).rc, IgnorePrepareBlocking)
+    /\ Storage(s)!StartTransaction(s, tid, Head(shardTxnReqs[s][tid]).readTs, Head(shardTxnReqs[s][tid]).rc, IgnorePrepareBlocking)
     /\ UNCHANGED << rCatalog, shardTxnReqs,  aborted,  log, commitIndex, ops, msgsPrepare, msgsVoteCommit, coordCommitVotes, catalog, msgsAbort, msgsCommit, shardPreparedTxns, shardOps, varsRouter >>   
 
 \* Shard processes a transaction read operation.
@@ -378,9 +378,9 @@ ShardTxnRead(s, tid, k, v) ==
     \* Read the value of the key from the snapshot store, record the op, and 
     \* advance to the next transaction statement.
     /\ shardOps' = [shardOps EXCEPT ![s][tid] = shardOps[s][tid] \o <<rOp(k, v)>>]
-    /\ ShardMDB(s)!TransactionRead(s, tid, k, v)
+    /\ Storage(s)!TransactionRead(s, tid, k, v)
     \* Disallows read operations that would cause a prepare conflict.
-    /\ ShardMDB(s)!TransactionPostOpStatus(s, tid) # ShardMDB(s)!STATUS_PREPARE_CONFLICT
+    /\ Storage(s)!TransactionPostOpStatus(s, tid) # Storage(s)!STATUS_PREPARE_CONFLICT
     /\ UNCHANGED << rCatalog, shardTxns, aborted, coordInfo, msgsPrepare, msgsVoteCommit, coordCommitVotes, catalog, msgsAbort, msgsCommit, shardPreparedTxns, ops, varsRouter, log, commitIndex >>    
 
 \* Shard processes a transaction write operation.
@@ -395,7 +395,7 @@ ShardTxnWrite(s, tid, k) ==
     /\ shardOps' = [shardOps EXCEPT ![s][tid] = Append( shardOps[s][tid], wOp(k, tid) )]
     \* Consume the transaction op.
     /\ shardTxnReqs' = [shardTxnReqs EXCEPT ![s][tid] = Tail(shardTxnReqs[s][tid])]
-    /\ ShardMDB(s)!TransactionWrite(s, tid, k, tid)
+    /\ Storage(s)!TransactionWrite(s, tid, k, tid)
     /\ UNCHANGED << rCatalog, shardTxns, log, commitIndex, aborted, coordInfo, msgsPrepare, msgsVoteCommit, coordCommitVotes, catalog, msgsAbort, msgsCommit, shardPreparedTxns, ops, varsRouter >>
 
 \* \* Shard processes a transaction write operation which encounters a write conflict, triggering an abort.
@@ -477,10 +477,10 @@ ShardTxnPrepare(s, tid) ==
         /\ shardPreparedTxns' = [shardPreparedTxns EXCEPT ![s] = shardPreparedTxns[s] \union {tid}]
         \* Prepare and then send your vote to the coordinator.
         \* Prepare timestamp will be the same timestamp as the logged prepare entry.
-        /\ LET prepareTs == ShardMDB(s)!NextTs(s) IN
+        /\ LET prepareTs == Storage(s)!NextTs(s) IN
             /\ msgsVoteCommit' = msgsVoteCommit \cup { [shard |-> s, tid |-> tid, to |-> m.coordinator, prepareTs |-> prepareTs] }
             \* Prepare the transaction in the underyling snapshot store.
-            /\ ShardMDB(s)!PrepareTransaction(s, tid, prepareTs)
+            /\ Storage(s)!PrepareTransaction(s, tid, prepareTs)
         /\ UNCHANGED << rCatalog, shardTxns,  shardTxnReqs,  aborted, coordInfo, msgsPrepare, ops, coordCommitVotes, catalog, msgsAbort, msgsCommit, shardOps, varsRouter, commitIndex >>
 
 \* Shard receives a commit message for transaction, and commits.
@@ -498,9 +498,9 @@ ShardTxnCommit(s, tid) ==
         /\  \* Commit prepared or unprepared transaction.
             \* If no commit timestamp was provided, then we use the next local timestamp.
             \/ /\ m.commitTs = NoValue 
-               /\ ShardMDB(s)!CommitTransaction(s, tid, ShardMDB(s)!NextTs(s))
+               /\ Storage(s)!CommitTransaction(s, tid, Storage(s)!NextTs(s))
             \/ /\ m.commitTs # NoValue
-               /\ ShardMDB(s)!CommitPreparedTransaction(s, tid, m.commitTs, m.commitTs)
+               /\ Storage(s)!CommitPreparedTransaction(s, tid, m.commitTs, m.commitTs)
     /\ UNCHANGED <<rCatalog, coordInfo, msgsPrepare, msgsVoteCommit, coordCommitVotes, catalog, msgsAbort, aborted, shardOps, varsRouter, commitIndex >>
 
 \* 
@@ -521,7 +521,7 @@ ShardTxnAbort(s, tid) ==
     /\ shardOps' = [shardOps EXCEPT ![s][tid] = <<>>]
     \* If we abort, we by default clear out any incoming RPC requests.
     /\ shardTxnReqs' = [shardTxnReqs EXCEPT ![s][tid] = <<>>]
-    /\ ShardMDB(s)!AbortTransaction(s, tid)
+    /\ Storage(s)!AbortTransaction(s, tid)
     /\ UNCHANGED << rCatalog, msgsAbort, log, commitIndex, coordInfo, msgsPrepare, msgsVoteCommit, coordCommitVotes, catalog, msgsCommit, shardPreparedTxns, ops, varsRouter>>
 
 
