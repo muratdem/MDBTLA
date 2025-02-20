@@ -377,7 +377,7 @@ ShardTxnRead(s, tid, k, v) ==
     /\ shardTxnReqs' = [shardTxnReqs EXCEPT ![s][tid] = Tail(shardTxnReqs[s][tid])]
     \* Read the value of the key from the snapshot store, record the op, and 
     \* advance to the next transaction statement.
-    /\ shardOps' = [shardOps EXCEPT ![s][tid] = Append(shardOps[s][tid], rOp(k, v))]
+    /\ shardOps' = [shardOps EXCEPT ![s][tid] = shardOps[s][tid] \o <<rOp(k, v)>>]
     /\ ShardMDB(s)!TransactionRead(s, tid, k, v)
     \* Disallows read operations that would cause a prepare conflict.
     /\ ShardMDB(s)!TransactionPostOpStatus(s, tid) # ShardMDB(s)!STATUS_PREPARE_CONFLICT
