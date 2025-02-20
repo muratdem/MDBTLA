@@ -211,6 +211,12 @@ TxnCanStart(n, tid, readTs) ==
         /\ mtxnSnapshots[tother].prepared 
         /\ mtxnSnapshots[tother].ts < readTs 
 
+\* TODO/Question: If a transaction T1 starts at ts > P, and another transaction
+\* then prepares after this at P, it appears that reads in WiredTiger from T1
+\* don't actually encounter prepare conflicts (?) In MongoDB, is it ever
+\* possible to prepare at a timestamp higher than an existing read timestamp? I
+\* don't think so?
+
 PrepareConflict(n, tid, k) ==
     \* Is there another transaction prepared at T <= readTs that has modified this key?
     \E tother \in MTxId :
@@ -346,8 +352,13 @@ PrepareTransaction(n, tid, prepareTs) ==
     /\ tid \in ActiveTransactions(n)
     /\ ~mtxnSnapshots[n][tid]["prepared"]
     /\ ~mtxnSnapshots[n][tid]["aborted"]
-    \* Prepare timestamp mustn't be less than any active read timestamp (includes our own).
-    /\ prepareTs >= Max(ActiveReadTimestamps(n))
+    \* Prepare timestamp mustn't be less than any active read timestamp
+    \* (includes our own). For now, in this model, we impose the condition that
+    \* prepare timesatmps are strictly greater than any read timestamp. This
+    \* doesn't appear to be a strict requirement of the underlying WiredTiger
+    \* API, but we enforce it for now since we expect MongoDB distributed
+    \* transactions to obey this same contract.
+    /\ prepareTs > Max(ActiveReadTimestamps(n))
     /\ mtxnSnapshots' = [mtxnSnapshots EXCEPT ![n][tid]["prepared"] = TRUE, ![n][tid]["prepareTs"] = prepareTs]
     /\ mlog' = [mlog EXCEPT ![n] = PrepareTxnToLog(n,tid, prepareTs)]
     /\ txnStatus' = [txnStatus EXCEPT ![n][tid] = STATUS_OK]
