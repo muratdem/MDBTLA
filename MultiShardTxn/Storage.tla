@@ -272,18 +272,19 @@ TransactionRead(n, tid, k, v) ==
     /\ tid \notin PreparedTransactions(n)
     /\ ~mtxnSnapshots[n][tid]["aborted"]
     /\ v = TxnRead(n, tid, k)
-    /\ \/ /\ ~PrepareConflict(n, tid, k)
+    /\ \/ /\ ~PrepareConflict(n, tid, k) \/ mtxnSnapshots[n][tid]["ignorePrepare"]
           /\ v # NoValue
           /\ txnStatus' = [txnStatus EXCEPT ![n][tid] = STATUS_OK]
           \* Disable read-set tracking for now.
           /\ mtxnSnapshots' = mtxnSnapshots \* [mtxnSnapshots EXCEPT ![n][tid]["readSet"] = @ \cup {k}]
        \* Key does not exist.
-       \/ /\ ~PrepareConflict(n, tid, k)
+       \/ /\ ~PrepareConflict(n, tid, k) \/ mtxnSnapshots[n][tid]["ignorePrepare"]
           /\ v = NoValue
           /\ txnStatus' = [txnStatus EXCEPT ![n][tid] = STATUS_NOTFOUND]
           /\ UNCHANGED mtxnSnapshots
       \* Prepare conflict (transaction is not aborted).
        \/ /\ PrepareConflict(n, tid, k)
+          /\ ~mtxnSnapshots[n][tid]["ignorePrepare"]
           /\ txnStatus' = [txnStatus EXCEPT ![n][tid] = STATUS_PREPARE_CONFLICT]
           /\ UNCHANGED mtxnSnapshots
     /\ UNCHANGED <<mlog, mcommitIndex, stableTs>>
@@ -398,7 +399,7 @@ Init ==
     /\ stableTs = [n \in Node |-> -1]
 
 Next == 
-    \/ \E n \in Node : \E tid \in MTxId, readTs \in Timestamps, ignorePrepare \in {FALSE} : StartTransaction(n, tid, readTs, RC, ignorePrepare)
+    \/ \E n \in Node : \E tid \in MTxId, readTs \in Timestamps, ignorePrepare \in {FALSE, TRUE} : StartTransaction(n, tid, readTs, RC, ignorePrepare)
     \/ \E n \in Node : \E tid \in MTxId, k \in Keys, v \in Values : TransactionWrite(n, tid, k, v)
     \/ \E n \in Node : \E tid \in MTxId, k \in Keys, v \in (Values \cup {NoValue}) : TransactionRead(n, tid, k, v)
     \/ \E n \in Node : \E tid \in MTxId, k \in Keys : TransactionRemove(n, tid, k)
