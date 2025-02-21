@@ -190,8 +190,7 @@ def gen_tla_json_graph(json_graph="states.json", seed=0, specname="Storage", con
     # Optionally disabled actions.
     disabled_actions = [
         "SetStableTimestamp",
-        "RollbackToStable",
-        "AbortTransaction"
+        "RollbackToStable"
     ]
 
     # For now don't use symmetry when doing trace generation.
