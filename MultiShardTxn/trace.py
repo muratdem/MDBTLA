@@ -9,33 +9,14 @@ import cover
 # Experiments in model-based test case generation for the WiredTiger API based on TLA+ model.
 # 
 
-WT_TEST_TEMPLATE = """
-# [TEST_TAGS]
-# transactions
-# [END_TAGS]
-
-import wttest
-import wiredtiger
-from wtscenario import make_scenarios
-
-class test_txn_mbt(wttest.WiredTigerTestCase):
-
-    def check_action(self, action_fn, expected_res, expected_exception):
-        res = None
-        try:
-            action_fn()
-        except wiredtiger.WiredTigerError as e:
-            res = e
-        self.assertEquals(res, None)
-        self.assertTrue(wiredtiger.wiredtiger_strerror(expected_exception) in str(res))
-"""
-
+WT_TEST_TEMPLATE = open("test_txn_model_template.py").read()
 WT_TEST_FN_TEMPLATE = """
     def test_trace_1(self):
         key_format,value_format = "S","S"
         self.uri = 'table:test_txn01'
         self.session.create(self.uri, 'key_format=' + key_format + ',value_format=' + value_format)
         conn = self.conn
+        self.cursors = {}
 """
 
 def make_wt_action(pre_state, action_name, action_args, post_state):
