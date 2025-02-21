@@ -2,6 +2,7 @@ import json
 import os
 import random
 import argparse
+import time
 
 import cover
 
@@ -272,6 +273,7 @@ if __name__ == '__main__':
         # 
         # java -cp tla2tools-json.jar tlc2.TLC -dump json states.json -workers 10 -deadlock MDBTest
         # 
+        now = time.time()
         gen_tla_json_graph("states.json", specname="Storage", constants=constants)
         print("--> Generated JSON state graph.")
 
@@ -280,6 +282,7 @@ if __name__ == '__main__':
         print(f"Computing path covering with {COVERAGE_PCT*100}% coverage.")
         covering_paths = cover.compute_path_coverings(G, cvg_pct=COVERAGE_PCT)
         print(f"Computed {len(covering_paths)} covering paths.")
+        end = time.time()
 
         traces = []
         for cpath in covering_paths:
@@ -312,6 +315,8 @@ if __name__ == '__main__':
         gen_wt_test_from_traces(traces, compact=args.compact)
         print(f"Number of states in full model: {len(G.nodes())}")
         print(f"Computed path covering with {len(covering_paths)} paths.")
+        print(f"Time taken to generate tests: {end-now:.2f} seconds.")
+
         exit(0)
 
     if not os.path.exists("model_traces"):
