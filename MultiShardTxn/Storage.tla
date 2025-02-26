@@ -275,8 +275,7 @@ TransactionRead(n, tid, k, v) ==
     /\ \/ /\ ~PrepareConflict(n, tid, k) \/ mtxnSnapshots[n][tid]["ignorePrepare"]
           /\ v # NoValue
           /\ txnStatus' = [txnStatus EXCEPT ![n][tid] = STATUS_OK]
-          \* Disable read-set tracking for now.
-          /\ mtxnSnapshots' = mtxnSnapshots \* [mtxnSnapshots EXCEPT ![n][tid]["readSet"] = @ \cup {k}]
+          /\ mtxnSnapshots' = [mtxnSnapshots EXCEPT ![n][tid]["readSet"] = @ \cup {k}]
        \* Key does not exist.
        \/ /\ ~PrepareConflict(n, tid, k) \/ mtxnSnapshots[n][tid]["ignorePrepare"]
           /\ v = NoValue
