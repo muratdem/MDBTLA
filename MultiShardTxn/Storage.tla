@@ -272,12 +272,12 @@ TransactionRead(n, tid, k, v) ==
     /\ tid \notin PreparedTransactions(n)
     /\ ~mtxnSnapshots[n][tid]["aborted"]
     /\ v = TxnRead(n, tid, k)
-    /\ \/ /\ ~PrepareConflict(n, tid, k) \/ mtxnSnapshots[n][tid]["ignorePrepare"] \in {"true"}
+    /\ \/ /\ ~PrepareConflict(n, tid, k) \/ mtxnSnapshots[n][tid]["ignorePrepare"] \in {"true", "force"}
           /\ v # NoValue
           /\ txnStatus' = [txnStatus EXCEPT ![n][tid] = STATUS_OK]
           /\ mtxnSnapshots' = [mtxnSnapshots EXCEPT ![n][tid]["readSet"] = @ \cup {k}]
        \* Key does not exist.
-       \/ /\ ~PrepareConflict(n, tid, k) \/ mtxnSnapshots[n][tid]["ignorePrepare"] \in {"true"}
+       \/ /\ ~PrepareConflict(n, tid, k) \/ mtxnSnapshots[n][tid]["ignorePrepare"] \in {"true", "force"}
           /\ v = NoValue
           /\ txnStatus' = [txnStatus EXCEPT ![n][tid] = STATUS_NOTFOUND]
           /\ UNCHANGED mtxnSnapshots
