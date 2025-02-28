@@ -251,8 +251,8 @@ TransactionWrite(n, tid, k, v) ==
     /\ tid \in ActiveTransactions(n)
     /\ tid \notin PreparedTransactions(n)
     /\ ~mtxnSnapshots[n][tid]["aborted"]
-    \* Transactions that ignore prepare cannot perform updates.
-    /\ ~mtxnSnapshots[n][tid]["ignorePrepare"]
+    \* Transactions that ignore prepare cannot perform updates, though those with "force" can.
+    /\ mtxnSnapshots[n][tid]["ignorePrepare"] # "true"
     \* Transactions always write their own ID as the value, to uniquely identify their writes.
     /\ v = tid
     /\ \/ /\ ~WriteConflictExists(n, tid, k)
@@ -272,18 +272,18 @@ TransactionRead(n, tid, k, v) ==
     /\ tid \notin PreparedTransactions(n)
     /\ ~mtxnSnapshots[n][tid]["aborted"]
     /\ v = TxnRead(n, tid, k)
-    /\ \/ /\ ~PrepareConflict(n, tid, k) \/ mtxnSnapshots[n][tid]["ignorePrepare"]
+    /\ \/ /\ ~PrepareConflict(n, tid, k) \/ mtxnSnapshots[n][tid]["ignorePrepare"] \in {"true"}
           /\ v # NoValue
           /\ txnStatus' = [txnStatus EXCEPT ![n][tid] = STATUS_OK]
           /\ mtxnSnapshots' = [mtxnSnapshots EXCEPT ![n][tid]["readSet"] = @ \cup {k}]
        \* Key does not exist.
-       \/ /\ ~PrepareConflict(n, tid, k) \/ mtxnSnapshots[n][tid]["ignorePrepare"]
+       \/ /\ ~PrepareConflict(n, tid, k) \/ mtxnSnapshots[n][tid]["ignorePrepare"] \in {"true"}
           /\ v = NoValue
           /\ txnStatus' = [txnStatus EXCEPT ![n][tid] = STATUS_NOTFOUND]
           /\ UNCHANGED mtxnSnapshots
       \* Prepare conflict (transaction is not aborted).
        \/ /\ PrepareConflict(n, tid, k)
-          /\ ~mtxnSnapshots[n][tid]["ignorePrepare"]
+          /\ mtxnSnapshots[n][tid]["ignorePrepare"] = "false"
           /\ txnStatus' = [txnStatus EXCEPT ![n][tid] = STATUS_PREPARE_CONFLICT]
           /\ UNCHANGED mtxnSnapshots
     /\ UNCHANGED <<mlog, mcommitIndex, stableTs>>
@@ -293,7 +293,7 @@ TransactionRemove(n, tid, k) ==
     /\ tid \in ActiveTransactions(n)
     /\ tid \notin PreparedTransactions(n)
     /\ ~mtxnSnapshots[n][tid]["aborted"]
-    /\ ~mtxnSnapshots[n][tid]["ignorePrepare"]
+    /\ mtxnSnapshots[n][tid]["ignorePrepare"] = "false"
     /\ \/ /\ ~WriteConflictExists(n, tid, k)
           /\ TxnRead(n, tid, k) # NoValue 
           \* Update the transaction's snapshot data.
@@ -398,7 +398,7 @@ Init ==
     /\ stableTs = [n \in Node |-> -1]
 
 Next == 
-    \/ \E n \in Node : \E tid \in MTxId, readTs \in Timestamps, ignorePrepare \in {FALSE, TRUE} : StartTransaction(n, tid, readTs, RC, ignorePrepare)
+    \/ \E n \in Node : \E tid \in MTxId, readTs \in Timestamps, ignorePrepare \in {"false", "true", "force"} : StartTransaction(n, tid, readTs, RC, ignorePrepare)
     \/ \E n \in Node : \E tid \in MTxId, k \in Keys, v \in Values : TransactionWrite(n, tid, k, v)
     \/ \E n \in Node : \E tid \in MTxId, k \in Keys, v \in (Values \cup {NoValue}) : TransactionRead(n, tid, k, v)
     \/ \E n \in Node : \E tid \in MTxId, k \in Keys : TransactionRemove(n, tid, k)
