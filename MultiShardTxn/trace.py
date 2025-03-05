@@ -31,14 +31,16 @@ def make_wt_action(pre_state, action_name, action_args, post_state):
         if post_state is not None:
             err_code = post_state[1]['txnStatus']["n"][tid]
     wt_action_name = action_name.lower().replace("mdbtxn", "transaction_")
-    txn_cursor = f"self.cursor_{tid}"
+    # txn_cursor = f"self.cursor_{tid}"
+    txn_cursor = f"self.cursors[\"{tid}\"]"
     # print(err_code)
     txn_session = f"sess_{tid}"
     ignore_prepare = "false"
     if "ignorePrepare" in action_args:
         ignore_prepare = action_args['ignorePrepare'].replace("\"", "")
     if action_name == "StartTransaction":
-        wt_action_name = f"{txn_session}.begin_transaction('ignore_prepare={ignore_prepare},read_timestamp=' + self.timestamp_str({action_args['readTs']}));{txn_cursor} = {txn_session}.open_cursor(self.uri, None)"
+        # wt_action_name = f"{txn_session}.begin_transaction('ignore_prepare={ignore_prepare},read_timestamp=' + self.timestamp_str({action_args['readTs']}));{txn_cursor} = {txn_session}.open_cursor(self.uri, None)"
+        wt_action_name = f"self.begin_transaction(txn_session, {ignore_prepare},{action_args['readTs']}));{txn_cursor} = {txn_session}.open_cursor(self.uri, None)"
     if action_name == "TransactionWrite":
         wt_action_name = f"{txn_cursor}.set_key(\"{action_args['k']}\");{txn_cursor}.set_value(\"{action_args['v']}\");{txn_cursor}.insert()"
     if action_name == "TransactionRead":
@@ -89,10 +91,18 @@ def make_wt_action(pre_state, action_name, action_args, post_state):
         lines.append("self.assertEquals(res, None)")
         if action_name == "TransactionRemove":
             lines.append("self.assertEquals(sret, 0)")
-    # lines = [
-        # "self.check_action(lambda: " + wt_action_name + ", " + str(res_expected) + ", " + str(exception_str) + ")"
-    # ]
 
+    #
+    # More compact action output.
+    #
+    if action_name == "StartTransaction":
+        lines = [ f"self.begin_transaction(\"{tid}\", {txn_session}, {action_args['readTs']}, \"{ignore_prepare}\", {res_expected}, \"{err_code}\")" ]
+    if action_name == "TransactionWrite":
+        lines = [ f"self.transaction_write(\"{tid}\", \"{action_args['k']}\", {res_expected}, \"{err_code}\")"]
+    if action_name == "TransactionRead":
+        lines = [ f"self.transaction_read(\"{tid}\", \"{action_args['k']}\", \"{action_args['v']}\", {res_expected}, \"{err_code}\")" ]
+    if action_name == "CommitTransaction":
+        lines = [ f"self.commit_transaction({txn_session}, \"{tid}\", {action_args['commitTs']}, {res_expected}, \"{err_code}\")" ]
     return lines
 
 def gen_wt_test_from_traces(traces, max_len=1000, compact=False):
