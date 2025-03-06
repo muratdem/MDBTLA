@@ -272,10 +272,12 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--ntests', type=int, default=50, help='Number of test traces to generate')
-    parser.add_argument('--use_json_graph', action='store_true', help='Load and analyze JSON state graph')
     parser.add_argument('--coverage_pct', type=float, default=1.0, help='Percentage of states to cover')
     parser.add_argument('--compact', action='store_true', help='Generate compact test cases', default=False)
     parser.add_argument('--constants', type=str, default="", help='Constant overrides', nargs='+')
+    parser.add_argument('--generate_only', action='store_true', help='Generate state graphs only and return.', default=False)
+    parser.add_argument('--use_cached_graphs', action='store_true', help='Load cached JSON state graph')
+    
     args = parser.parse_args()
     ntests = args.ntests
 
@@ -287,85 +289,91 @@ if __name__ == '__main__':
     if len(constants.keys()) > 0:
         print("Using passed in constants:", constants)
 
-    if args.use_json_graph:
-
-        #
-        # Re-generate state graph.
-        # 
-        # java -cp tla2tools-json.jar tlc2.TLC -dump json states.json -workers 10 -deadlock MDBTest
-        # 
-        now = time.time()
+    #
+    # Re-generate state graph.
+    # 
+    # java -cp tla2tools-json.jar tlc2.TLC -dump json states.json -workers 10 -deadlock MDBTest
+    # 
+    now = time.time()
+    if not args.use_cached_graphs:
         gen_tla_json_graph("states.json", specname="Storage", constants=constants)
         print("--> Generated JSON state graph.")
-        G, node_map, edge_actions = cover.parse_json_state_graph("states.json")
 
         # Generate state graph under symmetry reduction.
         gen_tla_json_graph("states_symmetric.json", specname="Storage", constants=constants, symmetry=True)
         print("--> Generated JSON state graph under symmetry reduction.")
-        G_symm, node_map_symm, edge_actions_symm = cover.parse_json_state_graph("states_symmetric.json")
+    else:
+        print("--> Using cached JSON state graphs.")
 
-        print("Num states in non-symmetric graph:", len(node_map.keys()))
-        print("Num states in symmetric graph:", len(node_map_symm.keys()))
-
-        # Compute path coverings based on coverage of symmetry-reduced state graph, even though we 
-        # select covering paths from the full state graph.
-        COVERAGE_PCT = args.coverage_pct
-        print(f"Computing path covering with {COVERAGE_PCT*100}% coverage.")
-        covering_paths = cover.compute_path_coverings(G, target_nodes_to_cover=set(node_map_symm.keys()), cvg_pct=COVERAGE_PCT)
-        print(f"Computed {len(covering_paths)} covering paths (under SYMMETRY).")
-
-        # Non-symmetric path coverings.
-        # covering_paths = cover.compute_path_coverings(G, target_nodes_to_cover=set(node_map.keys()), cvg_pct=COVERAGE_PCT)
-        # print(f"Computed {len(covering_paths)} covering paths.")
-
-        end = time.time()
-
-        traces = []
-        for cpath in covering_paths:
-            # print(cpath)
-            # Convert path to list of edges.
-            path_edges = []
-            for i in range(len(cpath)-1):
-                efrom, eto = cpath[i], cpath[i+1]
-                path_edges.append((efrom, eto))
-            # print("Path edges:", path_edges)
-            # print("Path edges:", [edge_actions[e] for e in path_edges])
-            trace = {"action":[]}
-            for act in [edge_actions[e] for e in path_edges]:
-                # print(act)
-                # print(act[0], act[1])
-                # act_params = act[1]
-                # lines = make_wt_action(None, act["action"], act["actionParams"], None)
-                # print("\n".join(lines))
-                pre_state = [1,node_map[act["from"]]]
-                post_state = [2,node_map[act["to"]]]
-                trace["action"].append([
-                    pre_state,
-                    {
-                        "context": act["actionParams"], 
-                        "name": act["action"]
-                    },
-                    post_state
-                ])
-            traces.append(trace)
-        gen_wt_test_from_traces(traces, compact=args.compact, cvg_pct=COVERAGE_PCT)
-        print(f"Number of states in full model: {len(G.nodes())}")
-        print(f"Computed path covering with {len(covering_paths)} paths.")
-        print(f"Time taken to generate tests: {end-now:.2f} seconds.")
-
+    if args.generate_only:
+        print("--> Exiting after generating JSON state graphs.")
         exit(0)
 
-    if not os.path.exists("model_traces"):
-        os.makedirs("model_traces")
+    # Parse graphs.
+    G, node_map, edge_actions = cover.parse_json_state_graph("states.json")
+    G_symm, node_map_symm, edge_actions_symm = cover.parse_json_state_graph("states_symmetric.json")
 
-    random.seed(14)
+    print("Num states in non-symmetric graph:", len(node_map.keys()))
+    print("Num states in symmetric graph:", len(node_map_symm.keys()))
+
+    # Compute path coverings based on coverage of symmetry-reduced state graph, even though we 
+    # select covering paths from the full state graph.
+    COVERAGE_PCT = args.coverage_pct
+    print(f"Computing path covering with {COVERAGE_PCT*100}% coverage.")
+    covering_paths = cover.compute_path_coverings(G, target_nodes_to_cover=set(node_map_symm.keys()), cvg_pct=COVERAGE_PCT)
+    print(f"Computed {len(covering_paths)} covering paths (under SYMMETRY).")
+
+    # Non-symmetric path coverings.
+    # covering_paths = cover.compute_path_coverings(G, target_nodes_to_cover=set(node_map.keys()), cvg_pct=COVERAGE_PCT)
+    # print(f"Computed {len(covering_paths)} covering paths.")
+
+    end = time.time()
 
     traces = []
-
-    for i in range(ntests):
-        next_seed = random.randint(0, 1000000)
-        gen_tla_model_trace(f"model_traces/trace_{i}.json", seed=next_seed)
-        # print_trace(max_len=100)
-        trace = json.load(open(f"model_traces/trace_{i}.json"))
+    for cpath in covering_paths:
+        # print(cpath)
+        # Convert path to list of edges.
+        path_edges = []
+        for i in range(len(cpath)-1):
+            efrom, eto = cpath[i], cpath[i+1]
+            path_edges.append((efrom, eto))
+        # print("Path edges:", path_edges)
+        # print("Path edges:", [edge_actions[e] for e in path_edges])
+        trace = {"action":[]}
+        for act in [edge_actions[e] for e in path_edges]:
+            # print(act)
+            # print(act[0], act[1])
+            # act_params = act[1]
+            # lines = make_wt_action(None, act["action"], act["actionParams"], None)
+            # print("\n".join(lines))
+            pre_state = [1,node_map[act["from"]]]
+            post_state = [2,node_map[act["to"]]]
+            trace["action"].append([
+                pre_state,
+                {
+                    "context": act["actionParams"], 
+                    "name": act["action"]
+                },
+                post_state
+            ])
         traces.append(trace)
-    gen_wt_test_from_traces(traces, max_len=100)
+    gen_wt_test_from_traces(traces, compact=args.compact, cvg_pct=COVERAGE_PCT)
+    print(f"Number of states in full model: {len(G.nodes())}")
+    print(f"Computed path covering with {len(covering_paths)} paths.")
+    print(f"Time taken to generate tests: {end-now:.2f} seconds.")
+
+
+    # if not os.path.exists("model_traces"):
+    #     os.makedirs("model_traces")
+
+    # random.seed(14)
+
+    # traces = []
+
+    # for i in range(ntests):
+    #     next_seed = random.randint(0, 1000000)
+    #     gen_tla_model_trace(f"model_traces/trace_{i}.json", seed=next_seed)
+    #     # print_trace(max_len=100)
+    #     trace = json.load(open(f"model_traces/trace_{i}.json"))
+    #     traces.append(trace)
+    # gen_wt_test_from_traces(traces, max_len=100)
