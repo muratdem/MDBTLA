@@ -111,13 +111,18 @@ def make_wt_action(pre_state, action_name, action_args, post_state):
         lines = [ f"self.prepare_transaction({txn_session}, {action_args['prepareTs']}, {res_expected}, \"{err_code}\")" ]
     return lines
 
-def gen_wt_test_from_traces(traces, max_len=1000, compact=False):
+def gen_wt_test_from_traces(traces, max_len=1000, compact=False, cvg_pct=1.0):
     # print("\n-----\nWT Actions:")
 
     # Open a separate session for all transactions.
     txns = ["t1", "t2", "t3"]
 
     f = open("test_txn_model_traces.py", "w")
+    f.write(f"#\n")
+    f.write(f"# coverage_pct = {cvg_pct}\n")
+    f.write(f"# {len(traces)} traces\n")
+    f.write(f"#\n")
+    f.write(f"\n")
     f.write(WT_TEST_TEMPLATE)
 
     tab = lambda  n : "    " * n
@@ -343,7 +348,7 @@ if __name__ == '__main__':
                     post_state
                 ])
             traces.append(trace)
-        gen_wt_test_from_traces(traces, compact=args.compact)
+        gen_wt_test_from_traces(traces, compact=args.compact, cvg_pct=COVERAGE_PCT)
         print(f"Number of states in full model: {len(G.nodes())}")
         print(f"Computed path covering with {len(covering_paths)} paths.")
         print(f"Time taken to generate tests: {end-now:.2f} seconds.")
