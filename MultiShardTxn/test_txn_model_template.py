@@ -20,8 +20,6 @@ class test_txn_mbt(wttest.WiredTigerTestCase):
     def check_response(self, res, err_code, sret=None):
         if err_code == "WT_ROLLBACK":
             self.assertNotEqual(res, None)
-            res_expected = 1
-            exception_str = "wiredtiger.WT_ROLLBACK"
             self.assertTrue(wiredtiger.wiredtiger_strerror(wiredtiger.WT_ROLLBACK) in str(res))
         elif err_code == "WT_NOTFOUND":
             # lines.append("self.assertEqual(res, None)")
@@ -54,16 +52,27 @@ class test_txn_mbt(wttest.WiredTigerTestCase):
     def transaction_read(self, tid, k, v, res_expected, err_code):
         res,sret = None,None
         try:
-            self.cursors[tid].set_key(k);sret = self.cursors[tid].search();
+            self.cursors[tid].set_key(k);sret = self.cursors[tid].search()
+                # self.assertEquals(res, None)
+            if v == "NoValue":
+                self.assertEquals(sret, wiredtiger.WT_NOTFOUND)
+            else:
+                # self.assertEquals(res, res_expected)
+                self.assertEquals(self.cursors[tid].get_value(), v)
+        except wiredtiger.WiredTigerError as e:
+            res = e
+        self.check_response(res, err_code, sret=sret)
+
+    def transaction_remove(self, tid, k, res_expected, err_code):
+        res,sret = None,None
+        try:
+            self.cursors[tid].set_key(k);sret = self.cursors[tid].remove()
         except wiredtiger.WiredTigerError as e:
             res = e
         # self.assertEquals(res, None)
-        if v == "NoValue":
-            self.assertEquals(sret, wiredtiger.WT_NOTFOUND)
-        else:
-            self.assertEquals(res, res_expected)
-            self.assertEquals(self.cursors[tid].get_value(), v)
+        # self.assertEquals(sret, 0)
         self.check_response(res, err_code, sret=sret)
+
 
     def commit_transaction(self, sess, tid, commitTs, res_expected, err_code):
         res,sret = None,None
@@ -74,3 +83,19 @@ class test_txn_mbt(wttest.WiredTigerTestCase):
         # self.assertEquals(res, res_expected)
         self.check_response(res, err_code)
 
+    def prepare_transaction(self, sess, prepareTs, res_expected, err_code):
+        res,sret = None,None
+        try:
+            sess.prepare_transaction('prepare_timestamp=' + self.timestamp_str(prepareTs))
+        except wiredtiger.WiredTigerError as e:
+            res = e
+        # self.assertEquals(res, None)
+        self.check_response(res, err_code)
+
+    def commit_prepared_transaction(self, sess, commitTs, durableTs, res_expected, err_code):
+        res,sret = None,None
+        try:
+            sess.commit_transaction('commit_timestamp=' + self.timestamp_str(commitTs) + ',durable_timestamp=' + self.timestamp_str(durableTs))
+        except wiredtiger.WiredTigerError as e:
+            res = e
+        self.check_response(res, err_code)
