@@ -181,11 +181,11 @@ def gen_wt_test_from_traces(traces, max_len=1000, compact=False):
             # print(action_label)
             # print(a)
             # print("")
-            test_lines.append(tab(2) + action_label)
-            test_lines.append("\n")
+            # test_lines.append(tab(2) + action_label)
+            # test_lines.append("\n")
             for l in a:
                 test_lines.append(tab(2) + l + "\n")
-            test_lines.append("\n")
+            # test_lines.append("\n")
         f.write("\n")
         if not compact:
             f.write("\n".join(action_labels_only))
@@ -202,7 +202,7 @@ def gen_tla_model_trace(json_trace="trace.json", seed=0):
     # print(cmd)
     os.system(cmd)
 
-def gen_tla_json_graph(json_graph="states.json", seed=0, specname="Storage", constants={}):
+def gen_tla_json_graph(json_graph="states.json", seed=0, specname="Storage", constants={}, symmetry=False):
 
     # Optionally disabled actions.
     disabled_actions = [
@@ -214,7 +214,7 @@ def gen_tla_json_graph(json_graph="states.json", seed=0, specname="Storage", con
     config = {
         "init": "Init",
         "next": "Next",
-        # "symmetry": "Symmetry",
+        "symmetry": "Symmetry" if symmetry else None,
         # "constraint": "StateConstraint",
         "constants": {
             "RC": "\"snapshot\"",
@@ -250,7 +250,7 @@ def gen_tla_json_graph(json_graph="states.json", seed=0, specname="Storage", con
         if "overrides" in config:
             for k, v in config["overrides"].items():
                 f.write(f"{k} <- {v}\n")
-        if "symmetry" in config:
+        if "symmetry" in config and config["symmetry"] is not None:
             f.write("SYMMETRY " + config["symmetry"] + "\n")
 
         # json.dump(config, f)
@@ -292,12 +292,27 @@ if __name__ == '__main__':
         now = time.time()
         gen_tla_json_graph("states.json", specname="Storage", constants=constants)
         print("--> Generated JSON state graph.")
-
         G, node_map, edge_actions = cover.parse_json_state_graph("states.json")
+
+        # Generate state graph under symmetry reduction.
+        gen_tla_json_graph("states_symmetric.json", specname="Storage", constants=constants, symmetry=True)
+        print("--> Generated JSON state graph under symmetry reduction.")
+        G_symm, node_map_symm, edge_actions_symm = cover.parse_json_state_graph("states_symmetric.json")
+
+        print("Num states in non-symmetric graph:", len(node_map.keys()))
+        print("Num states in symmetric graph:", len(node_map_symm.keys()))
+
+        # Compute path coverings based on coverage of symmetry-reduced state graph, even though we 
+        # select covering paths from the full state graph.
         COVERAGE_PCT = args.coverage_pct
         print(f"Computing path covering with {COVERAGE_PCT*100}% coverage.")
-        covering_paths = cover.compute_path_coverings(G, cvg_pct=COVERAGE_PCT)
-        print(f"Computed {len(covering_paths)} covering paths.")
+        covering_paths = cover.compute_path_coverings(G, target_nodes_to_cover=set(node_map_symm.keys()), cvg_pct=COVERAGE_PCT)
+        print(f"Computed {len(covering_paths)} covering paths (under SYMMETRY).")
+
+        # Non-symmetric path coverings.
+        # covering_paths = cover.compute_path_coverings(G, target_nodes_to_cover=set(node_map.keys()), cvg_pct=COVERAGE_PCT)
+        # print(f"Computed {len(covering_paths)} covering paths.")
+
         end = time.time()
 
         traces = []

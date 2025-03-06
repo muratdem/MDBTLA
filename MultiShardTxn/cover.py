@@ -73,7 +73,7 @@ def parse_json_state_graph(fpath="states.json"):
 
     return (G, node_map, edge_actions)
 
-def compute_path_coverings(G, cvg_pct=1.0):
+def compute_path_coverings(G, target_nodes_to_cover, cvg_pct=1.0):
     #### Compute path covering with some simple heuristics for test-case generation.
 
     # Compute minimum spanning arborescence (converts original graph to DAG).
@@ -93,19 +93,35 @@ def compute_path_coverings(G, cvg_pct=1.0):
     spaths = nx.single_source_shortest_path(mst, root_node)
     print("shortest paths from root:", len(spaths))
     spath_keys_sorted = sorted(spaths.keys(), key=lambda x: len(spaths[x]), reverse=True)
+    
+    #
+    # Select paths from G to cover the specified target graph nodes.
+    #
+
     all_covered_nodes = set()
     covering_paths = []
+    uncovered_target_nodes = set(target_nodes_to_cover)
     for p in spath_keys_sorted:
         # print(p, spaths[p])
+
         # If this path does not cover any new nodes, don't add it.
-        if set(spaths[p]).issubset(all_covered_nodes):
+        new_covered_target_nodes = uncovered_target_nodes.intersection(spaths[p])
+        if len(new_covered_target_nodes) == 0:
             continue
+
+        # Otherwise, add it as a new covering path, and update the set of target nodes it covers.
         covering_paths.append(spaths[p])
-        all_covered_nodes.update(spaths[p])
-        if len(all_covered_nodes) >= (cvg_pct * len(mst.nodes())):
+        all_covered_nodes.update(new_covered_target_nodes)
+
+        # Compute percentage of target nodes covered.
+        uncovered_target_nodes = target_nodes_to_cover.difference(all_covered_nodes)
+        num_target_nodes_covered = len(target_nodes_to_cover) - len(uncovered_target_nodes)
+
+        # if len(all_covered_nodes) >= (cvg_pct * len(mst.nodes())):
+        if num_target_nodes_covered >= (cvg_pct * len(target_nodes_to_cover)):
             break
 
-    assert len(all_covered_nodes) >= (cvg_pct * len(mst.nodes()))
+    # assert len(all_covered_nodes) >= (cvg_pct * len(mst.nodes()))
     print("Covered nodes:", len(all_covered_nodes))
     print("Path coverings:", len(covering_paths))
 
