@@ -64,6 +64,8 @@ def make_wt_action(pre_state, action_name, action_args, post_state):
         wt_action_name = f"{txn_session}.rollback_transaction()"
     if action_name == "SetStableTimestamp":
         wt_action_name = f"self.conn.set_timestamp('stable_timestamp='+self.timestamp_str({action_args['ts']}))"
+    if action_name == "SetOldestTimestamp":
+        wt_action_name = f"self.conn.set_timestamp('oldest_timestamp='+self.timestamp_str({action_args['ts']}))"
     if action_name == "RollbackToStable":
         wt_action_name = f"self.conn.rollback_to_stable()"
     # wt_args = [str(action_args[p]) for p in action_args]

@@ -99,3 +99,11 @@ class test_txn_mbt(wttest.WiredTigerTestCase):
         except wiredtiger.WiredTigerError as e:
             res = e
         self.check_response(res, err_code)
+
+    # TODO: Make use of this.
+    def set_oldest_timestamp(self, ts, err_code):
+        try:
+            self.conn.set_timestamp('oldest_timestamp='+self.timestamp_str(ts))
+        except wiredtiger.WiredTigerError as e:
+            res = e
+        self.check_response(res, err_code)

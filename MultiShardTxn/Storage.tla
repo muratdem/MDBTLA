@@ -38,7 +38,10 @@ VARIABLE txnStatus
 \* Tracks the global "stable timestamp" within the storage layer.
 VARIABLE stableTs
 
-vars == <<mlog, mcommitIndex, mtxnSnapshots, txnStatus, stableTs>>
+\* Tracks the global "oldest timestamp" within the storage layer.
+VARIABLE oldestTs
+
+vars == <<mlog, mcommitIndex, mtxnSnapshots, txnStatus, stableTs, oldestTs>>
 
 
 \* Status codes for transaction operations.
@@ -242,7 +245,7 @@ StartTransaction(n, tid, readTs, rc, ignorePrepare) ==
     /\ ~\E i \in DOMAIN (mlog[n]) : mlog[n][i].tid = tid
     /\ mtxnSnapshots' = [mtxnSnapshots EXCEPT ![n][tid] = SnapshotKV(n, readTs, rc, ignorePrepare)]
     /\ txnStatus' = [txnStatus EXCEPT ![n][tid] = STATUS_OK]
-    /\ UNCHANGED <<mlog, mcommitIndex, stableTs>>
+    /\ UNCHANGED <<mlog, mcommitIndex, stableTs, oldestTs>>
    
 \* Writes to the local KV store of a shard.
 TransactionWrite(n, tid, k, v) == 
@@ -264,7 +267,7 @@ TransactionWrite(n, tid, k, v) ==
           \* If there is a write conflict, the transaction must roll back (i.e. it is aborted).
           /\ txnStatus' = [txnStatus EXCEPT ![n][tid] = STATUS_ROLLBACK]
           /\ mtxnSnapshots' = [mtxnSnapshots EXCEPT ![n][tid]["aborted"] = TRUE]
-    /\ UNCHANGED <<mlog, mcommitIndex, stableTs>>
+    /\ UNCHANGED <<mlog, mcommitIndex, stableTs, oldestTs>>
 
 \* Reads from the local KV store of a shard.
 TransactionRead(n, tid, k, v) ==
@@ -286,7 +289,7 @@ TransactionRead(n, tid, k, v) ==
           /\ mtxnSnapshots[n][tid]["ignorePrepare"] = "false"
           /\ txnStatus' = [txnStatus EXCEPT ![n][tid] = STATUS_PREPARE_CONFLICT]
           /\ UNCHANGED mtxnSnapshots
-    /\ UNCHANGED <<mlog, mcommitIndex, stableTs>>
+    /\ UNCHANGED <<mlog, mcommitIndex, stableTs, oldestTs>>
 
 \* Delete a key.
 TransactionRemove(n, tid, k) ==
@@ -309,7 +312,7 @@ TransactionRemove(n, tid, k) ==
           \* If there is a write conflict, the transaction must roll back.
           /\ txnStatus' = [txnStatus EXCEPT ![n][tid] = STATUS_ROLLBACK]
           /\ mtxnSnapshots' = [mtxnSnapshots EXCEPT ![n][tid]["aborted"] = TRUE]
-    /\ UNCHANGED <<mlog, mcommitIndex, stableTs>>
+    /\ UNCHANGED <<mlog, mcommitIndex, stableTs, oldestTs>>
 
 CommitTimestamps(n) == {mlog[n][i].ts : i \in DOMAIN mlog[n]}
 
@@ -326,7 +329,7 @@ CommitTransaction(n, tid, commitTs) ==
     /\ mlog' = [mlog EXCEPT ![n] = CommitTxnToLog(n, tid, commitTs)]
     /\ mtxnSnapshots' = [mtxnSnapshots EXCEPT ![n][tid]["active"] = FALSE, ![n][tid]["committed"] = TRUE]
     /\ txnStatus' = [txnStatus EXCEPT ![n][tid] = STATUS_OK]
-    /\ UNCHANGED <<mcommitIndex, stableTs>>
+    /\ UNCHANGED <<mcommitIndex, stableTs, oldestTs>>
 
 CommitPreparedTransaction(n, tid, commitTs, durableTs) == 
     \* Commit the transaction on the MDB KV store.
@@ -343,7 +346,7 @@ CommitPreparedTransaction(n, tid, commitTs, durableTs) ==
     /\ mlog' = [mlog EXCEPT ![n] = CommitTxnToLogWithDurable(n, tid, commitTs, durableTs)]
     /\ mtxnSnapshots' = [mtxnSnapshots EXCEPT ![n][tid]["active"] = FALSE, ![n][tid]["committed"] = TRUE]
     /\ txnStatus' = [txnStatus EXCEPT ![n][tid] = STATUS_OK]
-    /\ UNCHANGED <<mcommitIndex, stableTs>>
+    /\ UNCHANGED <<mcommitIndex, stableTs, oldestTs>>
 
 PrepareTransaction(n, tid, prepareTs) == 
     \* TODO: Eventually make this more permissive and explictly check errors on
@@ -362,18 +365,24 @@ PrepareTransaction(n, tid, prepareTs) ==
     /\ mtxnSnapshots' = [mtxnSnapshots EXCEPT ![n][tid]["prepared"] = TRUE, ![n][tid]["prepareTs"] = prepareTs]
     /\ mlog' = [mlog EXCEPT ![n] = PrepareTxnToLog(n,tid, prepareTs)]
     /\ txnStatus' = [txnStatus EXCEPT ![n][tid] = STATUS_OK]
-    /\ UNCHANGED <<mcommitIndex, stableTs>>
+    /\ UNCHANGED <<mcommitIndex, stableTs, oldestTs>>
 
 AbortTransaction(n, tid) == 
     /\ tid \in ActiveTransactions(n)
     /\ mtxnSnapshots' = [mtxnSnapshots EXCEPT ![n][tid]["active"] = FALSE, ![n][tid]["aborted"] = TRUE]
     /\ txnStatus' = [txnStatus EXCEPT ![n][tid] = STATUS_OK]
-    /\ UNCHANGED <<mlog, mcommitIndex, stableTs>>
+    /\ UNCHANGED <<mlog, mcommitIndex, stableTs, oldestTs>>
 
 SetStableTimestamp(n, ts) == 
     /\ ts > stableTs[n]
     /\ stableTs' = [stableTs EXCEPT ![n] = ts]
-    /\ UNCHANGED <<mlog, mcommitIndex, mtxnSnapshots, txnStatus>>
+    /\ UNCHANGED <<mlog, mcommitIndex, mtxnSnapshots, txnStatus, oldestTs>>
+
+SetOldestTimestamp(n, ts) ==
+    /\ ts > oldestTs[n]
+    /\ ts <= stableTs[n]
+    /\ oldestTs' = [oldestTs EXCEPT ![n] = ts]
+    /\ UNCHANGED <<mlog, mcommitIndex, mtxnSnapshots, txnStatus, stableTs>>
 
 \* Roll back storage state to the stable timestamp.
 RollbackToStable(n) == 
@@ -383,7 +392,7 @@ RollbackToStable(n) ==
     \* Truncate all log operations at timestamps in front of the stable timestamp.
     /\ mlog' = [mlog EXCEPT ![n] = SelectSeq(mlog[n], LAMBDA op : op.ts <= stableTs[n])]
     /\ stableTs' = stableTs
-    /\ UNCHANGED <<mtxnSnapshots, txnStatus, mcommitIndex>>
+    /\ UNCHANGED <<mtxnSnapshots, txnStatus, mcommitIndex, oldestTs>>
 
 \* Explicit initialization for each state variable.
 Init_mlog == <<>>
@@ -396,6 +405,7 @@ Init ==
     /\ mtxnSnapshots = [n \in Node |-> [t \in MTxId |-> [active |-> FALSE, committed |-> FALSE, aborted |-> FALSE]]]
     /\ txnStatus = [n \in Node |-> [t \in MTxId |-> STATUS_OK]]
     /\ stableTs = [n \in Node |-> -1]
+    /\ oldestTs = [n \in Node |-> -1]
 
 Next == 
     \/ \E n \in Node : \E tid \in MTxId, readTs \in Timestamps, ignorePrepare \in {"false", "true", "force"} : StartTransaction(n, tid, readTs, RC, ignorePrepare)
@@ -407,6 +417,7 @@ Next ==
     \/ \E n \in Node : \E tid \in MTxId, commitTs, durableTs \in Timestamps : CommitPreparedTransaction(n, tid, commitTs, durableTs)
     \/ \E n \in Node : \E tid \in MTxId : AbortTransaction(n, tid)
     \/ \E n \in Node : \E ts \in Timestamps : SetStableTimestamp(n, ts)
+    \/ \E n \in Node : \E ts \in Timestamps : SetOldestTimestamp(n, ts)
     \/ \E n \in Node : RollbackToStable(n)
     \* TODO Also consider adding model actions to read/query various timestamps (e.g. all_durable, oldest, etc.)
 
