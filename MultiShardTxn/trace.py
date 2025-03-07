@@ -113,8 +113,13 @@ def make_wt_action(pre_state, action_name, action_args, post_state):
         lines = [ f"self.prepare_transaction({txn_session}, {action_args['prepareTs']}, {res_expected}, \"{err_code}\")" ]
 
     # TODO: Enable this again once implemented in model.
+    all_durable_ts = None
     # all_durable_ts = post_state[1]['allDurableTs']["n"]
-    # lines += [f"self.check_timestamps(all_durable='{all_durable_ts}')"]
+    stable_ts = post_state[1]['stableTs']["n"]
+    if stable_ts < 0:
+        stable_ts = None
+    if stable_ts is not None or all_durable_ts is not None:
+        lines += [f"self.check_timestamps(all_durable={all_durable_ts}, stable_ts={stable_ts})"]
     
     return lines
 

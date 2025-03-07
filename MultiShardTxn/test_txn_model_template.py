@@ -21,8 +21,11 @@ class test_txn_mbt(wttest.WiredTigerTestCase):
         with self.expectedStdoutPattern('transaction state dump'):
             self.conn.debug_info('txn')
 
-    def check_timestamps(self, all_durable=None):
-        self.assertTimestampsEqual(self.conn.query_timestamp('get=all_durable'), all_durable)
+    def check_timestamps(self, all_durable=None, stable_ts=None):
+        if all_durable is not None:
+            self.assertTimestampsEqual(self.conn.query_timestamp('get=all_durable'), str(all_durable))
+        if stable_ts is not None:
+            self.assertTimestampsEqual(self.conn.query_timestamp('get=stable_timestamp'), str(stable_ts))
 
     def check_response(self, res, err_code, sret=None):
         if err_code == "WT_ROLLBACK":
@@ -84,6 +87,8 @@ class test_txn_mbt(wttest.WiredTigerTestCase):
     def commit_transaction(self, sess, tid, commitTs, res_expected, err_code):
         res,sret = None,None
         try:
+            # Set timestamp as well explicitly to cover that API.
+            sess.timestamp_transaction_uint(wiredtiger.WT_TS_TXN_TYPE_COMMIT, commitTs)
             sess.commit_transaction('commit_timestamp=' + self.timestamp_str(commitTs))
         except wiredtiger.WiredTigerError as e:
             res = e
