@@ -45,6 +45,7 @@ class test_txn_mbt(wttest.WiredTigerTestCase):
         res,sret = None,None
         try:
             sess.begin_transaction(f'ignore_prepare={ignorePrepare},read_timestamp=' + self.timestamp_str(readTs));self.cursors[tid] = self.cursors[tid] = sess.open_cursor(self.uri, None)
+            self.assertTimestampsEqual(sess.query_timestamp('get=read'), str(readTs))
         except wiredtiger.WiredTigerError as e:
             res = e
         # self.assertEquals(res, res_expected)
@@ -89,6 +90,7 @@ class test_txn_mbt(wttest.WiredTigerTestCase):
         try:
             # Set timestamp as well explicitly to cover that API.
             sess.timestamp_transaction_uint(wiredtiger.WT_TS_TXN_TYPE_COMMIT, commitTs)
+            self.assertTimestampsEqual(sess.query_timestamp('get=commit'), str(commitTs))
             sess.commit_transaction('commit_timestamp=' + self.timestamp_str(commitTs))
         except wiredtiger.WiredTigerError as e:
             res = e
@@ -99,6 +101,7 @@ class test_txn_mbt(wttest.WiredTigerTestCase):
         res,sret = None,None
         try:
             sess.prepare_transaction('prepare_timestamp=' + self.timestamp_str(prepareTs))
+            self.assertTimestampsEqual(sess.query_timestamp('get=prepare'), str(prepareTs))
         except wiredtiger.WiredTigerError as e:
             res = e
         # self.assertEquals(res, None)
