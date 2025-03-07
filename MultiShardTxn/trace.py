@@ -210,7 +210,9 @@ def gen_wt_test_from_traces(traces, max_len=1000, compact=False, cvg_pct=1.0):
             f.write("\n".join(action_labels))
             f.write("\n\n\n")
         f.writelines(test_lines)
+        f.write("\n")
         f.write(tab(2) + "self.debug_info()\n")
+        f.write(tab(2) + "[self.cursors[c].close() for c in self.cursors]\n")
     f.close()
 
 def gen_tla_model_trace(json_trace="trace.json", seed=0):
