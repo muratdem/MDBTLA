@@ -17,6 +17,10 @@ class test_txn_mbt(wttest.WiredTigerTestCase):
         self.assertEquals(res, None)
         self.assertTrue(wiredtiger.wiredtiger_strerror(expected_exception) in str(res))
 
+
+    def check_timestamps(self, all_durable=None):
+        self.assertTimestampsEqual(self.conn.query_timestamp('get=all_durable'), all_durable)
+
     def check_response(self, res, err_code, sret=None):
         if err_code == "WT_ROLLBACK":
             self.assertNotEqual(res, None)

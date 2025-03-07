@@ -41,7 +41,10 @@ VARIABLE stableTs
 \* Tracks the global "oldest timestamp" within the storage layer.
 VARIABLE oldestTs
 
-vars == <<mlog, mcommitIndex, mtxnSnapshots, txnStatus, stableTs, oldestTs>>
+\* Tracks the global "all durable timestamp" within the storage layer.
+VARIABLE allDurableTs
+
+vars == <<mlog, mcommitIndex, mtxnSnapshots, txnStatus, stableTs, oldestTs, allDurableTs>>
 
 
 \* Status codes for transaction operations.
@@ -91,6 +94,11 @@ NextTs(n) == Max(PrepareOrCommitTimestamps(n) \cup ActiveReadTimestamps(n)) + 1
 
 ActiveTransactions(n) == {tid \in MTxId : mtxnSnapshots[n][tid]["active"]}
 PreparedTransactions(n) == {tid \in ActiveTransactions(n) : mtxnSnapshots[n][tid].prepared}
+
+\* TODO.
+AllDurableTs(n) == 0
+    \* IF ActiveReadTimestamps(n) = {} THEN 
+    \* Max({t \in (Timestamps \cup {0}) : \A tsActive \in ActiveReadTimestamps(n) : t < tsActive})
 
 \* 
 \* Perform a snapshot read of a given key at timestamp.
@@ -245,6 +253,7 @@ StartTransaction(n, tid, readTs, rc, ignorePrepare) ==
     /\ ~\E i \in DOMAIN (mlog[n]) : mlog[n][i].tid = tid
     /\ mtxnSnapshots' = [mtxnSnapshots EXCEPT ![n][tid] = SnapshotKV(n, readTs, rc, ignorePrepare)]
     /\ txnStatus' = [txnStatus EXCEPT ![n][tid] = STATUS_OK]
+    /\ allDurableTs' = [allDurableTs EXCEPT ![n] = AllDurableTs(n)]
     /\ UNCHANGED <<mlog, mcommitIndex, stableTs, oldestTs>>
    
 \* Writes to the local KV store of a shard.
@@ -267,7 +276,7 @@ TransactionWrite(n, tid, k, v) ==
           \* If there is a write conflict, the transaction must roll back (i.e. it is aborted).
           /\ txnStatus' = [txnStatus EXCEPT ![n][tid] = STATUS_ROLLBACK]
           /\ mtxnSnapshots' = [mtxnSnapshots EXCEPT ![n][tid]["aborted"] = TRUE]
-    /\ UNCHANGED <<mlog, mcommitIndex, stableTs, oldestTs>>
+    /\ UNCHANGED <<mlog, mcommitIndex, stableTs, oldestTs, allDurableTs>>
 
 \* Reads from the local KV store of a shard.
 TransactionRead(n, tid, k, v) ==
@@ -289,7 +298,7 @@ TransactionRead(n, tid, k, v) ==
           /\ mtxnSnapshots[n][tid]["ignorePrepare"] = "false"
           /\ txnStatus' = [txnStatus EXCEPT ![n][tid] = STATUS_PREPARE_CONFLICT]
           /\ UNCHANGED mtxnSnapshots
-    /\ UNCHANGED <<mlog, mcommitIndex, stableTs, oldestTs>>
+    /\ UNCHANGED <<mlog, mcommitIndex, stableTs, oldestTs, allDurableTs>>
 
 \* Delete a key.
 TransactionRemove(n, tid, k) ==
@@ -312,7 +321,7 @@ TransactionRemove(n, tid, k) ==
           \* If there is a write conflict, the transaction must roll back.
           /\ txnStatus' = [txnStatus EXCEPT ![n][tid] = STATUS_ROLLBACK]
           /\ mtxnSnapshots' = [mtxnSnapshots EXCEPT ![n][tid]["aborted"] = TRUE]
-    /\ UNCHANGED <<mlog, mcommitIndex, stableTs, oldestTs>>
+    /\ UNCHANGED <<mlog, mcommitIndex, stableTs, oldestTs, allDurableTs>>
 
 CommitTimestamps(n) == {mlog[n][i].ts : i \in DOMAIN mlog[n]}
 
@@ -329,6 +338,7 @@ CommitTransaction(n, tid, commitTs) ==
     /\ mlog' = [mlog EXCEPT ![n] = CommitTxnToLog(n, tid, commitTs)]
     /\ mtxnSnapshots' = [mtxnSnapshots EXCEPT ![n][tid]["active"] = FALSE, ![n][tid]["committed"] = TRUE]
     /\ txnStatus' = [txnStatus EXCEPT ![n][tid] = STATUS_OK]
+    /\ allDurableTs' = [allDurableTs EXCEPT ![n] = AllDurableTs(n)]
     /\ UNCHANGED <<mcommitIndex, stableTs, oldestTs>>
 
 CommitPreparedTransaction(n, tid, commitTs, durableTs) == 
@@ -346,6 +356,7 @@ CommitPreparedTransaction(n, tid, commitTs, durableTs) ==
     /\ mlog' = [mlog EXCEPT ![n] = CommitTxnToLogWithDurable(n, tid, commitTs, durableTs)]
     /\ mtxnSnapshots' = [mtxnSnapshots EXCEPT ![n][tid]["active"] = FALSE, ![n][tid]["committed"] = TRUE]
     /\ txnStatus' = [txnStatus EXCEPT ![n][tid] = STATUS_OK]
+    /\ allDurableTs' = [allDurableTs EXCEPT ![n] = AllDurableTs(n)]
     /\ UNCHANGED <<mcommitIndex, stableTs, oldestTs>>
 
 PrepareTransaction(n, tid, prepareTs) == 
@@ -365,24 +376,24 @@ PrepareTransaction(n, tid, prepareTs) ==
     /\ mtxnSnapshots' = [mtxnSnapshots EXCEPT ![n][tid]["prepared"] = TRUE, ![n][tid]["prepareTs"] = prepareTs]
     /\ mlog' = [mlog EXCEPT ![n] = PrepareTxnToLog(n,tid, prepareTs)]
     /\ txnStatus' = [txnStatus EXCEPT ![n][tid] = STATUS_OK]
-    /\ UNCHANGED <<mcommitIndex, stableTs, oldestTs>>
+    /\ UNCHANGED <<mcommitIndex, stableTs, oldestTs, allDurableTs>>
 
 AbortTransaction(n, tid) == 
     /\ tid \in ActiveTransactions(n)
     /\ mtxnSnapshots' = [mtxnSnapshots EXCEPT ![n][tid]["active"] = FALSE, ![n][tid]["aborted"] = TRUE]
     /\ txnStatus' = [txnStatus EXCEPT ![n][tid] = STATUS_OK]
-    /\ UNCHANGED <<mlog, mcommitIndex, stableTs, oldestTs>>
+    /\ UNCHANGED <<mlog, mcommitIndex, stableTs, oldestTs, allDurableTs>>
 
 SetStableTimestamp(n, ts) == 
     /\ ts > stableTs[n]
     /\ stableTs' = [stableTs EXCEPT ![n] = ts]
-    /\ UNCHANGED <<mlog, mcommitIndex, mtxnSnapshots, txnStatus, oldestTs>>
+    /\ UNCHANGED <<mlog, mcommitIndex, mtxnSnapshots, txnStatus, oldestTs, allDurableTs>>
 
 SetOldestTimestamp(n, ts) ==
     /\ ts > oldestTs[n]
     /\ ts <= stableTs[n]
     /\ oldestTs' = [oldestTs EXCEPT ![n] = ts]
-    /\ UNCHANGED <<mlog, mcommitIndex, mtxnSnapshots, txnStatus, stableTs>>
+    /\ UNCHANGED <<mlog, mcommitIndex, mtxnSnapshots, txnStatus, stableTs, allDurableTs>>
 
 \* Roll back storage state to the stable timestamp.
 RollbackToStable(n) == 
@@ -392,7 +403,7 @@ RollbackToStable(n) ==
     \* Truncate all log operations at timestamps in front of the stable timestamp.
     /\ mlog' = [mlog EXCEPT ![n] = SelectSeq(mlog[n], LAMBDA op : op.ts <= stableTs[n])]
     /\ stableTs' = stableTs
-    /\ UNCHANGED <<mtxnSnapshots, txnStatus, mcommitIndex, oldestTs>>
+    /\ UNCHANGED <<mtxnSnapshots, txnStatus, mcommitIndex, oldestTs, allDurableTs>>
 
 \* Explicit initialization for each state variable.
 Init_mlog == <<>>
@@ -406,6 +417,7 @@ Init ==
     /\ txnStatus = [n \in Node |-> [t \in MTxId |-> STATUS_OK]]
     /\ stableTs = [n \in Node |-> -1]
     /\ oldestTs = [n \in Node |-> -1]
+    /\ allDurableTs = [n \in Node |-> 0]
 
 Next == 
     \/ \E n \in Node : \E tid \in MTxId, readTs \in Timestamps, ignorePrepare \in {"false", "true", "force"} : StartTransaction(n, tid, readTs, RC, ignorePrepare)
