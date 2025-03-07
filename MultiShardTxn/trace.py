@@ -279,6 +279,7 @@ def gen_tla_json_graph(json_graph="states.json", seed=0, specname="Storage", con
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
+    parser.add_argument('--simulation', action='store_true', help='Generate test traces using model simulation', default=False)
     parser.add_argument('--ntests', type=int, default=50, help='Number of test traces to generate')
     parser.add_argument('--coverage_pct', type=float, default=1.0, help='Percentage of states to cover')
     parser.add_argument('--compact', action='store_true', help='Generate compact test cases', default=False)
@@ -296,6 +297,21 @@ if __name__ == '__main__':
         constants[k] = v
     if len(constants.keys()) > 0:
         print("Using passed in constants:", constants)
+
+
+    traces = []
+    if args.simulation:
+        print("--> Generating test traces using model simulation.")
+        if not os.path.exists("model_traces"):
+            os.makedirs("model_traces")
+        random.seed(14)
+        for i in range(ntests):
+            next_seed = random.randint(0, 1000000)
+            gen_tla_model_trace(f"model_traces/trace_{i}.json", seed=next_seed)
+            trace = json.load(open(f"model_traces/trace_{i}.json"))
+            traces.append(trace)
+        gen_wt_test_from_traces(traces, compact=args.compact)
+        exit(0)
 
     #
     # Re-generate state graph.
@@ -365,23 +381,10 @@ if __name__ == '__main__':
                 post_state
             ])
         traces.append(trace)
+    
+    # Generate WiredTiger test case file from traces.
     gen_wt_test_from_traces(traces, compact=args.compact, cvg_pct=COVERAGE_PCT)
+
     print(f"Number of states in full model: {len(G.nodes())}")
     print(f"Computed path covering with {len(covering_paths)} paths.")
     print(f"Time taken to generate tests: {end-now:.2f} seconds.")
-
-
-    # if not os.path.exists("model_traces"):
-    #     os.makedirs("model_traces")
-
-    # random.seed(14)
-
-    # traces = []
-
-    # for i in range(ntests):
-    #     next_seed = random.randint(0, 1000000)
-    #     gen_tla_model_trace(f"model_traces/trace_{i}.json", seed=next_seed)
-    #     # print_trace(max_len=100)
-    #     trace = json.load(open(f"model_traces/trace_{i}.json"))
-    #     traces.append(trace)
-    # gen_wt_test_from_traces(traces, max_len=100)
