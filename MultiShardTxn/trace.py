@@ -276,7 +276,7 @@ def gen_tla_json_graph(json_graph="states.json", seed=0, specname="Storage", con
         # json.dump(config, f)
         f.close()
 
-    tlc = "java -Xmx30g -cp tla2tools-json-test.jar tlc2.TLC -noGenerateSpecTE"
+    tlc = "java -Xmx30g -cp tla2tools-json.jar tlc2.TLC -noGenerateSpecTE"
     fp = 10 # use a constant FP.
     cmd = f"{tlc} -seed {seed} -dump json {json_graph} -fp {fp} -workers 10 -deadlock -config {model_fname} {specname}.tla"
     print(cmd)
