@@ -86,6 +86,9 @@ Max(S) == CHOOSE x \in S : \A y \in S : x >= y
 --------------------------------------------------------
 
 PrepareOrCommitTimestamps(n) == {IF "ts" \in DOMAIN e THEN e.ts ELSE  0 : e \in Range(mlog[n])}
+CommitEntries(n, lg) == {e \in Range(lg[n]) : ("ts" \in DOMAIN e) /\ ("prepare" \notin DOMAIN e)}
+CommitOnlyTimestamps(n, lg) == {e.ts : e \in CommitEntries(n, lg)}
+CommitTimestamps(n) == {mlog[n][i].ts : i \in DOMAIN mlog[n]}
 
 ActiveReadTimestamps(n) == { IF ~mtxnSnapshots[n][tx]["active"] THEN 0 ELSE mtxnSnapshots[n][tx].ts : tx \in DOMAIN mtxnSnapshots[n]}
 
@@ -95,8 +98,12 @@ NextTs(n) == Max(PrepareOrCommitTimestamps(n) \cup ActiveReadTimestamps(n)) + 1
 ActiveTransactions(n) == {tid \in MTxId : mtxnSnapshots[n][tid]["active"]}
 PreparedTransactions(n) == {tid \in ActiveTransactions(n) : mtxnSnapshots[n][tid].prepared}
 
-\* TODO.
-AllDurableTs(n) == 0
+CommittedTransactions(n, txnSnapshots) == {tid \in MTxId : txnSnapshots[n][tid]["committed"]}
+
+\* Currently in this model, where transactions don't set timestamps while they're in progress,
+\* the all_durable will just be the same as the newest committed timestamp.
+AllDurableTs(n) == IF CommittedTransactions(n, mtxnSnapshots') = {} THEN 0 ELSE Max(CommitOnlyTimestamps(n, mlog'))
+
     \* IF ActiveReadTimestamps(n) = {} THEN 
     \* Max({t \in (Timestamps \cup {0}) : \A tsActive \in ActiveReadTimestamps(n) : t < tsActive})
 
@@ -253,9 +260,9 @@ StartTransaction(n, tid, readTs, rc, ignorePrepare) ==
     /\ ~\E i \in DOMAIN (mlog[n]) : mlog[n][i].tid = tid
     /\ mtxnSnapshots' = [mtxnSnapshots EXCEPT ![n][tid] = SnapshotKV(n, readTs, rc, ignorePrepare)]
     /\ txnStatus' = [txnStatus EXCEPT ![n][tid] = STATUS_OK]
-    /\ allDurableTs' = [allDurableTs EXCEPT ![n] = AllDurableTs(n)]
     /\ UNCHANGED <<mlog, mcommitIndex, stableTs, oldestTs>>
-   
+    /\ allDurableTs' = [allDurableTs EXCEPT ![n] = AllDurableTs(n)]
+
 \* Writes to the local KV store of a shard.
 TransactionWrite(n, tid, k, v) == 
     \* The write to this key does not overlap with any writes to the same key
@@ -322,8 +329,6 @@ TransactionRemove(n, tid, k) ==
           /\ txnStatus' = [txnStatus EXCEPT ![n][tid] = STATUS_ROLLBACK]
           /\ mtxnSnapshots' = [mtxnSnapshots EXCEPT ![n][tid]["aborted"] = TRUE]
     /\ UNCHANGED <<mlog, mcommitIndex, stableTs, oldestTs, allDurableTs>>
-
-CommitTimestamps(n) == {mlog[n][i].ts : i \in DOMAIN mlog[n]}
 
 CommitTransaction(n, tid, commitTs) == 
     \* TODO: Eventually make this more permissive and explictly check errors on
