@@ -17,6 +17,15 @@ class test_txn_mbt(wttest.WiredTigerTestCase):
         self.assertEquals(res, None)
         self.assertTrue(wiredtiger.wiredtiger_strerror(expected_exception) in str(res))
 
+    def evict(self, k):
+        evict_cursor = self.session.open_cursor(self.uri, None, "debug=(release_evict)")
+        self.session.begin_transaction()
+        evict_cursor.set_key(k)
+        evict_cursor.search()
+        evict_cursor.reset()
+        evict_cursor.close()
+        self.session.rollback_transaction()
+
     def debug_info(self):
         with self.expectedStdoutPattern('transaction state dump'):
             self.conn.debug_info('txn')
