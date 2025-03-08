@@ -114,12 +114,16 @@ def make_wt_action(pre_state, action_name, action_args, post_state):
 
     # TODO: Enable this again once implemented in model.
     all_durable_ts = None
+    oldest_ts = None
     # all_durable_ts = post_state[1]['allDurableTs']["n"]
     stable_ts = post_state[1]['stableTs']["n"]
+    oldest_ts = post_state[1]['oldestTs']["n"]
     if stable_ts < 0:
         stable_ts = None
-    if stable_ts is not None or all_durable_ts is not None:
-        lines += [f"self.check_timestamps(all_durable={all_durable_ts}, stable_ts={stable_ts})"]
+    if oldest_ts < 0:
+        oldest_ts = None
+    if stable_ts is not None or all_durable_ts is not None or oldest_ts is not None:
+        lines += [f"self.check_timestamps(all_durable={all_durable_ts}, stable_ts={stable_ts}, oldest_ts={oldest_ts})"]
     
     return lines
 

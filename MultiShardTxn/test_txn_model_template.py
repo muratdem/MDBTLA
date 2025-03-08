@@ -30,11 +30,13 @@ class test_txn_mbt(wttest.WiredTigerTestCase):
         with self.expectedStdoutPattern('transaction state dump'):
             self.conn.debug_info('txn')
 
-    def check_timestamps(self, all_durable=None, stable_ts=None):
+    def check_timestamps(self, all_durable=None, stable_ts=None, oldest_ts=None):
         if all_durable is not None:
             self.assertTimestampsEqual(self.conn.query_timestamp('get=all_durable'), str(all_durable))
         if stable_ts is not None:
             self.assertTimestampsEqual(self.conn.query_timestamp('get=stable_timestamp'), str(stable_ts))
+        if oldest_ts is not None:
+            self.assertTimestampsEqual(self.conn.query_timestamp('get=oldest_timestamp'), str(oldest_ts))
 
     def check_response(self, res, err_code, sret=None):
         if err_code == "WT_ROLLBACK":
