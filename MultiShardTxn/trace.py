@@ -18,6 +18,7 @@ WT_TEST_FN_TEMPLATE = """
         self.session.create(self.uri, 'key_format=' + key_format + ',value_format=' + value_format)
         conn = self.conn
         self.cursors = {}
+        self.conn.set_timestamp('oldest_timestamp='+self.timestamp_str(1))
 """
 
 def make_wt_action(pre_state, action_name, action_args, post_state):
