@@ -124,7 +124,7 @@ def make_wt_action(pre_state, action_name, action_args, post_state):
         stable_ts = None
     if oldest_ts < 0:
         oldest_ts = None
-    if (stable_ts is not None) or (all_durable_ts is not None) or (oldest_ts is not None):
+    if (stable_ts is not None) or (all_durable_ts is not 0) or (oldest_ts is not None):
         lines += [f"self.check_timestamps(all_durable={all_durable_ts}, stable_ts={stable_ts}, oldest_ts={oldest_ts})"]
     
     return lines
