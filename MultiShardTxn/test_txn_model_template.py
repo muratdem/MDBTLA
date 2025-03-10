@@ -30,6 +30,14 @@ class test_txn_mbt(wttest.WiredTigerTestCase):
         with self.expectedStdoutPattern('transaction state dump'):
             self.conn.debug_info('txn')
 
+    def test_setup(self):
+        key_format,value_format = "S","S"
+        self.uri = 'table:test_txn01'
+        self.session.create(self.uri, 'key_format=' + key_format + ',value_format=' + value_format)
+        conn = self.conn
+        self.cursors = {}
+        self.conn.set_timestamp('oldest_timestamp='+self.timestamp_str(1))
+
     def check_timestamps(self, all_durable=None, stable_ts=None, oldest_ts=None):
         if all_durable is not None:
             self.assertTimestampsEqual(self.conn.query_timestamp('get=all_durable'), str(all_durable))
@@ -107,6 +115,14 @@ class test_txn_mbt(wttest.WiredTigerTestCase):
             res = e
         # self.assertEquals(res, res_expected)
         self.check_response(res, err_code)
+    
+    def abort_transaction(self, sess, tid, res_expected, err_code):
+        res,sret = None,None
+        try:
+            sess.rollback_transaction()
+        except wiredtiger.WiredTigerError as e:
+            res = e
+        self.assertEquals(res, None)
 
     def prepare_transaction(self, sess, prepareTs, res_expected, err_code):
         res,sret = None,None
