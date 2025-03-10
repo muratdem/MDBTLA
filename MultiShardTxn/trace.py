@@ -13,12 +13,7 @@ import cover
 WT_TEST_TEMPLATE = open("test_txn_model_template.py").read()
 WT_TEST_FN_TEMPLATE = """
     def test_trace_1(self):
-        key_format,value_format = "S","S"
-        self.uri = 'table:test_txn01'
-        self.session.create(self.uri, 'key_format=' + key_format + ',value_format=' + value_format)
-        conn = self.conn
-        self.cursors = {}
-        self.conn.set_timestamp('oldest_timestamp='+self.timestamp_str(1))
+        self.test_setup()
 """
 
 def make_wt_action(pre_state, action_name, action_args, post_state):
@@ -112,6 +107,8 @@ def make_wt_action(pre_state, action_name, action_args, post_state):
         lines = [ f"self.commit_prepared_transaction({txn_session}, {action_args['commitTs']}, {action_args['durableTs']}, {res_expected}, \"{err_code}\")" ]
     if action_name == "PrepareTransaction":
         lines = [ f"self.prepare_transaction({txn_session}, {action_args['prepareTs']}, {res_expected}, \"{err_code}\")" ]
+    if action_name == "AbortTransaction":
+        lines = [ f"self.abort_transaction({txn_session}, \"{tid}\", {res_expected}, \"{err_code}\")" ]
 
     # TODO: Enable this again once implemented in model.
     all_durable_ts = None
@@ -171,7 +168,7 @@ def gen_wt_test_from_traces(traces, max_len=1000, compact=False, cvg_pct=1.0):
         f.write(WT_TEST_FN_TEMPLATE.replace("test_trace_1", f"test_trace_{i}"))
 
         f.write(tab(2))
-        txns_sessions = [f"sess_{t} = conn.open_session()" for t in txns]
+        txns_sessions = [f"sess_{t} = self.conn.open_session()" for t in txns]
         f.write(";".join(txns_sessions))
         # print("")
         f.write("\n")
