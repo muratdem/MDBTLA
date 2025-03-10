@@ -436,7 +436,6 @@ Next ==
     \/ \E n \in Node : \E ts \in Timestamps : SetStableTimestamp(n, ts)
     \/ \E n \in Node : \E ts \in Timestamps : SetOldestTimestamp(n, ts)
     \/ \E n \in Node : RollbackToStable(n)
-    \* TODO Also consider adding model actions to read/query various timestamps (e.g. all_durable, oldest, etc.)
 
 
 ---------------------------------------------------------------------
