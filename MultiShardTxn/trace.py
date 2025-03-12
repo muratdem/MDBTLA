@@ -16,6 +16,9 @@ WT_TEST_FN_TEMPLATE = """
         self.test_setup()
 """
 
+def mean(l):
+    return sum(l) / len(l)
+
 def make_wt_action(pre_state, action_name, action_args, post_state):
     # print(action_name)
     tid = ""
@@ -363,6 +366,8 @@ if __name__ == '__main__':
     # print(f"Computed {len(covering_paths)} covering paths.")
 
     end = time.time()
+
+    print("Average path depth:", mean([len(c) for c in covering_paths]))
 
     traces = []
     for cpath in covering_paths:
