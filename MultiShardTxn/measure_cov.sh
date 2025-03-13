@@ -11,8 +11,9 @@
 
 # exit 0
 
-cvg_pcts="0.2 0.4 0.6 0.8 1.0"
+# cvg_pcts="0.2 0.4 0.6 0.8 1.0"
 # cvg_pcts="0.8 1.0"
+cvg_pcts=$1
 
 # 1 txn.
 # txids="{t1}"
