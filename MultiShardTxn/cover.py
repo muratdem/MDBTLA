@@ -110,12 +110,17 @@ def compute_path_coverings(G, target_nodes_to_cover, cvg_pct=1.0):
             continue
 
         # Otherwise, add it as a new covering path, and update the set of target nodes it covers.
-        covering_paths.append(spaths[p])
         all_covered_nodes.update(new_covered_target_nodes)
-
+        
         # Compute percentage of target nodes covered.
         uncovered_target_nodes = target_nodes_to_cover.difference(all_covered_nodes)
         num_target_nodes_covered = len(target_nodes_to_cover) - len(uncovered_target_nodes)
+
+        pct_target_covered = num_target_nodes_covered / len(target_nodes_to_cover)
+        
+        # covering_paths.append((spaths[p], pct_target_covered))
+        covering_paths.append(spaths[p])
+
 
         # if len(all_covered_nodes) >= (cvg_pct * len(mst.nodes())):
         if num_target_nodes_covered >= (cvg_pct * len(target_nodes_to_cover)):
