@@ -21,11 +21,6 @@ def split(a, n):
     k, m = divmod(len(a), n)
     return (a[i*k+min(i, m):(i+1)*k+min(i+1, m)] for i in range(n))
 
-# Given a list of elements, split it up into N chunks of nearly equal size.
-def split(a, n):
-    k, m = divmod(len(a), n)
-    return (a[i*k+min(i, m):(i+1)*k+min(i+1, m)] for i in range(n))
-
 def mean(l):
     return sum(l) / len(l)
 
@@ -140,15 +135,11 @@ def make_wt_action(pre_state, action_name, action_args, post_state):
     return lines
 
 def gen_wt_test_from_traces(traces, fname="test_txn_model_traces.py", max_len=1000, compact=False, cvg_pct=1.0):
-def gen_wt_test_from_traces(traces, max_len=1000, compact=False, cvg_pct=1.0):
-def gen_wt_test_from_traces(traces, fname="test_txn_model_traces.py", max_len=1000, compact=False, cvg_pct=1.0):
     # print("\n-----\nWT Actions:")
 
     # Open a separate session for all transactions.
     txns = ["t1", "t2", "t3"]
 
-    f = open(fname, "w")
-    f = open("test_txn_model_traces.py", "w")
     f = open(fname, "w")
     f.write(f"#\n")
     f.write(f"# coverage_pct = {cvg_pct}\n")
@@ -315,11 +306,6 @@ if __name__ == '__main__':
     parser.add_argument('--generate_only', action='store_true', help='Generate state graphs only and return.', default=False)
     parser.add_argument('--use_cached_graphs', action='store_true', help='Load cached JSON state graph')
     parser.add_argument('--parallel_test_split', type=int, default=1, help='Split test generation into N parallel jobs')
-    parser.add_argument('--parallel_test_split', type=int, default=1, help='Split test generation into N parallel jobs')
-    parser.add_argument('--parallel_test_split', type=int, default=1, help='Split test generation into N parallel jobs')
-    parser.add_argument('--parallel_test_split', type=int, default=1, help='Split test generation into N parallel jobs')
-    parser.add_argument('--parallel_test_split', type=int, default=1, help='Split test generation into N parallel jobs')
-    parser.add_argument('--parallel_test_split', type=int, default=1, help='Split test generation into N parallel jobs')
     
     args = parser.parse_args()
     ntests = args.ntests
@@ -417,9 +403,7 @@ if __name__ == '__main__':
                 post_state
             ])
         traces.append(trace)
-    trace_chunks = list(split(traces, args.parallel_test_split))
-    for i, chunk in enumerate(trace_chunks):
-        gen_wt_test_from_traces(chunk, fname=f"test_txn_model_traces_{i+1}.py", compact=args.compact, cvg_pct=COVERAGE_PCT)
+    
     # Generate WiredTiger test case file from traces.
     trace_chunks = list(split(traces, args.parallel_test_split))
     for i, chunk in enumerate(trace_chunks):
