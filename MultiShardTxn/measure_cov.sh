@@ -30,16 +30,17 @@ cvg_pcts="0.2 0.4 0.6 0.8 1.0"
 txids="{t1,t2}"
 
 # Generate the graph upfront.
+jobs=6
 python3 trace.py --compact --constants MTxId "$txids" Keys "{k1,k2}" Timestamps "{1,2,3}" --generate_only
 for cvg in $cvg_pcts; do
     cd /home/ubuntu/MDBTLA/MultiShardTxn
-    python3 trace.py --parallel_test_split 6 --compact --constants MTxId "$txids" Keys "{k1,k2}" Timestamps "{1,2,3}" --coverage_pct $cvg --use_cached_graphs 
+    python3 trace.py --parallel_test_split $jobs --compact --constants MTxId "$txids" Keys "{k1,k2}" Timestamps "{1,2,3}" --coverage_pct $cvg --use_cached_graphs 
     cp test_txn_model_traces*.py /home/ubuntu/wiredtiger/test/suite
 
     # Run tests and generate coverage report.
     report_file="model_coverage_2txns_${cvg}pct.json"
     cd /home/ubuntu/wiredtiger
     rm -rf build_*
-    python3 test/evergreen/code_coverage/parallel_code_coverage.py -c test/evergreen/code_coverage/code_coverage_config.json -b $(pwd)/build_ -s --bucket python
-    python3 -m gcovr -f "src/(txn|cursor|session|btree|include/txn_inline.h)" --json-summary-pretty -j 6 --json-summary $report_file --gcov-ignore-parse-errors negative_hits.warn
+    python3 test/evergreen/code_coverage/parallel_code_coverage.py -j $jobs -c test/evergreen/code_coverage/code_coverage_config.json -b $(pwd)/build_ -s --bucket python
+    python3 -m gcovr -f "src/(txn|cursor|session|btree|include/txn_inline.h)" --json-summary-pretty -j $jobs --json-summary $report_file --gcov-ignore-parse-errors negative_hits.warn
 done
