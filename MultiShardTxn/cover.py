@@ -92,7 +92,7 @@ def compute_path_coverings(G, target_nodes_to_cover, cvg_pct=1.0):
     # greedily adding paths from this set until all nodes are covered (prefer longer paths first).
     spaths = nx.single_source_shortest_path(mst, root_node)
     print("shortest paths from root:", len(spaths))
-    spath_keys_sorted = sorted(spaths.keys(), key=lambda x: len(spaths[x]), reverse=True)
+    spath_keys_sorted = sorted(spaths.keys(), key=lambda x: (len(spaths[x]), hash(tuple(spaths[x]))), reverse=True)
     
     #
     # Select paths from G to cover the specified target graph nodes.
