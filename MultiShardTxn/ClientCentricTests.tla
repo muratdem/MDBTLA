@@ -220,7 +220,7 @@ TxnSetsSerializable == {t \in TxnSetsAll : CCGen!Serializability(InitialState, R
 ASSUME PrintT("All") /\ PrintT(Cardinality(TxnSetsAll))
 ASSUME PrintT("ReadUncommitted") /\ PrintT(Cardinality(TxnSetsReadUncommitted))
 ASSUME PrintT("ReadCommitted") /\ PrintT(Cardinality(TxnSetsReadCommitted))
-ASSUME PrintT("ReadCommitted") /\ PrintT(TxnSetsReadCommitted)
+\* ASSUME PrintT("ReadCommitted") /\ PrintT(TxnSetsReadCommitted)
 \* ASSUME PrintT("RepeatableRead") /\ PrintT(Cardinality(TxnSetsRepeatableRead))
 ASSUME PrintT("SnapshotIsolation") /\ PrintT(Cardinality(TxnSetsSnapshotIsolation))
 ASSUME PrintT("Serializable") /\ PrintT(Cardinality(TxnSetsSerializable))
@@ -229,6 +229,7 @@ ASSUME PrintT("--------")
 
 ASSUME PrintT(TxnSetsRepeatableRead \subseteq TxnSetsReadCommitted)
 ASSUME PrintT(TxnSetsSnapshotIsolation \subseteq TxnSetsRepeatableRead)
+ASSUME PrintT(TxnSetsSnapshotIsolation \subseteq TxnSetsReadCommitted)
 ASSUME PrintT(TxnSetsSerializable \subseteq TxnSetsSnapshotIsolation)
 
 
