@@ -32,13 +32,6 @@ ordered2 = strict_subset_ordered(schedules_no_prepare, schedules_no_prepare_no_w
 
 # assert ordered1 or ordered2
 
-print("schedules_prepare", len(schedules_prepare))
-print("schedules_no_prepare", len(schedules_no_prepare))
-print("schedules_no_prepare_no_ww", len(schedules_no_prepare_no_ww))
-
-print("ordered1", ordered1)
-print("ordered2", ordered2)
-
 diff = set(schedules_no_prepare.keys()).symmetric_difference(set(schedules_prepare.keys()))
 print(len(diff))
 print(diff)
@@ -61,6 +54,12 @@ for d in diff:
         print("schedules_no_prepare")
         print(d, schedules_no_prepare[d])
 
+print("schedules_prepare", len(schedules_prepare))
+print("schedules_no_prepare", len(schedules_no_prepare))
+print("schedules_no_prepare_no_ww", len(schedules_no_prepare_no_ww))
+
+print("ordered1", ordered1)
+print("ordered2", ordered2)
 
 # -2478145200821578246 
 # (t1 :> <<[op |-> "read", key |-> k2, value |-> NoValue], [op |-> "read", key |-> k2, value |-> t2]>> @@ 
