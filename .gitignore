@@ -14,3 +14,4 @@ statecache/
 logout_permissive*
 logout_baseline*
 tla2tools-test.jar
+permissiveness_*.txt

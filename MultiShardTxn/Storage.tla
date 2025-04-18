@@ -264,7 +264,7 @@ StartTransaction(n, tid, readTs, rc, ignorePrepare) ==
     /\ allDurableTs' = [allDurableTs EXCEPT ![n] = AllDurableTs(n)]
 
 \* Writes to the local KV store of a shard.
-TransactionWrite(n, tid, k, v) == 
+TransactionWrite(n, tid, k, v, ignoreWriteConflicts) == 
     \* The write to this key does not overlap with any writes to the same key
     \* from other, concurrent transactions.
     /\ tid \in ActiveTransactions(n)
@@ -274,12 +274,13 @@ TransactionWrite(n, tid, k, v) ==
     /\ mtxnSnapshots[n][tid]["ignorePrepare"] # "true"
     \* Transactions always write their own ID as the value, to uniquely identify their writes.
     /\ v = tid
-    /\ \/ /\ ~WriteConflictExists(n, tid, k)
+    /\ \/ /\ ~WriteConflictExists(n, tid, k) \/ ignoreWriteConflicts = "true"
           \* Update the transaction's snapshot data.
           /\ mtxnSnapshots' = [mtxnSnapshots EXCEPT ![n][tid]["writeSet"] = @ \cup {k}, 
                                                     ![n][tid].data[k] = tid]
           /\ txnStatus' = [txnStatus EXCEPT ![n][tid] = STATUS_OK]
        \/ /\ WriteConflictExists(n, tid, k)
+          /\ ignoreWriteConflicts = "false"
           \* If there is a write conflict, the transaction must roll back (i.e. it is aborted).
           /\ txnStatus' = [txnStatus EXCEPT ![n][tid] = STATUS_ROLLBACK]
           /\ mtxnSnapshots' = [mtxnSnapshots EXCEPT ![n][tid]["aborted"] = TRUE]
@@ -426,7 +427,7 @@ Init ==
 
 Next == 
     \/ \E n \in Node : \E tid \in MTxId, readTs \in Timestamps, ignorePrepare \in {"false", "true", "force"} : StartTransaction(n, tid, readTs, RC, ignorePrepare)
-    \/ \E n \in Node : \E tid \in MTxId, k \in Keys, v \in Values : TransactionWrite(n, tid, k, v)
+    \/ \E n \in Node : \E tid \in MTxId, k \in Keys, v \in Values : TransactionWrite(n, tid, k, v, "false")
     \/ \E n \in Node : \E tid \in MTxId, k \in Keys, v \in (Values \cup {NoValue}) : TransactionRead(n, tid, k, v)
     \/ \E n \in Node : \E tid \in MTxId, k \in Keys : TransactionRemove(n, tid, k)
     \/ \E n \in Node : \E tid \in MTxId, prepareTs \in Timestamps : PrepareTransaction(n, tid, prepareTs)

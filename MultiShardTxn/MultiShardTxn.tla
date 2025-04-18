@@ -17,6 +17,7 @@ CONSTANTS RC
 CONSTANT Timestamps
 
 CONSTANT IgnorePrepareBlocking
+CONSTANT IgnoreWriteConflicts
 
 \* Instantiating ClientCentric enables us to check transaction isolation guarantees
 \* https://muratbuffalo.blogspot.com/2022/07/automated-validation-of-state-based.html         
@@ -399,7 +400,7 @@ ShardTxnWrite(s, tid, k) ==
     /\ shardOps' = [shardOps EXCEPT ![s][tid] = Append( shardOps[s][tid], wOp(k, tid) )]
     \* Consume the transaction op.
     /\ shardTxnReqs' = [shardTxnReqs EXCEPT ![s][tid] = Tail(shardTxnReqs[s][tid])]
-    /\ Storage(s)!TransactionWrite(s, tid, k, tid)
+    /\ Storage(s)!TransactionWrite(s, tid, k, tid, IgnoreWriteConflicts)
     /\ UNCHANGED << rCatalog, shardTxns, log, commitIndex, aborted, coordInfo, msgsPrepare, msgsVoteCommit, coordCommitVotes, catalog, msgsAbort, msgsCommit, shardPreparedTxns, ops, varsRouter >>
 
 \* \* Shard processes a transaction write operation which encounters a write conflict, triggering an abort.
