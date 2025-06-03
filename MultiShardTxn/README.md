@@ -39,9 +39,7 @@ When a router initiates two-phase commit for a transaction, as described above, 
 
 ### Modeling the Storage/Replication Layer
 
-The current model aims to model the storage/replication layer (e.g. including abstract WiredTiger semantics) at each shard in a modular way. This is done by having `MDB` encapsulate most of the storage/replication specific logic, and [instantiating one of these modules per shard](https://github.com/muratdem/MDBTLA/blob/2fd5ddc7f4767aace7cfc4bd7ff19b44027de530/MultiShardTxn/MultiShardTxn.tla#L99-L109).
-
-The composition as currently defined breaks these boundaries a bit, but essentially the interface to the MDB instance at each shard is captured in [these wrapper definitions](https://github.com/muratdem/MDBTLA/blob/2fd5ddc7f4767aace7cfc4bd7ff19b44027de530/MultiShardTxn/MultiShardTxn.tla#L178-L238). Ideally we would like to define MDB as a completely independent state machine that is composed synchronously with `MultiShardTxn` via joint actions, but in practice there are [some difficulties](https://groups.google.com/g/tlaplus/c/77DR8ngQllo) with defining this cleanly.
+The current model aims to model the storage/replication layer (e.g. including abstract WiredTiger semantics) at each shard in a modular way. This is done by having `Storage` encapsulate most of the storage/replication specific logic, and [instantiating one of these modules per shard](https://github.com/muratdem/MDBTLA/blob/584d5b3f9ad635227cd3689f041953d9b07b5f51/MultiShardTxn/MultiShardTxn.tla#L116-L129). The idea is that `Storage` can be considered as as a completely independent state machine that is composed synchronously with `MultiShardTxn` via joint actions. We also use this `Storage` layer model for model-based verification, described below.
 
 ### Cluster Timestamp Semantics
 
@@ -80,9 +78,21 @@ Note that we expect (2) to satisfy repeatable reads but not snapshot isolation, 
 
 We verify snapshot isolation using the [client-centric isolation model of Crooks](https://www.cs.cornell.edu/lorenzo/papers/Crooks17Seeing.pdf), and utilizing the [formalization of this in TLA+](https://github.com/muratdem/MDBTLA/blob/3989af405310e74dee45a702be9831e0c6dad7ab/MultiShardTxn/ClientCentric.tla) by [Soethout](https://link.springer.com/chapter/10.1007/978-3-030-67220-1_4). To check isolation, we use a global history of transaction operations maintained in the [`ops`](https://github.com/muratdem/MDBTLA/blob/21d23fc50d391629e0a4d7a31c2cfc851c024a62/MultiShardTxn/MultiShardTxn.tla#L85-L86) map. The formal definitions of [snapshot isolation](https://github.com/muratdem/MDBTLA/blob/736182575d96acdf9961504b5daf28900671def6/MultiShardTxn/ClientCentric.tla#L177-L178) and [repeatable reads](https://github.com/muratdem/MDBTLA/blob/736182575d96acdf9961504b5daf28900671def6/MultiShardTxn/ClientCentric.tla#L208) in this model are given in the [`ClientCentric.tla`](ClientCentric.tla) file. You can also see some concrete isolation tests defined in [`ClientCentricTests.tla`](ClientCentricTests.tla).
 
-So far we have checked small models for correctness, using the `MaxOpsPerTxn` parameter and `StateConstraint` constraint to bound the maximum number of operations run by each transaction. For example, we have checked models for `"snapshot"` read concern:
+So far we have checked small models for correctness, using the `MaxOpsPerTxn` parameter and `StateConstraint` constraint to bound the maximum number of operations run by each transaction. For example, we have been able to check models for `"snapshot"` read concern with `Keys={k1, k2}`, `TxId={t1, t2}`, `Router={r1}`, `MaxOpsPerTxn=2`.
 
-| Constants | Symmetry | Invariant | Time | States | Depth | Error |
+## Model-Based Testing
+
+We have also experimented with automated, model-based test case generation for checking that the WiredTiger implementation conforms to the `Storage.tla` storage interface model. Essentially, we generate WiredTiger unit test cases by computing path coverings of the reachable state space of the `Storage` model. We then use these test cases to check that the WiredTiger implementation conforms to the `Storage` model. The basic workflow to generate these test cases from the storage model is implemented in the [`trace.py`](trace.py) script e.g. to run a small model with 2 transactions and 2 keys, you can execute the following:
+
+```bash
+python3 trace.py --parallel_test_split 6 --compact --constants MTxId "{t1,t2}" Keys "{k1,k2}" Timestamps "{1,2,3}" --coverage_pct 1.0
+```
+this will generate `test_txn_model_traces_*.py` files, which are WiredTiger unit test cases that can be directly run against a WiredTiger build.
+
+
+
+
+<!-- | Constants | Symmetry | Invariant | Time | States | Depth | Error |
 |------| ------|------|------|------|------|------|
 | <ul><li>`Keys={k1, k2}`</li><li>`TxId={t1, t2}`</li><li> `Router={r1}`</li> <li> `MaxOpsPerTxn=3`</li> <li> `RC="snapshot"`</li>  </ul>| `Symmetry` | `SnapshotIsolation` | ~3 h | 149,223,068 | 39 |  None |
 
@@ -104,6 +114,6 @@ python3 check.py --tlc_jar /usr/local/bin/tla2tools.jar --constants "Keys={k1,k2
 
 - `MDB.tla`: This spec models the replication/storage level at an abstract level.
 
-- `ClientCentric.tla`: (from Tim Soethout's [work](https://github.com/cwi-swat/tla-ci)) We use this to be able to check transactions for snapshot isolation semantics.
+- `ClientCentric.tla`: (from Tim Soethout's [work](https://github.com/cwi-swat/tla-ci)) We use this to be able to check transactions for snapshot isolation semantics. -->
 
 
