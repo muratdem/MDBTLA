@@ -7,11 +7,11 @@
 cvg_pct=$1
 
 # 2 txns.
-txids="{t1}"
+txids="{t1,t2}"
 wt_base_dir="/home/ubuntu/wiredtiger"
 
 # Generate test cases from WiredTiger model.
-jobs=2
+jobs=4
 # python3 trace.py --compact --constants MTxId "$txids" Keys "{k1,k2}" Timestamps "{1,2,3}" --generate_only
 cd /home/ubuntu/MDBTLA/MultiShardTxn
 python3 testgen.py --parallel_test_split $jobs --compact --constants MTxId "$txids" Keys "{k1,k2}" Timestamps "{1,2,3}" --coverage_pct $cvg_pct 
