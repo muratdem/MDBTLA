@@ -14,15 +14,17 @@ EXTENDS Sequences, Naturals, Integers, Util, TLC
 \* return/status codes in a standard programming-oriented API.
 \* 
 
-CONSTANT Node
 
-CONSTANTS RC   \* read concern
+CONSTANT Node
 
 CONSTANTS Keys, 
           MTxId,
           NoValue
 
 CONSTANT Timestamps
+
+CONSTANTS RC   \* read concern
+
 
 VARIABLE mlog
 
@@ -103,9 +105,6 @@ CommittedTransactions(n, txnSnapshots) == {tid \in MTxId : txnSnapshots[n][tid][
 \* Currently in this model, where transactions don't set timestamps while they're in progress,
 \* the all_durable will just be the same as the newest committed timestamp.
 AllDurableTs(n) == IF CommittedTransactions(n, mtxnSnapshots') = {} THEN 0 ELSE Max(CommitOnlyTimestamps(n, mlog'))
-
-    \* IF ActiveReadTimestamps(n) = {} THEN 
-    \* Max({t \in (Timestamps \cup {0}) : \A tsActive \in ActiveReadTimestamps(n) : t < tsActive})
 
 \* 
 \* Perform a snapshot read of a given key at timestamp.
