@@ -9,7 +9,7 @@ echo "" > permissiveness_results.txt
 # rc=local with prepare blocking.
 # java -cp tla2tools-json-test.jar tlc2.TLC -cacheStatesIgnoreVars $ignore_vars -cacheStates cache -deadlock -workers 1 -config MCMultiShardTxn_RC_with_prepare_block.cfg MCMultiShardTxn.tla | tee logout_permissive_rc_with_prepare_block.txt
 
-java -cp tla2tools-txn-ops-project.jar tlc2.TLC -deadlock -workers 10 -config MCMultiShardTxn_RC_with_prepare_block.cfg -fp 1 MCMultiShardTxn.tla | tee logout
+java -cp tla2tools-txn-ops-project.jar tlc2.TLC -deadlock -workers 10 -config models/MCMultiShardTxn_RC_with_prepare_block.cfg -fp 1 MCMultiShardTxn.tla | tee logout
 grep "fpl" logout | sort | uniq > permissiveness_RC_with_prepare_block.txt
 
 # java -cp tla2tools-txn-ops-project.jar tlc2.TLC -deadlock -workers 10 -config MCMultiShardTxn_RC_with_no_prepare_block.cfg -fp 1 MCMultiShardTxn.tla | tee logout
