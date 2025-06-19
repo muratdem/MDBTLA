@@ -82,7 +82,7 @@ So far we have checked small models for correctness, using the `MaxOpsPerTxn` pa
 
 ## Model-Based Testing
 
-We have also experimented with automated, model-based test case generation for checking that the WiredTiger implementation conforms to the `Storage.tla` storage interface model. Essentially, we generate WiredTiger unit test cases by computing path coverings of the reachable state space of the `Storage` model. We then use these test cases to check that the WiredTiger implementation conforms to the `Storage` model. 
+We have also experimented with automated, model-based test case generation for checking that the WiredTiger implementation conforms to the [`Storage.tla`](Storage.tla) storage interface model. Essentially, we generate WiredTiger unit test cases by computing path coverings of the reachable state space of the `Storage` model. We then use these test cases to check that the WiredTiger implementation conforms to the `Storage` model. 
 
 The basic workflow to generate these test cases from the storage model is implemented in the [`testgen.py`](testgen.py) script e.g. to run a small model with 2 transactions and 2 keys, you can execute the following:
 
@@ -92,30 +92,4 @@ python3 testgen.py --parallel_test_split 4 --compact --constants MTxId "{t1,t2}"
 this will generate WiredTiger unit tests files in `tests/test_txn_model_traces_*.py` files, which can be directly run against a WiredTiger build.
 
 There is also a `testrun.sh` script that executes the above test generation script, copies over the test files to a sibling `wiredtiger` build directory, and then executes all of these generated tests.
-
-
-<!-- | Constants | Symmetry | Invariant | Time | States | Depth | Error |
-|------| ------|------|------|------|------|------|
-| <ul><li>`Keys={k1, k2}`</li><li>`TxId={t1, t2}`</li><li> `Router={r1}`</li> <li> `MaxOpsPerTxn=3`</li> <li> `RC="snapshot"`</li>  </ul>| `Symmetry` | `SnapshotIsolation` | ~3 h | 149,223,068 | 39 |  None |
-
- and for `"local"` read concern:
-
-| Constants | Symmetry | Invariant | Time | States | Depth | Error |
-|------| ------|------|------|------|------|------|
-| <ul><li>`Keys={k1, k2}`</li><li>`TxId={t1, t2}`</li><li> `Router={r1}`</li> <li> `MaxOpsPerTxn=3`</li> <li> `RC="local"`</li>  </ul>| `Symmetry` | `RepeatableReadIsolation` | ~45 min | 34,020,934 | 37 |  None |
-
-You can also use the `check.py` script to run model checking more easily for a specified set of model parameters. The default model used for this script is defined in `MultiShardTxn.config.json`, and you can override its settings from the command line. 
-
-For example, to check `RepeatableReadIsolation` at `"local"` read concern, you can run something like the following command:
-
-```bash
-python3 check.py --tlc_jar /usr/local/bin/tla2tools.jar --constants "Keys={k1,k2,k3}" "Shard={s1,s2}" "MaxOpsPerTxn=3"  "RC=\"local\"" --invariants RepeatableReadIsolation --tlc_args "-workers 8 -cleanup -deadlock" 
-```
-
-## Other specifications in this directory
-
-- `MDB.tla`: This spec models the replication/storage level at an abstract level.
-
-- `ClientCentric.tla`: (from Tim Soethout's [work](https://github.com/cwi-swat/tla-ci)) We use this to be able to check transactions for snapshot isolation semantics. -->
-
 
