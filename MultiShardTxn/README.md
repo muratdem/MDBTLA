@@ -93,7 +93,7 @@ this will generate WiredTiger unit tests files in `tests/test_txn_model_traces_*
 
 There is also a `testrun.sh` script that executes the above test generation script, copies over the test files to a sibling `wiredtiger` build directory, and then executes all of these generated tests. For example, you can execute 
 ```bash
-testrun.sh 0.5
+./testrun.sh 0.5
 ```
 to generate a set of unit test cases that aim to achieve 50% state coverage of the `Storage` model, and will then run these tests against a current WiredTiger build.
 
