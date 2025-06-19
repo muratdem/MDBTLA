@@ -35,7 +35,7 @@ jobs=6
 python3 trace.py --compact --constants MTxId "$txids" Keys "{k1,k2}" Timestamps "{1,2,3}" --generate_only
 for cvg in $cvg_pcts; do
     cd /home/ubuntu/MDBTLA/MultiShardTxn
-    python3 trace.py --parallel_test_split $jobs --compact --constants MTxId "$txids" Keys "{k1,k2}" Timestamps "{1,2,3}" --coverage_pct $cvg --use_cached_graphs 
+    python3 trace.py --parallel_test_split 1 --compact --constants MTxId "$txids" Keys "{k1,k2}" Timestamps "{1,2,3}" --coverage_pct $cvg --use_cached_graphs 
     cp test_txn_model_traces*.py /home/ubuntu/wiredtiger/test/suite
 
     # Run tests and generate coverage report.

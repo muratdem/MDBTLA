@@ -407,7 +407,7 @@ if __name__ == '__main__':
     # Generate WiredTiger test case file from traces.
     trace_chunks = list(split(traces, args.parallel_test_split))
     for i, chunk in enumerate(trace_chunks):
-        gen_wt_test_from_traces(chunk, fname=f"test_txn_model_traces_{i+1}.py", compact=args.compact, cvg_pct=COVERAGE_PCT)
+        gen_wt_test_from_traces(chunk, fname=f"tests/test_txn_model_traces_{i+1}.py", compact=args.compact, cvg_pct=COVERAGE_PCT)
 
     print(f"Number of states in full model: {len(G.nodes())}")
     print(f"Computed path covering with {len(covering_paths)} paths.")
