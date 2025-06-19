@@ -1,4 +1,4 @@
-# Formal Specification of Distributed Transactions in MongoDB
+# TLA+ Specification of Distributed Transactions in MongoDB
 
 This directory contains formal specifications that model the high level behavior of the [distributed, cross-shard transactions protocol in MongoDB](https://github.com/mongodb/mongo/blob/master/src/mongo/db/s/README_sessions_and_transactions.md#transactions). You can interact with some models of the current specification on the web here: 
 
@@ -39,7 +39,7 @@ When a router initiates two-phase commit for a transaction, as described above, 
 
 ### Modeling the Storage/Replication Layer
 
-The current model aims to model the storage/replication layer (e.g. including abstract WiredTiger semantics) at each shard in a modular way. This is done by having `Storage` encapsulate most of the storage/replication specific logic, and [instantiating one of these modules per shard](https://github.com/muratdem/MDBTLA/blob/584d5b3f9ad635227cd3689f041953d9b07b5f51/MultiShardTxn/MultiShardTxn.tla#L116-L129). The idea is that `Storage` can be considered as as a completely independent state machine that is composed synchronously with `MultiShardTxn` via joint actions. We also use this `Storage` layer model for model-based verification, described below.
+The current model aims to model the storage/replication layer (e.g. including abstract WiredTiger semantics) at each shard in a modular way. This is done by having `Storage` encapsulate most of the storage/replication specific logic, and [instantiating one of these modules per shard](https://github.com/muratdem/MDBTLA/blob/584d5b3f9ad635227cd3689f041953d9b07b5f51/MultiShardTxn/MultiShardTxn.tla#L116-L129). The idea is that `Storage` can be considered as as a completely independent state machine that is composed synchronously with `MultiShardTxn` via joint actions. We also use this `Storage` layer model for model-based verification, described below in [Model-Based Testing](#model-based-testing).
 
 ### Cluster Timestamp Semantics
 
@@ -62,7 +62,7 @@ Currently we have also added [router specific catalog cache state](https://githu
 
 Note that we don't really model replication rollback and the semantics of different write concerns in the current model. The thought is that transactions that commit at `w:1` may abort, and so provide no semantic guarantees to clients. Also, if a transaction reads at a "local" snapshot when it starts, transaction commit at `w:majority` will require some write to commit on that shard after its timestamp ,so successful commit impies all data it read must have been majority committed (i.e. the speculative majority notion). So, we don't represent the case where a transaction reads some data that is then later rolled back.
 
-## Checking Isolation Guarantees
+## Checking Isolation
 
 Currently, we check some high level isolation safety properties of the transaction protocol specification. In MongoDB, consistency/isolation of a multi-document transaction is [determined by its read/write concern parameters](https://www.mongodb.com/docs/manual/core/transactions/), so we try to reflect those settings in our model and check them against standard isolation levels. 
 
@@ -82,14 +82,16 @@ So far we have checked small models for correctness, using the `MaxOpsPerTxn` pa
 
 ## Model-Based Testing
 
-We have also experimented with automated, model-based test case generation for checking that the WiredTiger implementation conforms to the `Storage.tla` storage interface model. Essentially, we generate WiredTiger unit test cases by computing path coverings of the reachable state space of the `Storage` model. We then use these test cases to check that the WiredTiger implementation conforms to the `Storage` model. The basic workflow to generate these test cases from the storage model is implemented in the [`trace.py`](trace.py) script e.g. to run a small model with 2 transactions and 2 keys, you can execute the following:
+We have also experimented with automated, model-based test case generation for checking that the WiredTiger implementation conforms to the `Storage.tla` storage interface model. Essentially, we generate WiredTiger unit test cases by computing path coverings of the reachable state space of the `Storage` model. We then use these test cases to check that the WiredTiger implementation conforms to the `Storage` model. 
+
+The basic workflow to generate these test cases from the storage model is implemented in the [`testgen.py`](testgen.py) script e.g. to run a small model with 2 transactions and 2 keys, you can execute the following:
 
 ```bash
 python3 testgen.py --parallel_test_split 4 --compact --constants MTxId "{t1,t2}" Keys "{k1,k2}" Timestamps "{1,2,3}" --coverage_pct 1.0
 ```
 this will generate WiredTiger unit tests files in `tests/test_txn_model_traces_*.py` files, which can be directly run against a WiredTiger build.
 
-There is also a `testrun.sh` script that executes the above test generation script, copies over the test files to a sibling `wiredtiger` build directory, and then executes all of these generated unit tests.
+There is also a `testrun.sh` script that executes the above test generation script, copies over the test files to a sibling `wiredtiger` build directory, and then executes all of these generated tests.
 
 
 <!-- | Constants | Symmetry | Invariant | Time | States | Depth | Error |
