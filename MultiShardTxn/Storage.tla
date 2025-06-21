@@ -424,8 +424,11 @@ Init ==
     /\ oldestTs = [n \in Node |-> -1]
     /\ allDurableTs = [n \in Node |-> 0]
 
+\* All ignore_prepare options. Can optionally be overwritten in configuration.
+IgnorePrepareOptions == {"false", "true", "force"}
+
 Next == 
-    \/ \E n \in Node : \E tid \in MTxId, readTs \in Timestamps, ignorePrepare \in {"false", "true", "force"} : StartTransaction(n, tid, readTs, RC, ignorePrepare)
+    \/ \E n \in Node : \E tid \in MTxId, readTs \in Timestamps, ignorePrepare \in IgnorePrepareOptions : StartTransaction(n, tid, readTs, RC, ignorePrepare)
     \/ \E n \in Node : \E tid \in MTxId, k \in Keys, v \in Values : TransactionWrite(n, tid, k, v, "false")
     \/ \E n \in Node : \E tid \in MTxId, k \in Keys, v \in (Values \cup {NoValue}) : TransactionRead(n, tid, k, v)
     \/ \E n \in Node : \E tid \in MTxId, k \in Keys : TransactionRemove(n, tid, k)
