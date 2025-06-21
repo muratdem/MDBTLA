@@ -4,7 +4,7 @@ import subprocess
 
 def compute_permissiveness(config_name):
     tlc="java -cp tla2tools-txn-ops-project.jar tlc2.TLC"
-    cmd=f"{tlc} -deadlock -workers 10 -config {config_name}.cfg -fp 1 MCMultiShardTxn.tla | tee logout"
+    cmd=f"{tlc} -deadlock -workers 10 -config models/{config_name}.cfg -fp 1 MCMultiShardTxn.tla | tee logout"
     subprocess.run(cmd, shell=True)
     subprocess.run(f"grep 'fpl' logout | sort | uniq > permissiveness_{config_name}.txt", shell=True)
 
@@ -22,10 +22,25 @@ def compute_permissiveness(config_name):
 def strict_subset_ordered(a, b):
     return set(a.keys()).issubset(set(b.keys())) and not set(b.keys()).issubset(set(a.keys()))
 
-schedules_prepare = compute_permissiveness("MCMultiShardTxn_RC_with_prepare_block")
-schedules_no_prepare = compute_permissiveness("MCMultiShardTxn_RC_no_prepare_block")
-schedules_no_prepare_no_ww = compute_permissiveness("MCMultiShardTxn_RC_no_prepare_block_or_ww")
 
+# schedules_snapshot = compute_permissiveness("MCMultiShardTxn_RC_snapshot_definition")
+# print(len(schedules_snapshot))
+# exit(0)
+
+schedules_snapshot = compute_permissiveness("MCMultiShardTxn_RC_snapshot")
+print(len(schedules_snapshot))
+exit(0)
+schedules_prepare = []
+# schedules_prepare = compute_permissiveness("MCMultiShardTxn_RC_with_prepare_block")
+# print("schedules_prepare", len(schedules_prepare))
+# exit(0)
+# schedules_no_prepare = compute_permissiveness("MCMultiShardTxn_RC_no_prepare_block")
+schedules_no_prepare = []
+# print("schedules_no_prepare", len(schedules_no_prepare))
+# exit(0)
+schedules_no_prepare_no_ww = compute_permissiveness("MCMultiShardTxn_RC_no_prepare_block_or_ww")
+print("schedules_no_prepare_no_ww", len(schedules_no_prepare_no_ww))
+exit(0)
 # Ensure one of these schedules is a strict subset of the other.
 ordered1 = strict_subset_ordered(schedules_prepare, schedules_no_prepare)
 ordered2 = strict_subset_ordered(schedules_no_prepare, schedules_no_prepare_no_ww)
