@@ -257,9 +257,15 @@ def gen_tla_json_graph(json_graph="states.json", seed=0, specname="Storage", con
             "Node": "{n}",
             "NoValue": "NoValue",
             "MaxOpsPerTxn": "2",
-            "Timestamps": "{1,2,3}"
+            "Timestamps": "{1,2,3}",
+            "IgnorePrepareOptions": '{"false"}'
         },
-        "overrides": {}
+        "overrides": {
+            "SetStableTimestamp": "FALSE",
+            "RollbackToStable": "FALSE",
+            "AbortTransaction": "FALSE",
+            # "TransactionRemove": "FALSE"
+        }
     }
 
     for a in disabled_actions:
@@ -406,6 +412,9 @@ if __name__ == '__main__':
     
     # Generate WiredTiger test case file from traces.
     trace_chunks = list(split(traces, args.parallel_test_split))
+    # Create tests directory if it doesn't exist
+    if not os.path.exists("tests"):
+        os.makedirs("tests")
     for i, chunk in enumerate(trace_chunks):
         gen_wt_test_from_traces(chunk, fname=f"tests/test_txn_model_traces_{i+1}.py", compact=args.compact, cvg_pct=COVERAGE_PCT)
 
