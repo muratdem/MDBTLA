@@ -264,7 +264,7 @@ def gen_tla_json_graph(json_graph="states.json", seed=0, specname="Storage", con
             "SetStableTimestamp": "FALSE",
             "RollbackToStable": "FALSE",
             "AbortTransaction": "FALSE",
-            # "TransactionRemove": "FALSE"
+            "TransactionRemove": "FALSE"
         }
     }
 
