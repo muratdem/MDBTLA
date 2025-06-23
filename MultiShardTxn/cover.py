@@ -72,7 +72,7 @@ def parse_json_state_graph(fpath_base="stategraph"):
         node_map[node["fp"]] = node["val"]
 
     # print(edge_actions)
-    print("Original graph:")
+    print("# Original graph:")
     print(len(G.nodes()), "nodes")
     print(len(G.edges()), "edges")
 

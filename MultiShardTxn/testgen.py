@@ -371,6 +371,7 @@ if __name__ == '__main__':
     COVERAGE_PCT = args.coverage_pct
     print(f"Computing path covering with {COVERAGE_PCT*100}% coverage.")
     covering_paths = cover.compute_path_coverings(G, target_nodes_to_cover=set(node_map_symm.keys()), cvg_pct=COVERAGE_PCT)
+    print("--------")
     print(f"Computed {len(covering_paths)} covering paths (under SYMMETRY).")
 
     # Non-symmetric path coverings.
@@ -379,7 +380,7 @@ if __name__ == '__main__':
 
     end = time.time()
 
-    print("Average path depth:", mean([len(c) for c in covering_paths]))
+    print("Average path depth:", round(mean([len(c) for c in covering_paths]), 1))
 
     traces = []
     for cpath in covering_paths:
