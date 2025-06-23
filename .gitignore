@@ -12,6 +12,7 @@ states*.json
 *-edges.json
 *-states.json
 *_symmetric.json
+stategraph*.json
 __pycache__/
 statecache/
 logout_permissive*
