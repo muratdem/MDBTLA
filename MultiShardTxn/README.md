@@ -97,6 +97,8 @@ There is also a `testrun.sh` script that executes the above test generation scri
 ```
 to generate a set of unit test cases that aim to achieve 50% state coverage of the `Storage` model, and will then run these tests against a current WiredTiger build.
 
+Note that this code also makes use of a modified build of TLC whose code lives on [this branch](https://github.com/will62794/tlaplus/tree/multi-inv-checking-et-al).
+
 
 
 
