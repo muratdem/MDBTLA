@@ -294,7 +294,7 @@ def gen_tla_json_graph(json_graph="states.json", seed=0, specname="Storage", con
         # json.dump(config, f)
         f.close()
 
-    tlc = "java -Xmx30g -cp tla2tools-json.jar tlc2.TLC -noGenerateSpecTE"
+    tlc = "java -Xmx30g -cp tla2tools-json-test.jar tlc2.TLC -noGenerateSpecTE"
     fp = 10 # use a constant FP.
     cmd = f"{tlc} -seed {seed} -dump json {json_graph} -fp {fp} -workers auto -deadlock -config {model_fname} {specname}.tla"
     print(cmd)
@@ -346,11 +346,11 @@ if __name__ == '__main__':
     # 
     now = time.time()
     if not args.use_cached_graphs:
-        gen_tla_json_graph("states.json", specname="Storage", constants=constants)
+        gen_tla_json_graph("stategraph.json", specname="Storage", constants=constants)
         print("--> Generated JSON state graph.")
 
         # Generate state graph under symmetry reduction.
-        gen_tla_json_graph("states_symmetric.json", specname="Storage", constants=constants, symmetry=True)
+        gen_tla_json_graph("stategraph_symmetric.json", specname="Storage", constants=constants, symmetry=True)
         print("--> Generated JSON state graph under symmetry reduction.")
     else:
         print("--> Using cached JSON state graphs.")
@@ -360,8 +360,8 @@ if __name__ == '__main__':
         exit(0)
 
     # Parse graphs.
-    G, node_map, edge_actions = cover.parse_json_state_graph("states.json")
-    G_symm, node_map_symm, edge_actions_symm = cover.parse_json_state_graph("states_symmetric.json")
+    G, node_map, edge_actions = cover.parse_json_state_graph(fpath_base="stategraph")
+    G_symm, node_map_symm, edge_actions_symm = cover.parse_json_state_graph(fpath_base="stategraph_symmetric")
 
     print("Num states in non-symmetric graph:", len(node_map.keys()))
     print("Num states in symmetric graph:", len(node_map_symm.keys()))
@@ -403,8 +403,8 @@ if __name__ == '__main__':
             trace["action"].append([
                 pre_state,
                 {
-                    "context": act["actionParams"], 
-                    "name": act["action"]
+                    "context": act["params"], 
+                    "name": act["act"]
                 },
                 post_state
             ])

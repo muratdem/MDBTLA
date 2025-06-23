@@ -9,6 +9,9 @@ test_txn_model_traces*.py
 states*.dot
 states*.pdf
 states*.json
+*-edges.json
+*-states.json
+*_symmetric.json
 __pycache__/
 statecache/
 logout_permissive*

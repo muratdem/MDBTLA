@@ -49,19 +49,24 @@ def sample_paths(Garg, num_paths, max_path_len, root_node):
 #         tail = edge_parts[2]
 #         G.add_edge(head, tail)
 
-def parse_json_state_graph(fpath="states.json"):
+def parse_json_state_graph(fpath_base="stategraph"):
     G = nx.DiGraph()
 
     # Stores mapping from graph edges to the action + parameters associated with
     # that transition edge.
     edge_actions = {}
 
-    fgraph = open(fpath)
+    states_fpath = fpath_base + "-states.json"
+    edges_fpath = fpath_base + "-edges.json"
+
+    fgraph = open(edges_fpath)
     json_graph = json.load(fgraph)
     for edge in json_graph["edges"]:
         G.add_edge(edge["from"], edge["to"])
         edge_actions[(edge["from"], edge["to"])] = edge
 
+    fgraph = open(states_fpath)
+    json_graph = json.load(fgraph)
     node_map = {}
     for node in json_graph["states"]:
         node_map[node["fp"]] = node["val"]
