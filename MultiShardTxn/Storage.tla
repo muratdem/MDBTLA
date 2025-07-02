@@ -425,7 +425,8 @@ Init ==
     /\ allDurableTs = [n \in Node |-> 0]
 
 \* All ignore_prepare options. Can optionally be overwritten in configuration.
-IgnorePrepareOptions == {"false", "true", "force"}
+\* IgnorePrepareOptions == {"false", "true", "force"}
+IgnorePrepareOptions == {"false"}
 
 Next == 
     \/ \E n \in Node : \E tid \in MTxId, readTs \in Timestamps, ignorePrepare \in IgnorePrepareOptions : StartTransaction(n, tid, readTs, RC, ignorePrepare)
