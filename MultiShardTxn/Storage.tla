@@ -15,16 +15,14 @@ EXTENDS Sequences, Naturals, Integers, Util, TLC
 \* 
 
 
-CONSTANT Node
-
-CONSTANTS Keys, 
-          MTxId,
-          NoValue
-
+CONSTANT Keys 
+CONSTANT MTxId
 CONSTANT Timestamps
 
-CONSTANTS RC   \* read concern
+CONSTANT NoValue
 
+CONSTANT Node
+CONSTANT RC \* read concern.
 
 VARIABLE mlog
 
