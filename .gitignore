@@ -20,3 +20,4 @@ logout_baseline*
 tla2tools-test.jar
 permissiveness_*.txt
 *_TTrace_*
+model_tests/

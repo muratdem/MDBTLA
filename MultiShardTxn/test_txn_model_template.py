@@ -5,6 +5,7 @@
 import wttest
 import wiredtiger
 from wtscenario import make_scenarios
+from helper import simulate_crash_restart
 
 class test_txn_mbt(wttest.WiredTigerTestCase):
 
@@ -59,6 +60,9 @@ class test_txn_mbt(wttest.WiredTigerTestCase):
             self.assertEquals(res, None)
             # if action_name == "TransactionRemove":
                 # lines.append("self.assertEquals(sret, 0)")
+
+    def crash(self):
+        simulate_crash_restart(self, ".", "RESTART")
 
     def begin_transaction(self, tid, sess, readTs, ignorePrepare, res_expected, err_code):
         res,sret = None,None
