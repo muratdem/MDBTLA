@@ -236,6 +236,8 @@ def make_wt_action(pre_state, action_name, action_args, post_state):
         lines = [ f"self.transaction_read(\"{tid}\", \"{action_args['k']}\", \"{action_args['v']}\", {res_expected}, \"{err_code}\")" ]
     if action_name == "TransactionRemove":
         lines = [ f"self.transaction_remove(\"{tid}\", \"{action_args['k']}\", {res_expected}, \"{err_code}\")" ]
+    if action_name == "TransactionTruncate":
+        lines = [ f"self.truncate({txn_session}, \"{action_args['k1']}\", \"{action_args['k2']}\", {res_expected}, \"{err_code}\")" ]
     if action_name == "CommitTransaction":
         lines = [ f"self.commit_transaction({txn_session}, \"{tid}\", {action_args['commitTs']}, {res_expected}, \"{err_code}\")" ]
     if action_name == "CommitPreparedTransaction":

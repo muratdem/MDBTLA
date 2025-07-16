@@ -381,6 +381,29 @@ PrepareTransaction(n, tid, prepareTs) ==
     /\ txnStatus' = [txnStatus EXCEPT ![n][tid] = STATUS_OK]
     /\ UNCHANGED <<mcommitIndex, stableTs, oldestTs, allDurableTs>>
 
+\* Truncate a range of all keys "between" k1 and k2.
+TransactionTruncate(n, tid, k1, k2) ==
+    /\ tid \in ActiveTransactions(n)
+    /\ tid \notin PreparedTransactions(n)
+    /\ ~mtxnSnapshots[n][tid]["aborted"]
+    /\ mtxnSnapshots[n][tid]["ignorePrepare"] = "false"
+    /\ \/ /\ ~WriteConflictExists(n, tid, k1)
+          /\ TxnRead(n, tid, k1) # NoValue 
+          \* Update the transaction's snapshot data.
+          /\ mtxnSnapshots' = [mtxnSnapshots EXCEPT ![n][tid]["writeSet"] = @ \cup {k1}, 
+                                                    ![n][tid].data[k1] = NoValue]
+          /\ txnStatus' = [txnStatus EXCEPT ![n][tid] = STATUS_OK]
+       \* If key does not exist in your snapshot then you can't remove it.
+       \/ /\ ~WriteConflictExists(n, tid, k1)
+          /\ TxnRead(n, tid, k1) = NoValue
+          /\ txnStatus' = [txnStatus EXCEPT ![n][tid] = STATUS_NOTFOUND]
+          /\ UNCHANGED mtxnSnapshots
+       \/ /\ WriteConflictExists(n, tid, k1)
+          \* If there is a write conflict, the transaction must roll back.
+          /\ txnStatus' = [txnStatus EXCEPT ![n][tid] = STATUS_ROLLBACK]
+          /\ mtxnSnapshots' = [mtxnSnapshots EXCEPT ![n][tid]["aborted"] = TRUE]
+    /\ UNCHANGED <<mlog, mcommitIndex, stableTs, oldestTs, allDurableTs>>
+
 AbortTransaction(n, tid) == 
     /\ tid \in ActiveTransactions(n)
     /\ mtxnSnapshots' = [mtxnSnapshots EXCEPT ![n][tid]["active"] = FALSE, ![n][tid]["aborted"] = TRUE]
@@ -431,6 +454,7 @@ Next ==
     \/ \E n \in Node : \E tid \in MTxId, k \in Keys, v \in Values : TransactionWrite(n, tid, k, v, "false")
     \/ \E n \in Node : \E tid \in MTxId, k \in Keys, v \in (Values \cup {NoValue}) : TransactionRead(n, tid, k, v)
     \/ \E n \in Node : \E tid \in MTxId, k \in Keys : TransactionRemove(n, tid, k)
+    \/ \E n \in Node : \E tid \in MTxId, k1,k2 \in Keys : TransactionTruncate(n, tid, k1, k2)
     \/ \E n \in Node : \E tid \in MTxId, prepareTs \in Timestamps : PrepareTransaction(n, tid, prepareTs)
     \/ \E n \in Node : \E tid \in MTxId, commitTs \in Timestamps : CommitTransaction(n, tid, commitTs)
     \/ \E n \in Node : \E tid \in MTxId, commitTs, durableTs \in Timestamps : CommitPreparedTransaction(n, tid, commitTs, durableTs)

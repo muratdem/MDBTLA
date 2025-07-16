@@ -153,3 +153,22 @@ class test_txn_mbt(wttest.WiredTigerTestCase):
         except wiredtiger.WiredTigerError as e:
             res = e
         self.check_response(res, err_code)
+
+    def truncate(self, sess, key1, key2, res_expected, err_code):
+        lo_cursor = sess.open_cursor(self.uri)
+        hi_cursor = sess.open_cursor(self.uri)
+        lo_cursor.set_key(key1)
+        hi_cursor.set_key(key2)
+        lo_cursor.search()
+        hi_cursor.search()
+        try:
+            err = sess.truncate(None, lo_cursor, hi_cursor, None)
+        except wiredtiger.WiredTigerError as e:
+            if wiredtiger.wiredtiger_strerror(wiredtiger.WT_ROLLBACK) in str(e):
+                err = WT_ROLLBACK
+            elif wiredtiger.wiredtiger_strerror(wiredtiger.WT_PREPARE_CONFLICT) in str(e):
+                err = WT_PREPARE_CONFLICT
+            else:
+                raise e
+        lo_cursor.close()
+        hi_cursor.close()
