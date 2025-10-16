@@ -328,6 +328,12 @@ TransactionRemove(n, tid, k) ==
           /\ mtxnSnapshots' = [mtxnSnapshots EXCEPT ![n][tid]["aborted"] = TRUE]
     /\ UNCHANGED <<mlog, mcommitIndex, stableTs, oldestTs, allDurableTs>>
 
+
+\* Commits a running, active transaction whose transaction id is 'tid' and
+\* commit timestamp is 'commitTs'. This terminates the transaction and persists
+\* all of the transaction's write to the key-value store. Transactions cannot
+\* commit at a timestamp older than the active read timestamp of any currently
+\* running transaction. 
 CommitTransaction(n, tid, commitTs) == 
     \* TODO: Eventually make this more permissive and explictly check errors on
     \* invalid commit timestamps w.r.t stable timestamp (?)
@@ -337,6 +343,7 @@ CommitTransaction(n, tid, commitTs) ==
     /\ ~mtxnSnapshots[n][tid]["aborted"]
     \* Must be greater than the newest known commit timestamp.
     /\ (ActiveReadTimestamps(n) \cup CommitTimestamps(n)) # {} => commitTs > Max(ActiveReadTimestamps(n) \cup CommitTimestamps(n))
+    \* /\ ActiveReadTimestamps(n) # {} => commitTs > Max(ActiveReadTimestamps(n)) \* TODO: Check this condition against WT behavior.
     \* Commit the transaction on the KV store and write all updated keys back to the log.
     /\ mlog' = [mlog EXCEPT ![n] = CommitTxnToLog(n, tid, commitTs)]
     /\ mtxnSnapshots' = [mtxnSnapshots EXCEPT ![n][tid]["active"] = FALSE, ![n][tid]["committed"] = TRUE]
